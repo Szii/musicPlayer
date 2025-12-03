@@ -16,6 +16,7 @@ import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 
@@ -23,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 public class AudioPlayerCore {
     private AudioPlayerManager playerManager;
     private AudioPlayer player;
-    private AudioFormat format;
     private SourceDataLine speakerLine;
 
     public AudioPlayerCore() {
@@ -38,61 +38,74 @@ public class AudioPlayerCore {
         playerManager = new DefaultAudioPlayerManager();
         playerManager.getConfiguration().setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_LE);
         playerManager.registerSourceManager(new YoutubeAudioSourceManager());
-
         player = playerManager.createPlayer();
-        format = new AudioFormat(48000f, 16, 2, true, false);
+        AudioFormat format = new AudioFormat(48000f, 16, 2, true, false);
         speakerLine = AudioSystem.getSourceDataLine(format);
         speakerLine.open(format);
         speakerLine.start();
     }
 
-    private void loadTrack(String ytLink) {
-        playerManager.loadItem(ytLink, new AudioLoadResultHandler() {
-            final AudioTrack[] loadedTrack = new AudioTrack[1];
+    public void loadTrack(String ytLink) throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
 
+        playerManager.loadItem(ytLink, new AudioLoadResultHandler() {
             @Override
             public void trackLoaded(AudioTrack track) {
-                loadedTrack[0] = track;
+                log.debug("Loading track with original title: {}", track.getInfo().title);
                 player.playTrack(track);
+                latch.countDown();
             }
 
             @Override
             public void playlistLoaded(AudioPlaylist playlist) {
-                loadedTrack[0] = playlist.getTracks().getFirst();
-                player.playTrack(loadedTrack[0]);
+                log.debug("Loading playlist: {}", playlist.getName());
+                AudioTrack first = playlist.getTracks().getFirst();
+                log.debug("Playing only first entry");
+                player.playTrack(first);
+                latch.countDown();
             }
 
             @Override
             public void noMatches() {
                 log.warn("No track found for {}", ytLink);
+                latch.countDown();
             }
 
             @Override
             public void loadFailed(FriendlyException e) {
-                log.error(e.getMessage());
+                log.debug("Loading failed for link {}", ytLink);
+                log.error(e.getMessage(), e);
+                latch.countDown();
             }
         });
+
+        if (!latch.await(10, TimeUnit.SECONDS)) {
+            log.warn("Timeout while loading track with link {}", ytLink);
+            return;
+        }
+
+        if (player.getPlayingTrack() == null) {
+            log.warn("Cannot get playing track, omitting playing");
+            return;
+        }
+
+        play();
     }
 
-    public void playTrack(String ytLink) throws InterruptedException {
-        loadTrack(ytLink);
-
-        while (true) {
+    private void play() throws InterruptedException {
+        while (player.getPlayingTrack() != null) {
             AudioFrame frame = player.provide();
             if (frame != null) {
                 byte[] data = frame.getData();
                 speakerLine.write(data, 0, data.length);
             } else {
                 TimeUnit.MILLISECONDS.sleep(10);
-                if (player.getPlayingTrack() == null) break;
             }
         }
-        clearMemory();
-    }
 
-    private void clearMemory() {
+        log.info("Playback finished");
+
         speakerLine.drain();
         speakerLine.close();
-        playerManager.shutdown();
     }
 }
