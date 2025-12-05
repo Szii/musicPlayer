@@ -1,0 +1,38 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="AliAccessStaticViaInstance" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliArrayNamingShouldHaveBracket" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliControlFlowStatementWithoutBraces" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliDeprecation" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliEqualsAvoidNull" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliLongLiteralsEndingWithLowercaseL" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliMissingOverrideAnnotation" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="AliWrapperTypeEquality" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="MapOrSetKeyShouldOverrideHashCodeEquals" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="VulnerableLibrariesLocal" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="isIgnoringEnabled" value="true" />
+      <option name="ignoredModules">
+        <list>
+          <option value="musicPlayer" />
+          <option value="musicPlayer" />
+          <option value="musicPlayer" />
+        </list>
+      </option>
+      <option name="ignoredPackages">
+        <list>
+          <option value="commons-codec:commons-codec:1.11" />
+          <option value="commons-io:commons-io:2.13.0" />
+          <option value="org.apache.commons:commons-lang3:3.17.0" />
+        </list>
+      </option>
+      <option name="ignoredReasons">
+        <list>
+          <option value="Not exploitable" />
+          <option value="Not exploitable" />
+          <option value="Not exploitable" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

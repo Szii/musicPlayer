@@ -1,0 +1,34 @@
+package org.dnd.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Entity
+@Table(name = "boards")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BoardEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "selected_track_id")
+    private TrackEntity selectedTrack;
+
+    @Column(nullable = false)
+    private int volume;
+
+    @Column(nullable = false)
+    private boolean repeat = false;
+
+    @Column(nullable = false)
+    private int currentPosition;
+    
+    @Column(nullable = false)
+    private boolean overplay = false;
+}
+

@@ -1,7 +1,7 @@
 package org.dnd;
 
 public class Program {
-    static final String ytLink = "https://www.youtube.com/watch?v=KQxXUGb78UY&list=RDKQxXUGb78UY";
+    static final String ytLink = "https://www.youtube.com/watch?v=FrWuCPgsp_c&list=RDFrWuCPgsp_c&start_radio=1";
 
     public void run() {
         AudioPlayerCore core = new AudioPlayerCore();
