@@ -290,6 +290,11 @@ components:
           type: string
           description: Name of the playlist or group
           example: "My Favorites"
+        ownerId:
+          type: integer
+          format: int64
+          description: owner id of group
+          example: 1
 
     Board:
       type: object
@@ -327,6 +332,11 @@ components:
           type: boolean
           description: Overplay/overlay mode
           example: false
+        ownerId:
+          type: integer
+          format: int64
+          description: owner id of group
+          example: 1
 
     BoardCreateRequest:
       type: object
@@ -853,6 +863,7 @@ paths:
       operationId: listGroupShares
       parameters:
         - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/UserId'
       responses:
         '200':
           description: List of users the group is shared with

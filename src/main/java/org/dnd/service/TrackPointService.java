@@ -1,0 +1,66 @@
+package org.dnd.service;
+
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.dnd.api.model.Track;
+import org.dnd.api.model.TrackPoint;
+import org.dnd.api.model.TrackPointRequest;
+import org.dnd.exception.NotFoundException;
+import org.dnd.mappers.TrackMapper;
+import org.dnd.mappers.TrackPointMapper;
+import org.dnd.model.TrackEntity;
+import org.dnd.model.TrackPointEntity;
+import org.dnd.repository.TrackPointRepository;
+import org.dnd.repository.TrackRepository;
+import org.springframework.stereotype.Service;
+
+@AllArgsConstructor
+@Service
+@Slf4j
+public class TrackPointService {
+    private final TrackRepository trackRepository;
+    private final TrackPointMapper trackPointMapper;
+    private final TrackPointRepository trackPointRepository;
+    private final TrackMapper trackMapper;
+
+    public void deleteTrackPoint(Long trackId, Long pointId) {
+        if (trackPointRepository.findByIdAndTrack_Id(pointId, trackId).isEmpty()) {
+            log.warn("Track point with id {} not found for track {}", pointId, trackId);
+            throw new NotFoundException(String.format("Track point with id %d not found for track %d", pointId, trackId));
+        }
+        log.debug("Deleting track point with id {} for track {}", pointId, trackId);
+        trackPointRepository.deleteByIdAndTrack_Id(pointId, trackId);
+    }
+
+    public Track updateTrackPoint(Long trackId, Long pointId, TrackPointRequest trackPoint) {
+        TrackEntity track = trackRepository.findById(trackId)
+                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+
+        TrackPointEntity entity = trackPointRepository.findByIdAndTrack_Id(pointId, trackId)
+                .orElseThrow(() -> new NotFoundException(String.format("Track point with id %d not found", pointId)));
+
+        trackPointMapper.updateFromRequest(trackPoint, entity);
+        trackPointRepository.save(entity);
+        log.debug("Updated track point with id {} for track {}", pointId, trackId);
+
+        return trackMapper.toDto(track);
+    }
+
+    public Track createTrackPoint(Long trackId, TrackPointRequest trackPoint) {
+        TrackEntity track = trackRepository.findById(trackId)
+                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+
+        TrackPointEntity entity = trackPointMapper.fromRequest(trackPoint, track);
+        trackPointRepository.save(entity);
+        log.debug("Created track point with id {} for track {}", entity.getId(), trackId);
+
+        return trackMapper.toDto(track);
+    }
+
+    public TrackPoint getTrackPoint(Long trackId, Long pointId) {
+        TrackPointEntity entity = trackPointRepository.findByIdAndTrack_Id(pointId, trackId)
+                .orElseThrow(() -> new NotFoundException(String.format("Track point with id %d not found", pointId)));
+        log.debug("Retrieved track point with id {} for track {}", entity.getId(), trackId);
+        return trackPointMapper.toDto(entity);
+    }
+}

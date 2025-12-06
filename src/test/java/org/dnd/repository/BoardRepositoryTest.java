@@ -52,5 +52,10 @@ class BoardRepositoryTest extends DatabaseBase {
 
         assertThat(boards).hasSize(2);
         assertThat(boardRepository.existsByIdAndOwner_Id(board1.getId(), owner.getId())).isTrue();
+
+        BoardEntity savedBoard1 = boards.stream()
+                .filter(b -> b.getVolume() == 50)
+                .findFirst()
+                .orElseThrow();
     }
 }

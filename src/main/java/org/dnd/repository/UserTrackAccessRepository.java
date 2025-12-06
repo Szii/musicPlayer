@@ -16,6 +16,8 @@ public interface UserTrackAccessRepository extends JpaRepository<UserTrackAccess
 
     Optional<UserTrackAccessEntity> findByUser_IdAndTrack_Id(Long userId, Long trackId);
 
+    Optional<UserTrackAccessEntity> findByUser_IdAndGroup_Id(Long userId, Long trackId);
+
     void deleteByUser_IdAndTrack_Id(Long userId, Long trackId);
 
     void deleteByTrack_Id(Long trackId);

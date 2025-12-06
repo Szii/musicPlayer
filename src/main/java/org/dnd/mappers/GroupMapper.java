@@ -1,6 +1,7 @@
 package org.dnd.mappers;
 
 import org.dnd.api.model.Group;
+import org.dnd.api.model.GroupShare;
 import org.dnd.model.GroupEntity;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -26,4 +27,6 @@ public interface GroupMapper {
     List<GroupEntity> toEntities(List<Group> dtos);
 
     List<Group> toDtos(List<GroupEntity> entities);
+
+    GroupShare toShareDto(GroupEntity entity);
 }
