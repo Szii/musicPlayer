@@ -1,5 +1,8 @@
 package org.dnd;
 
+import org.springframework.stereotype.Component;
+
+@Component
 public class Program {
     static final String ytLink = "https://www.youtube.com/watch?v=FrWuCPgsp_c&list=RDFrWuCPgsp_c&start_radio=1";
 
