@@ -4,9 +4,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.dnd.api.MusicTracksApi;
 import org.dnd.api.model.*;
+import org.dnd.service.ShareService;
 import org.dnd.service.TrackPointService;
 import org.dnd.service.TrackService;
-import org.dnd.service.TrackShareService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +23,7 @@ public class TrackController implements MusicTracksApi {
 
     private final TrackService trackService;
 
-    private final TrackShareService trackShareService;
+    private final ShareService shareService;
 
     private final TrackPointService trackPointService;
 
@@ -67,18 +67,18 @@ public class TrackController implements MusicTracksApi {
 
     @Override
     public ResponseEntity<List<TrackShare>> listTrackShares(Long trackId) throws Exception {
-        return ResponseEntity.ok().body(trackShareService.getTrackShares(trackId));
+        return ResponseEntity.ok().body(shareService.getTrackShares(trackId));
     }
 
     @Override
     public ResponseEntity<TrackShare> shareTrack(Long trackId, TrackShareRequest trackShareRequest) throws Exception {
-        trackShareService.shareTrack(trackId, trackShareRequest.getUserId());
+        shareService.shareTrack(trackId, trackShareRequest.getUserId());
         return ResponseEntity.ok().build();
     }
 
     @Override
     public ResponseEntity<Void> unshareTrack(Long trackId, Long userId) throws Exception {
-        trackShareService.unshareTrack(trackId, userId);
+        shareService.unshareTrack(trackId, userId);
         return ResponseEntity.ok().build();
     }
 

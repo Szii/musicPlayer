@@ -8,7 +8,7 @@ import org.dnd.api.model.GroupRequest;
 import org.dnd.api.model.GroupShare;
 import org.dnd.api.model.GroupShareRequest;
 import org.dnd.service.GroupService;
-import org.dnd.service.TrackShareService;
+import org.dnd.service.ShareService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GroupController implements MusicGroupsApi {
     private final GroupService groupService;
-    private final TrackShareService trackShareService;
+    private final ShareService shareService;
 
     @Override
     public ResponseEntity<List<Group>> getUserGroups(Long userId) {
@@ -47,19 +47,19 @@ public class GroupController implements MusicGroupsApi {
     }
 
     @Override
-    public ResponseEntity<List<GroupShare>> listGroupShares(Long groupId, Long userId) {
-        return ResponseEntity.ok(trackShareService.getGroupShares(groupId, userId));
+    public ResponseEntity<List<GroupShare>> listGroupShares(Long groupId) {
+        return ResponseEntity.ok(shareService.getGroupShares(groupId));
     }
 
     @Override
     public ResponseEntity<GroupShare> shareGroup(Long groupId, GroupShareRequest groupShareRequest) {
-        trackShareService.shareGroup(groupId, groupShareRequest.getUserId());
+        shareService.shareGroup(groupId, groupShareRequest.getUserId());
         return ResponseEntity.ok().build();
     }
 
     @Override
     public ResponseEntity<Void> unshareGroup(Long groupId, Long userId) {
-        trackShareService.unshareGroup(groupId, userId);
+        shareService.unshareGroup(groupId, userId);
         return ResponseEntity.ok().build();
     }
 }

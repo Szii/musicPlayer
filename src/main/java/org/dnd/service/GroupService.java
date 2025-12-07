@@ -4,12 +4,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Group;
 import org.dnd.api.model.GroupRequest;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.mappers.GroupMapper;
 import org.dnd.model.GroupEntity;
 import org.dnd.model.UserEntity;
 import org.dnd.repository.GroupRepository;
 import org.dnd.repository.UserRepository;
+import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -23,6 +25,9 @@ public class GroupService {
     private final GroupMapper groupMapper;
 
     public List<Group> getUserGroups(Long userId) {
+        if (!userId.equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("You can only view your own groups");
+        }
         log.debug("Getting groups for user with id {}", userId);
         return groupMapper.toDtos(groupRepository.findAccessibleGroupsForUser(userId));
     }

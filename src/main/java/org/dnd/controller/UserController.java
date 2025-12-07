@@ -35,8 +35,6 @@ public class UserController implements UsersApi {
 
     @Override
     public ResponseEntity<User> getCurrentUser() {
-        // implement getting user id through security context
-        Long currentUserId = 1L;
-        return ResponseEntity.ok(userService.getCurrentUser(currentUserId));
+        return ResponseEntity.ok(userService.getCurrentUser());
     }
 }

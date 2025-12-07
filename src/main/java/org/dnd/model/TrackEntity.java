@@ -39,8 +39,9 @@ public class TrackEntity {
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TrackPointEntity> trackPoints = new ArrayList<>();
 
-    @OneToMany(mappedBy = "track", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserTrackAccessEntity> userAccesses = new ArrayList<>();
-
+    @OneToMany(mappedBy = "track", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserTrackShareEntity> shares = new ArrayList<>();
 }
+
 

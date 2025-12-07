@@ -6,11 +6,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.mappers.TrackMapper;
 import org.dnd.model.TrackEntity;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
-import org.dnd.repository.UserTrackAccessRepository;
+import org.dnd.utils.SecurityUtils;
 import org.mapstruct.factory.Mappers;
 import org.springframework.stereotype.Service;
 
@@ -23,18 +24,22 @@ import java.util.stream.Collectors;
 public class TrackService {
     private final TrackRepository trackRepository;
 
-    private final UserTrackAccessRepository userTrackAccessRepository;
-
     private final UserRepository userRepository;
 
     TrackMapper mapper = Mappers.getMapper(TrackMapper.class);
 
     public void deleteTrack(Long trackId) {
-        trackRepository.deleteById(trackId);
+        TrackEntity track = trackRepository.findById(trackId)
+                .orElseThrow(() -> new org.dnd.exception.NotFoundException(String.format("Track with id %d not found", trackId)));
+        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("You can only delete tracks you own");
+        }
+        trackRepository.delete(track);
     }
 
     public Track addTrack(TrackRequest trackRequest) {
         log.debug("Adding track {}", trackRequest);
+
         return mapper.toDto(trackRepository.save(mapper.toEntity(trackRequest)));
     }
 
@@ -43,6 +48,9 @@ public class TrackService {
         log.debug("Updating track with id {}", trackId);
         TrackEntity entity = trackRepository.findById(trackId)
                 .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+        if (!entity.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("You can only update tracks you own");
+        }
         mapper.updateTrackFromRequest(request, entity);
         return mapper.toDto(trackRepository.save(entity));
     }

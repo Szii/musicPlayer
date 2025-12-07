@@ -24,6 +24,10 @@ public class BoardController implements MusicBoardsApi {
 
     @Override
     public ResponseEntity<List<Board>> getUserBoards(Long userId) {
+        List<Board> result = boardService.getUserBoards(userId);
+        if (result.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
         return ResponseEntity.ok(boardService.getUserBoards(userId));
     }
 

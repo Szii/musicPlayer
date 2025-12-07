@@ -19,9 +19,9 @@ public interface GroupRepository extends JpaRepository<GroupEntity, Long> {
     @Query("""
             select distinct g
             from GroupEntity g
-            left join g.userAccesses uga
+            left join g.shares gs
             where g.owner.id = :userId
-               or uga.user.id = :userId
+               or gs.user.id = :userId
             """)
     List<GroupEntity> findAccessibleGroupsForUser(@Param("userId") Long userId);
 }

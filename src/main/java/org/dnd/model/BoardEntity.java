@@ -22,15 +22,15 @@ public class BoardEntity {
     @Column(nullable = false)
     private int volume;
 
+    @Column(nullable = false)
+    private String name;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "owner_id", nullable = false)
     private UserEntity owner;
 
     @Column(nullable = false)
     private boolean repeat = false;
-
-    @Column(nullable = false)
-    private int currentPosition;
 
     @Column(nullable = false)
     private boolean overplay = false;

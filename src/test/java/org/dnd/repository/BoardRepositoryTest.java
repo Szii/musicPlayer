@@ -35,14 +35,14 @@ class BoardRepositoryTest extends DatabaseBase {
         board1.setOwner(owner);
         board1.setVolume(50);
         board1.setRepeat(false);
-        board1.setCurrentPosition(0);
+        board1.setName("Board 1");
         board1.setOverplay(false);
 
         BoardEntity board2 = new BoardEntity();
         board2.setOwner(owner);
+        board2.setName("Board 2");
         board2.setVolume(80);
         board2.setRepeat(true);
-        board2.setCurrentPosition(10);
         board2.setOverplay(true);
 
         boardRepository.save(board1);

@@ -1,17 +1,17 @@
 package org.dnd.service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dnd.api.model.AuthResponse;
-import org.dnd.api.model.User;
-import org.dnd.api.model.UserLoginRequest;
-import org.dnd.api.model.UserRegisterRequest;
+import org.dnd.api.model.*;
 import org.dnd.exception.ConflictException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.exception.UnauthorizedException;
 import org.dnd.mappers.UserMapper;
 import org.dnd.model.UserEntity;
 import org.dnd.repository.UserRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +22,8 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
+
 
     public AuthResponse registerUser(UserRegisterRequest request) {
         log.debug("Registering new user with name: {}", request.getName());
@@ -50,24 +52,28 @@ public class UserService {
         return createAuthResponse(user);
     }
 
-    public User getCurrentUser(Long userId) {
-        log.debug("Fetching current user with id: {}", userId);
+    @Transactional
+    public User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserAuthDTO userAuth = (UserAuthDTO) authentication.getPrincipal();
 
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
+        UserEntity user = userRepository.findById(userAuth.getId())
+                .orElseThrow(() -> new NotFoundException("User not found"));
 
         return userMapper.toDto(user);
     }
 
+
     private AuthResponse createAuthResponse(UserEntity user) {
         AuthResponse response = new AuthResponse();
         response.setUser(userMapper.toDto(user));
-        response.setToken(generateToken(user));
+        response.setToken(generateToken(userMapper.toAuthDto(user))); // Updated to use auth DTO
         return response;
     }
 
-    private String generateToken(UserEntity user) {
-        // implement token generation
-        return "generated.jwt.token";
+
+    private String generateToken(UserAuthDTO user) {
+        return jwtService.generateToken(user);
     }
+
 }

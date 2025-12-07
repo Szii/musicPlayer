@@ -118,6 +118,18 @@ components:
           description: Plain-text password to be checked on the server
           example: "secret123"
 
+    UserAuthDTO:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+
     AuthResponse:
       type: object
       description: Authentication response with user details and token
@@ -295,6 +307,11 @@ components:
           format: int64
           description: owner id of group
           example: 1
+        tracks:
+          type: array
+          description: Tracks in this group
+          items:
+            $ref: '#/components/schemas/Track'
 
     Board:
       type: object
@@ -342,7 +359,7 @@ components:
       type: object
       description: Request to create a new board
       required:
-        - name
+        []
       properties:
         name:
           type: string
@@ -377,6 +394,10 @@ components:
           minimum: 0
           maximum: 100
           example: 50
+        name:
+          type: string
+          description: Name of the board
+          example: "Default Playback"
         repeat:
           type: boolean
           description: Repeat playback mode
@@ -863,7 +884,6 @@ paths:
       operationId: listGroupShares
       parameters:
         - $ref: '#/components/parameters/GroupId'
-        - $ref: '#/components/parameters/UserId'
       responses:
         '200':
           description: List of users the group is shared with

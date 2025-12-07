@@ -16,7 +16,7 @@ public interface TrackMapper {
 
     @Mapping(target = "group", ignore = true)
     @Mapping(target = "owner", ignore = true)
-    @Mapping(target = "userAccesses", ignore = true)
+    @Mapping(target = "shares", ignore = true)
     TrackEntity toEntity(Track dto);
 
     @Mapping(target = "id", ignore = true)
@@ -24,7 +24,7 @@ public interface TrackMapper {
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "duration", ignore = true)
     @Mapping(target = "trackPoints", ignore = true)
-    @Mapping(target = "userAccesses", ignore = true)
+    @Mapping(target = "shares", ignore = true)
     TrackEntity toEntity(TrackRequest request);
 
     @Mapping(target = "ownerId", expression = "java(entity.getOwner() != null ? entity.getOwner().getId() : null)")

@@ -8,11 +8,11 @@ import lombok.NoArgsConstructor;
 import java.util.ArrayList;
 import java.util.List;
 
+@Entity
 @Table(name = "groups")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
 public class GroupEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,7 +28,9 @@ public class GroupEntity {
     @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TrackEntity> tracks = new ArrayList<>();
 
-    @OneToMany(mappedBy = "group", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserTrackAccessEntity> userAccesses = new ArrayList<>();
+    @OneToMany(mappedBy = "group", fetch = FetchType.LAZY,
+            cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<UserGroupShareEntity> shares = new ArrayList<>();
 }
+
 
