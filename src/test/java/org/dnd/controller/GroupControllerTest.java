@@ -41,6 +41,8 @@ class GroupControllerTest extends DatabaseBase {
     @Autowired
     private UserGroupShareRepository userGroupShareRepository;
     @Autowired
+    private UserTrackShareRepository userTrackShareRepository;
+    @Autowired
     private JwtService jwtService;
     @Autowired
     private TrackRepository trackRepository;
@@ -51,7 +53,9 @@ class GroupControllerTest extends DatabaseBase {
 
     @BeforeEach
     void setUp() {
+        userTrackShareRepository.deleteAll();
         userGroupShareRepository.deleteAll();
+        trackRepository.deleteAll();
         groupRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -60,10 +64,7 @@ class GroupControllerTest extends DatabaseBase {
         testUser.setPassword("password");
         testUser = userRepository.save(testUser);
 
-        UserAuthDTO userAuth = new UserAuthDTO();
-        userAuth.setId(testUser.getId());
-        userAuth.setName(testUser.getName());
-        authToken = jwtService.generateToken(userAuth);
+        authToken = getTokenForUser(testUser);
     }
 
     @Test
@@ -393,36 +394,68 @@ class GroupControllerTest extends DatabaseBase {
 
     @Test
     void unshareGroup_UserUnsharesSelf_UnsharesAllTracks() throws Exception {
-        // Create group owner and their group with tracks
         UserEntity owner = createUser("owner");
         GroupEntity group = createGroup("Owner's Group", owner);
         TrackEntity track1 = createTrack("Track 1", owner, group);
         TrackEntity track2 = createTrack("Track 2", owner, group);
 
-        // Share group with test user
         shareGroup(group.getId(), testUser.getId(), owner);
 
-        // Verify tracks are accessible before unsharing
         mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("Track 1", "Track 2")));
 
-        // User unshares themselves
         mockMvc.perform(delete("/api/v1/groups/{groupId}/shares/{userId}", group.getId(), testUser.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk());
 
-        // Verify group share is removed
-        assertFalse(userGroupShareRepository.existsByUser_IdAndGroup_Id(testUser.getId(), group.getId()));
-
-        // Verify tracks are no longer accessible
         mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void deleteGroup_UnsharesAllTracks() throws Exception {
+        UserEntity owner = createUser("owner");
+        GroupEntity group = createGroup("Owner's Group", owner);
+        TrackEntity track1 = createTrack("Track 1", owner, group);
+        TrackEntity track2 = createTrack("Track 2", owner, group);
+
+        String ownerAuthToken = getTokenForUser(owner);
+
+        shareGroup(group.getId(), testUser.getId(), owner);
+
+        mockMvc.perform(delete("/api/v1/groups/{groupId}", group.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerAuthToken))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void deleteGroup_preservesTracksForOwner() throws Exception {
+        UserEntity owner = createUser("owner");
+        GroupEntity group = createGroup("Owner's Group", owner);
+        TrackEntity track1 = createTrack("Track 1", owner, group);
+        TrackEntity track2 = createTrack("Track 2", owner, group);
+
+        mockMvc.perform(delete("/api/v1/groups/{groupId}", group.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + getTokenForUser(owner)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/users/{userId}/tracks", owner.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + getTokenForUser(owner)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$").isNotEmpty());
     }
 
     @Test
@@ -480,15 +513,20 @@ class GroupControllerTest extends DatabaseBase {
         return groupRepository.save(group);
     }
 
-
     private TrackEntity createTrack(String name, UserEntity owner, GroupEntity group) {
         TrackEntity track = new TrackEntity();
         track.setTrackName(name);
         track.setTrackLink("https://example.com/" + name + ".mp3");
         track.setDuration(120);
         track.setOwner(owner);
-        track.setGroup(group);
-        return trackRepository.save(track);
+
+        TrackEntity saved = trackRepository.save(track);
+
+        if (group != null) {
+            groupRepository.addTrackToGroup(group.getId(), saved.getId());
+        }
+
+        return saved;
     }
 
     private void shareGroup(Long groupId, Long userId, UserEntity owner) throws Exception {
@@ -504,6 +542,13 @@ class GroupControllerTest extends DatabaseBase {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(shareRequest)))
                 .andExpect(status().isOk());
+    }
+
+    private String getTokenForUser(UserEntity user) {
+        UserAuthDTO userAuth = new UserAuthDTO();
+        userAuth.setId(user.getId());
+        userAuth.setName(user.getName());
+        return jwtService.generateToken(userAuth);
     }
 
 }

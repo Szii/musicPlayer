@@ -3,7 +3,10 @@ package org.dnd.mappers;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackShare;
+import org.dnd.api.model.User;
 import org.dnd.model.TrackEntity;
+import org.dnd.model.UserEntity;
+import org.dnd.model.UserTrackShareEntity;
 import org.mapstruct.*;
 
 import java.util.List;
@@ -13,37 +16,44 @@ import java.util.List;
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface TrackMapper {
-
-    @Mapping(target = "group", ignore = true)
+    @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "shares", ignore = true)
+    @Mapping(target = "trackPoints", ignore = true)
     TrackEntity toEntity(Track dto);
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "group", ignore = true)
+    @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
-    @Mapping(target = "duration", ignore = true)
     @Mapping(target = "trackPoints", ignore = true)
     @Mapping(target = "shares", ignore = true)
     TrackEntity toEntity(TrackRequest request);
 
     @Mapping(target = "ownerId", expression = "java(entity.getOwner() != null ? entity.getOwner().getId() : null)")
-    @Mapping(target = "groupId", expression = "java(entity.getGroup() != null ? entity.getGroup().getId() : null)")
+    @Mapping(target = "groupIds", expression = "java(entity.getGroups() == null ? java.util.List.of() : entity.getGroups().stream().map(org.dnd.model.GroupEntity::getId).toList())")
     Track toDto(TrackEntity entity);
 
     List<TrackEntity> toEntities(List<Track> dtos);
 
     List<Track> toDtos(List<TrackEntity> entities);
 
+    default User toUserDto(UserEntity entity) {
+        if (entity == null) return null;
+        return new User()
+                .id(entity.getId())
+                .name(entity.getName());
+    }
 
-    TrackShare toShareDto(TrackEntity entity);
+    @Mapping(target = "user", expression = "java(toUserDto(entity.getUser()))")
+    TrackShare toTrackShareDto(UserTrackShareEntity entity);
 
-
-    @BeanMapping(nullValuePropertyMappingStrategy =
-            NullValuePropertyMappingStrategy.IGNORE)
-    void updateTrackFromRequest(
-            TrackRequest request,
-            @MappingTarget TrackEntity entity);
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "groups", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "trackPoints", ignore = true)
+    @Mapping(target = "shares", ignore = true)
+    void updateTrackFromRequest(TrackRequest request, @MappingTarget TrackEntity entity);
 }
+
 
 

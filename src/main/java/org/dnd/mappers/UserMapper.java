@@ -22,8 +22,8 @@ public interface UserMapper {
 
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "tracks", ignore = true)
-    @Mapping(target = "groups", ignore = true)
+    @Mapping(target = "ownedTracks", ignore = true)
+    @Mapping(target = "ownedGroups", ignore = true)
     @Mapping(target = "boards", ignore = true)
     @Mapping(target = "trackShares", ignore = true)
     @Mapping(target = "groupShares", ignore = true)

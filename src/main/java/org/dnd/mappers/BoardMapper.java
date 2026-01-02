@@ -27,7 +27,7 @@ public interface BoardMapper {
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "selectedTrack.owner", ignore = true)
-    @Mapping(target = "selectedTrack.group", ignore = true)
+    @Mapping(target = "selectedTrack.groups", ignore = true)
     @Mapping(target = "selectedTrack.shares", ignore = true)
     void updateBoardFromRequest(BoardUpdateRequest request, @MappingTarget BoardEntity entity);
 

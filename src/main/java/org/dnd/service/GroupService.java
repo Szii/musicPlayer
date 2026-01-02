@@ -23,6 +23,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupMapper groupMapper;
+    private final ShareService shareService;
 
     public List<Group> getUserGroups(Long userId) {
         if (!userId.equals(SecurityUtils.getCurrentUserId())) {
@@ -46,9 +47,16 @@ public class GroupService {
 
     public void deleteGroup(Long groupId) {
         log.debug("Deleting group with id {}", groupId);
-        if (!groupRepository.existsById(groupId)) {
-            throw new NotFoundException(String.format("Group with id %d not found", groupId));
+
+        GroupEntity group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
+
+        if (!group.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("You can only delete your own groups");
         }
+
+        group.getShares().forEach(s -> shareService.unshareGroup(groupId, s.getUser().getId()));
+
         groupRepository.deleteById(groupId);
     }
 
@@ -56,6 +64,10 @@ public class GroupService {
         log.debug("Updating group with id {}", groupId);
         GroupEntity group = groupRepository.findById(groupId)
                 .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
+
+        if (!group.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("You can only update your own groups");
+        }
 
         group.setListName(request.getListName());
         return groupMapper.toDto(groupRepository.save(group));

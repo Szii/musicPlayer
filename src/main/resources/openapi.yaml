@@ -205,12 +205,13 @@ components:
           format: int64
           description: ID of the user who owns this track
           example: 1
-        groupId:
-          type: integer
-          format: int64
-          nullable: true
-          description: ID of the group this track belongs to
-          example: 3
+        groupIds:
+          type: array
+          description: IDs of groups this track belongs to
+          items:
+            type: integer
+            format: int64
+          example: [3, 7, 12]
         trackPoints:
           type: array
           description: Points of interest for the track

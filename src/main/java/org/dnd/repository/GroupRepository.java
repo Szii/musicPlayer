@@ -1,7 +1,9 @@
 package org.dnd.repository;
 
+import jakarta.transaction.Transactional;
 import org.dnd.model.GroupEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -24,4 +26,16 @@ public interface GroupRepository extends JpaRepository<GroupEntity, Long> {
                or gs.user.id = :userId
             """)
     List<GroupEntity> findAccessibleGroupsForUser(@Param("userId") Long userId);
+
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query(value = """
+            insert into group_tracks (group_id, track_id)
+            values (:groupId, :trackId)
+            on conflict do nothing
+            """, nativeQuery = true)
+    void addTrackToGroup(@Param("groupId") Long groupId,
+                         @Param("trackId") Long trackId);
+
 }

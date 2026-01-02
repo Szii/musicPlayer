@@ -54,7 +54,7 @@ class ShareRepositoryTest extends DatabaseBase {
         track.setTrackLink("https://example.com/shared.mp3");
         track.setDuration(200);
         track.setOwner(owner);
-        track.setGroup(group);
+        track.getGroups().add(group);
         track = trackRepository.save(track);
 
         // Share track

@@ -15,6 +15,7 @@ import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,9 +40,10 @@ public class ShareService {
     public List<TrackShare> getTrackShares(Long trackId) {
         TrackEntity track = trackRepository.findById(trackId).orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
         if (track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            List<UserTrackShareEntity> shares = track.getShares();
+            Set<UserTrackShareEntity> shares = track.getShares();
+
             return shares.stream()
-                    .map(share -> trackMapper.toShareDto(share.getTrack()))
+                    .map(trackMapper::toTrackShareDto)
                     .collect(Collectors.toList());
         } else {
             throw new ForbiddenException("Only the track owner can get track shares");
@@ -52,7 +54,6 @@ public class ShareService {
     public List<GroupShare> getGroupShares(Long groupId) {
         GroupEntity entity = groupRepository.findById(groupId).orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
         if (entity.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            System.out.println(SecurityUtils.getCurrentUserId() + " " + entity.getOwner().getId());
             List<UserGroupShareEntity> shares = userGroupShareRepository.findByGroup_Id(groupId);
             return shares.stream()
                     .map(groupMapper::toShareDto)
@@ -63,6 +64,7 @@ public class ShareService {
 
     }
 
+    @Transactional
     public void shareGroup(Long groupId, Long userId) {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
@@ -83,6 +85,7 @@ public class ShareService {
         }
     }
 
+    @Transactional
     public void shareTracksFromGroup(Long userId, UserEntity user, GroupEntity group) {
         for (TrackEntity track : group.getTracks()) {
             if (!userTrackShareRepository.existsByUser_IdAndTrack_Id(userId, track.getId())) {
@@ -95,7 +98,7 @@ public class ShareService {
         }
     }
 
-
+    @Transactional
     public void shareTrack(Long trackId, Long userId) {
         TrackEntity entity = trackRepository.findById(trackId)
                 .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));

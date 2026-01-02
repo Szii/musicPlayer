@@ -55,7 +55,7 @@ class TrackRepositoryTest extends DatabaseBase {
         track.setTrackLink("https://example.com/a.mp3");
         track.setDuration(120);
         track.setOwner(owner);
-        track.setGroup(group);
+        track.getGroups().add(group);
         track = trackRepository.save(track);
 
         List<TrackEntity> ownerTracks = trackRepository.findByOwner_Id(owner.getId());

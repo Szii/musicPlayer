@@ -56,8 +56,7 @@ public class TrackController implements MusicTracksApi {
 
     @Override
     public ResponseEntity<Track> deleteTrackPoint(Long trackId, Long pointId) throws Exception {
-        trackPointService.deleteTrackPoint(trackId, pointId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok().body(trackPointService.deleteTrackPoint(trackId, pointId));
     }
 
     @Override

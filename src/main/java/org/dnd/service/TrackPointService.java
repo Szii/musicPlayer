@@ -1,5 +1,7 @@
 package org.dnd.service;
 
+import com.github.dockerjava.api.exception.BadRequestException;
+import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Track;
@@ -25,22 +27,27 @@ public class TrackPointService {
     private final TrackPointRepository trackPointRepository;
     private final TrackMapper trackMapper;
 
-    public void deleteTrackPoint(Long trackId, Long pointId) {
+    @Transactional
+    public Track deleteTrackPoint(Long trackId, Long pointId) {
+        log.debug("Deleting track point {} from track {}", pointId, trackId);
+
         TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+                .orElseThrow(() -> new NotFoundException("Track with id %d not found".formatted(trackId)));
 
         if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
             throw new ForbiddenException("You can only delete track points from your own tracks");
         }
 
-        if (trackPointRepository.findByIdAndTrack_Id(pointId, trackId).isEmpty()) {
-            log.warn("Track point with id {} not found for track {}", pointId, trackId);
-            throw new NotFoundException(String.format("Track point with id %d not found for track %d", pointId, trackId));
-        }
-        log.debug("Deleting track point with id {} for track {}", pointId, trackId);
-        trackPointRepository.deleteByIdAndTrack_Id(pointId, trackId);
+        TrackPointEntity point = trackPointRepository.findByIdAndTrack_Id(pointId, trackId)
+                .orElseThrow(() -> new NotFoundException(
+                        "Track point with id %d not found for track %d".formatted(pointId, trackId)));
+
+        track.getTrackPoints().remove(point);
+        
+        return trackMapper.toDto(trackRepository.save(track));
     }
 
+    @Transactional
     public Track updateTrackPoint(Long trackId, Long pointId, TrackPointRequest trackPoint) {
         TrackEntity track = trackRepository.findById(trackId)
                 .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
@@ -65,6 +72,10 @@ public class TrackPointService {
 
         if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
             throw new ForbiddenException("You can only create track points on your own tracks");
+        }
+
+        if (trackPoint.getPosition() < 0 || trackPoint.getPosition() > track.getDuration()) {
+            throw new BadRequestException("Track point position must be within track duration");
         }
 
         TrackPointEntity entity = trackPointMapper.fromRequest(trackPoint, track);

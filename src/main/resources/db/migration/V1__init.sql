@@ -1,4 +1,5 @@
 -- Drop all existing tables in the correct order
+DROP TABLE IF EXISTS group_tracks;
 DROP TABLE IF EXISTS user_track_shares;
 DROP TABLE IF EXISTS user_group_shares;
 DROP TABLE IF EXISTS user_tracks;
@@ -29,9 +30,7 @@ CREATE TABLE tracks (
     track_link VARCHAR(255) NOT NULL,
     duration INTEGER NOT NULL,
     owner_id BIGINT NOT NULL,
-    group_id BIGINT,
-    CONSTRAINT fk_track_owner FOREIGN KEY (owner_id) REFERENCES users(id),
-    CONSTRAINT fk_track_group FOREIGN KEY (group_id) REFERENCES groups(id)
+    CONSTRAINT fk_track_owner FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 
 CREATE TABLE track_points (
@@ -54,6 +53,15 @@ CREATE TABLE boards (
     overplay BOOLEAN,
     CONSTRAINT fk_board_owner FOREIGN KEY (owner_id) REFERENCES users(id),
     CONSTRAINT fk_board_track FOREIGN KEY (selected_track_id) REFERENCES tracks(id)
+);
+
+-- Group <-> Track (Many-to-Many)
+CREATE TABLE group_tracks (
+    group_id BIGINT NOT NULL,
+    track_id BIGINT NOT NULL,
+    CONSTRAINT pk_group_tracks PRIMARY KEY (group_id, track_id),
+    CONSTRAINT fk_gt_group FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE,
+    CONSTRAINT fk_gt_track FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
 );
 
 -- ManyToMany join tables
@@ -92,10 +100,13 @@ CREATE TABLE user_group_shares (
 
 -- Create indices
 CREATE INDEX idx_track_owner ON tracks(owner_id);
-CREATE INDEX idx_track_group ON tracks(group_id);
 CREATE INDEX idx_group_owner ON groups(owner_id);
 CREATE INDEX idx_board_owner ON boards(owner_id);
 CREATE INDEX idx_board_track ON boards(selected_track_id);
+
+CREATE INDEX idx_gt_group ON group_tracks(group_id);
+CREATE INDEX idx_gt_track ON group_tracks(track_id);
+
 CREATE INDEX idx_track_share_user ON user_track_shares(user_id);
 CREATE INDEX idx_track_share_track ON user_track_shares(track_id);
 CREATE INDEX idx_group_share_user ON user_group_shares(user_id);

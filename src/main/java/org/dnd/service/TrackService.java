@@ -16,6 +16,7 @@ import org.mapstruct.factory.Mappers;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,7 +41,10 @@ public class TrackService {
     public Track addTrack(TrackRequest trackRequest) {
         log.debug("Adding track {}", trackRequest);
 
-        return mapper.toDto(trackRepository.save(mapper.toEntity(trackRequest)));
+        TrackEntity track = mapper.toEntity(trackRequest);
+        track.setOwner(userRepository.getReferenceById(SecurityUtils.getCurrentUserId()));
+
+        return mapper.toDto(trackRepository.save(track));
     }
 
     @Transactional
@@ -57,6 +61,9 @@ public class TrackService {
 
     public List<Track> getAllTracksForUser(Long userId) {
         log.debug("Getting tracks for user with id {}", userId);
+        if (!Objects.equals(SecurityUtils.getCurrentUserId(), userId)) {
+            throw new ForbiddenException("You can only see your own tracks");
+        }
         return trackRepository.findAccessibleTracksForUser(userId).stream()
                 .map(mapper::toDto)
                 .collect(Collectors.toList());

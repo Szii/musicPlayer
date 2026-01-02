@@ -55,7 +55,6 @@ class BoardControllerTest extends DatabaseBase {
         userAuth.setId(testUser.getId());
         userAuth.setName(testUser.getName());
         authToken = jwtService.generateToken(userAuth);
-        System.out.println(authToken);
     }
 
     @Test
