@@ -1,5 +1,6 @@
 package org.dnd.service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.GroupShare;
@@ -36,10 +37,16 @@ public class ShareService {
 
 
     public List<TrackShare> getTrackShares(Long trackId) {
-        List<UserTrackShareEntity> shares = userTrackShareRepository.findByTrack_Id(trackId);
-        return shares.stream()
-                .map(share -> trackMapper.toShareDto(share.getTrack()))
-                .collect(Collectors.toList());
+        TrackEntity track = trackRepository.findById(trackId).orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+        if (track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            List<UserTrackShareEntity> shares = track.getShares();
+            return shares.stream()
+                    .map(share -> trackMapper.toShareDto(share.getTrack()))
+                    .collect(Collectors.toList());
+        } else {
+            throw new ForbiddenException("Only the track owner can get track shares");
+        }
+
     }
 
     public List<GroupShare> getGroupShares(Long groupId) {
@@ -83,6 +90,7 @@ public class ShareService {
                 trackAccess.setUser(user);
                 trackAccess.setTrack(track);
                 userTrackShareRepository.save(trackAccess);
+                track.getShares().add(trackAccess);
             }
         }
     }
@@ -99,28 +107,46 @@ public class ShareService {
             access.setUser(user);
             access.setTrack(entity);
             userTrackShareRepository.save(access);
+            entity.getShares().add(access);
         }
     }
 
 
+    @Transactional
     public void unshareTrack(Long trackId, Long userId) {
-        userTrackShareRepository.findByUser_IdAndTrack_Id(userId, trackId).ifPresent(userTrackShareRepository::delete);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
+        TrackEntity track = trackRepository.findById(trackId)
+                .orElseThrow(() -> new NotFoundException("Track with id %d not found".formatted(trackId)));
+
+        boolean isSelf = currentUserId.equals(userId);
+        boolean isOwner = track.getOwner().getId().equals(currentUserId);
+
+        if (!isSelf && !isOwner) {
+            throw new ForbiddenException("Only the track owner can unshare other users");
+        }
+        track.getShares().removeIf(share -> share.getUser().getId().equals(userId));
     }
 
+    @Transactional
     public void unshareGroup(Long groupId, Long userId) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+
         GroupEntity group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
+                .orElseThrow(() -> new NotFoundException(
+                        "Group with id %d not found".formatted(groupId)));
 
-        if (SecurityUtils.getCurrentUserId().equals(userId) || group.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            userGroupShareRepository.findByUser_IdAndGroup_Id(userId, groupId)
-                    .ifPresent(userGroupShareRepository::delete);
+        boolean isSelf = currentUserId.equals(userId);
+        boolean isOwner = group.getOwner().getId().equals(currentUserId);
 
-            for (TrackEntity track : group.getTracks()) {
-                userTrackShareRepository.findByUser_IdAndTrack_Id(userId, track.getId())
-                        .ifPresent(userTrackShareRepository::delete);
-            }
-        } else {
+        if (!isSelf && !isOwner) {
             throw new ForbiddenException("Only the group owner can unshare other users");
+        }
+
+        group.getShares().removeIf(share -> share.getUser().getId().equals(userId));
+
+        for (TrackEntity track : group.getTracks()) {
+            track.getShares().removeIf(share -> share.getUser().getId().equals(userId));
         }
     }
 
