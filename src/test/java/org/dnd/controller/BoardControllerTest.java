@@ -67,7 +67,7 @@ class BoardControllerTest extends DatabaseBase {
         board.setOverplay(false);
         boardRepository.save(board);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/boards", testUser.getId())
+        mockMvc.perform(get("/api/v1/boards")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].volume").value(50))
@@ -84,7 +84,7 @@ class BoardControllerTest extends DatabaseBase {
                 .overplay(false)
                 .name("Test Board");
 
-        mockMvc.perform(post("/api/v1/users/{userId}/boards", testUser.getId())
+        mockMvc.perform(post("/api/v1/boards")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
@@ -112,7 +112,7 @@ class BoardControllerTest extends DatabaseBase {
                 .repeat(true)
                 .overplay(true);
 
-        mockMvc.perform(put("/api/v1/users/{userId}/boards/{boardId}", testUser.getId(), board.getId())
+        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))
@@ -131,7 +131,7 @@ class BoardControllerTest extends DatabaseBase {
         board.setVolume(50);
         board = boardRepository.save(board);
 
-        mockMvc.perform(delete("/api/v1/users/{userId}/boards/{boardId}", testUser.getId(), board.getId())
+        mockMvc.perform(delete("/api/v1/boards/{boardId}", board.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isNoContent());
 
@@ -140,33 +140,20 @@ class BoardControllerTest extends DatabaseBase {
 
     @Test
     void getUserBoards_EmptyList() throws Exception {
-        mockMvc.perform(get("/api/v1/users/{userId}/boards", testUser.getId())
+        mockMvc.perform(get("/api/v1/boards")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isNoContent());
     }
 
     @Test
-    void createUserBoard_UserNotFound() throws Exception {
-        BoardCreateRequest request = new BoardCreateRequest()
-                .name("New Board")
-                .volume(75);
-
-        mockMvc.perform(post("/api/v1/users/{userId}/boards", 999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
     void getUserBoards_NoAuthentication() throws Exception {
-        mockMvc.perform(get("/api/v1/users/{userId}/boards", testUser.getId()))
+        mockMvc.perform(get("/api/v1/boards"))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void getUserBoards_InvalidToken() throws Exception {
-        mockMvc.perform(get("/api/v1/users/{userId}/boards", testUser.getId())
+        mockMvc.perform(get("/api/v1/boards")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
                 .andExpect(status().isForbidden());
     }
@@ -185,8 +172,8 @@ class BoardControllerTest extends DatabaseBase {
         boardRepository.save(board);
 
 
-        mockMvc.perform(get("/api/v1/users/{userId}/boards", otherUser.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+        mockMvc.perform(get("/api/v1/boards")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + "wrongUserToken"))
                 .andExpect(status().isForbidden());
     }
 
@@ -197,7 +184,7 @@ class BoardControllerTest extends DatabaseBase {
                 .volume(100)
                 .repeat(true);
 
-        mockMvc.perform(put("/api/v1/users/{userId}/boards/{boardId}", testUser.getId(), 999L)
+        mockMvc.perform(put("/api/v1/boards/{boardId}", 999L)
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateRequest)))

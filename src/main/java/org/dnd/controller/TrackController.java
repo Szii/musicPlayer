@@ -28,9 +28,9 @@ public class TrackController implements MusicTracksApi {
     private final TrackPointService trackPointService;
 
     @Override
-    public ResponseEntity<List<Track>> getUserTracks(Long userId) throws Exception {
+    public ResponseEntity<List<Track>> getUserTracks() throws Exception {
         return ResponseEntity.ok()
-                .body(trackService.getAllTracksForUser(userId));
+                .body(trackService.getAllTracksForUser());
     }
 
     public ResponseEntity<Track> createTrack(TrackRequest trackRequest) throws Exception {

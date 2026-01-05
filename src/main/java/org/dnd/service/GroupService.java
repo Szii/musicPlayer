@@ -25,10 +25,8 @@ public class GroupService {
     private final GroupMapper groupMapper;
     private final ShareService shareService;
 
-    public List<Group> getUserGroups(Long userId) {
-        if (!userId.equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only view your own groups");
-        }
+    public List<Group> getUserGroups() {
+        Long userId = SecurityUtils.getCurrentUserId();
         log.debug("Getting groups for user with id {}", userId);
         return groupMapper.toDtos(groupRepository.findAccessibleGroupsForUser(userId));
     }

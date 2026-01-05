@@ -89,7 +89,7 @@ class GroupControllerTest extends DatabaseBase {
         TrackEntity track1 = createTrack("Track 1", otherUser, group);
         TrackEntity track2 = createTrack("Track 2", otherUser, group);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -97,7 +97,7 @@ class GroupControllerTest extends DatabaseBase {
 
         shareGroup(group.getId(), testUser.getId(), otherUser);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -128,7 +128,7 @@ class GroupControllerTest extends DatabaseBase {
                         .content(objectMapper.writeValueAsString(shareRequest)))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -138,7 +138,7 @@ class GroupControllerTest extends DatabaseBase {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + otherUserToken))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -263,7 +263,7 @@ class GroupControllerTest extends DatabaseBase {
         group.setOwner(testUser);
         groupRepository.save(group);
 
-        mockMvc.perform(get("/api/v1/groups/{userId}", testUser.getId().toString())
+        mockMvc.perform(get("/api/v1/groups")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -278,8 +278,8 @@ class GroupControllerTest extends DatabaseBase {
         group.setOwner(testUser);
         groupRepository.save(group);
 
-        mockMvc.perform(get("/api/v1/groups/{userId}", 123)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+        mockMvc.perform(get("/api/v1/groups")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + "invalidToken"))
                 .andExpect(status().isForbidden());
     }
 
@@ -377,7 +377,7 @@ class GroupControllerTest extends DatabaseBase {
         GroupEntity sharedGroup = createGroup("Shared Group", otherUser);
         createGroupShare(sharedGroup, testUser);
 
-        mockMvc.perform(get("/api/v1/groups/{userId}", testUser.getId())
+        mockMvc.perform(get("/api/v1/groups")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -401,7 +401,7 @@ class GroupControllerTest extends DatabaseBase {
 
         shareGroup(group.getId(), testUser.getId(), owner);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -411,7 +411,7 @@ class GroupControllerTest extends DatabaseBase {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -433,7 +433,7 @@ class GroupControllerTest extends DatabaseBase {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerAuthToken))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -451,7 +451,7 @@ class GroupControllerTest extends DatabaseBase {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + getTokenForUser(owner)))
                 .andExpect(status().isNoContent());
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", owner.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + getTokenForUser(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())

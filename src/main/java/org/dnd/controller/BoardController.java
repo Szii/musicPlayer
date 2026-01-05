@@ -23,28 +23,28 @@ public class BoardController implements MusicBoardsApi {
     private final BoardService boardService;
 
     @Override
-    public ResponseEntity<List<Board>> getUserBoards(Long userId) {
-        List<Board> result = boardService.getUserBoards(userId);
+    public ResponseEntity<List<Board>> getUserBoards() {
+        List<Board> result = boardService.getUserBoards();
         if (result.isEmpty()) {
             return ResponseEntity.noContent().build();
         }
-        return ResponseEntity.ok(boardService.getUserBoards(userId));
+        return ResponseEntity.ok(result);
     }
 
     @Override
-    public ResponseEntity<Board> createUserBoard(Long userId, BoardCreateRequest boardRequest) {
-        return ResponseEntity.ok(boardService.createUserBoard(userId, boardRequest));
+    public ResponseEntity<Board> createUserBoard(BoardCreateRequest boardRequest) {
+        return ResponseEntity.ok(boardService.createUserBoard(boardRequest));
     }
 
     @Override
-    public ResponseEntity<Void> deleteUserBoard(Long userId, Long boardId) {
-        boardService.deleteUserBoard(userId, boardId);
+    public ResponseEntity<Void> deleteUserBoard(Long boardId) {
+        boardService.deleteUserBoard(boardId);
         return ResponseEntity.noContent().build();
     }
 
     @Override
-    public ResponseEntity<Board> updateUserBoard(Long userId, Long boardId, BoardUpdateRequest boardRequest) {
-        return ResponseEntity.ok(boardService.updateUserBoard(userId, boardId, boardRequest));
+    public ResponseEntity<Board> updateUserBoard(Long boardId, BoardUpdateRequest boardRequest) {
+        return ResponseEntity.ok(boardService.updateUserBoard(boardId, boardRequest));
     }
 }
 

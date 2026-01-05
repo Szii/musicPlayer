@@ -26,8 +26,8 @@ public class GroupController implements MusicGroupsApi {
     private final ShareService shareService;
 
     @Override
-    public ResponseEntity<List<Group>> getUserGroups(Long userId) {
-        return ResponseEntity.ok(groupService.getUserGroups(userId));
+    public ResponseEntity<List<Group>> getUserGroups() {
+        return ResponseEntity.ok(groupService.getUserGroups());
     }
 
     @Override

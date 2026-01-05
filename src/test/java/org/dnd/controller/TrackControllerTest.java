@@ -68,20 +68,11 @@ class TrackControllerTest extends DatabaseBase {
         TrackEntity t1 = createTrackEntity("T1", testUser, null);
         TrackEntity t2 = createTrackEntity("T2", testUser, null);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("T1", "T2")))
                 .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(testUser.getId().intValue()))));
-    }
-
-    @Test
-    void getUserTracks_Forbidden_WhenRequestingOtherUser() throws Exception {
-        UserEntity other = createUser("otherUser");
-
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", other.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isForbidden());
     }
 
     @Test
@@ -90,7 +81,7 @@ class TrackControllerTest extends DatabaseBase {
         TrackEntity t1 = createTrackEntity("Shared 1", owner, null);
         TrackEntity t2 = createTrackEntity("Shared 2", owner, null);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -100,7 +91,7 @@ class TrackControllerTest extends DatabaseBase {
         shareTrack(t1.getId(), testUser.getId(), ownerToken);
         shareTrack(t2.getId(), testUser.getId(), ownerToken);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("Shared 1", "Shared 2")))
@@ -114,7 +105,7 @@ class TrackControllerTest extends DatabaseBase {
         TrackEntity t1 = createTrackEntity("GT1", owner, group);
         TrackEntity t2 = createTrackEntity("GT2", owner, group);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -122,7 +113,7 @@ class TrackControllerTest extends DatabaseBase {
 
         shareGroup(group.getId(), testUser.getId(), getTokenForUser(owner));
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("GT1", "GT2")))
@@ -389,7 +380,7 @@ class TrackControllerTest extends DatabaseBase {
         createTrackPoint(track, "A", 10L, false, false);
         createTrackPoint(track, "C", 90L, false, false);
 
-        mockMvc.perform(get("/api/v1/users/{userId}/tracks", testUser.getId())
+        mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())

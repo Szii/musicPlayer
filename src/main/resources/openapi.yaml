@@ -16,6 +16,8 @@ tags:
     description: Operations related to user boards
   - name: Users
     description: User authentication and profile operations
+  - name: Playback
+    description: Playback control operations for a specific board
 
 components:
   parameters:
@@ -409,6 +411,113 @@ components:
           example: false
 
 
+    PlayRequest:
+      type: object
+      description: >
+        Request to start playback on a board. If trackId is omitted, plays the board's selectedTrack.
+      properties:
+        trackId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Track to play on the board (optional)
+          example: 1
+
+    SeekRequest:
+      type: object
+      description: Request to seek within the currently playing track
+      required:
+        - positionS
+      properties:
+        positionS:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Target position in seconds from start of track
+          example: 60
+
+    WindowRequest:
+      type: object
+      description: Request to limit playback to a window (useful for track points)
+      required:
+        - startS
+      properties:
+        startS:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Start position in seconds
+          example: 30
+        endS:
+          type: integer
+          format: int64
+          minimum: 0
+          nullable: true
+          description: Optional end position in seconds (null = play until track ends)
+          example: 90
+
+    PlaybackStatus:
+      type: string
+      description: Current playback state of the board
+      enum:
+        - STOPPED
+        - PLAYING
+        - PAUSED
+        - BUFFERING
+        - ERROR
+
+    PlaybackState:
+      type: object
+      description: Runtime playback state for a board
+      required:
+        - boardId
+        - status
+      properties:
+        boardId:
+          type: integer
+          format: int64
+          example: 1
+        status:
+          $ref: '#/components/schemas/PlaybackStatus'
+        trackId:
+          type: integer
+          format: int64
+          nullable: true
+          description: Currently loaded/playing track id
+          example: 1
+        positionS:
+          type: integer
+          format: int64
+          nullable: true
+          description: Current playback position in seconds (if known)
+          example: 12
+        windowStartS:
+          type: integer
+          format: int64
+          nullable: true
+          description: Active window start in seconds (if set)
+          example: 30
+        windowEndS:
+          type: integer
+          format: int64
+          nullable: true
+          description: Active window end in seconds (if set)
+          example: 90
+        volume:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          example: 50
+        repeat:
+          type: boolean
+          nullable: true
+          example: false
+        overplay:
+          type: boolean
+          nullable: true
+          example: false
+
 paths:
   /auth/register:
     post:
@@ -494,15 +603,11 @@ paths:
           description: Invalid input
         '409':
           description: Conflict (e.g., duplicate track link)
-
-  /users/{userId}/tracks:
     get:
       tags:
         - MusicTracks
       summary: Get list of tracks for a user
       operationId: getUserTracks
-      parameters:
-        - $ref: '#/components/parameters/UserId'
       responses:
         '200':
           description: List of tracks for the user
@@ -699,14 +804,12 @@ paths:
 
 
 
-  /users/{userId}/boards:
+  /boards:
     get:
       tags:
         - MusicBoards
       summary: Get all boards for a user
       operationId: getUserBoards
-      parameters:
-        - $ref: '#/components/parameters/UserId'
       responses:
         '200':
           description: Successful response with list of boards
@@ -723,8 +826,6 @@ paths:
         - MusicBoards
       summary: Create a new board for a user
       operationId: createUserBoard
-      parameters:
-        - $ref: '#/components/parameters/UserId'
       requestBody:
         required: true
         content:
@@ -743,14 +844,13 @@ paths:
         '404':
           description: User not found
 
-  /users/{userId}/boards/{boardId}:
+  /boards/{boardId}:
     get:
       tags:
         - MusicBoards
       summary: Get a specific board
       operationId: getUserBoard
       parameters:
-        - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/BoardId'
       responses:
         '200':
@@ -767,7 +867,6 @@ paths:
       summary: Update a board (partial updates supported)
       operationId: updateUserBoard
       parameters:
-        - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/BoardId'
       requestBody:
         required: true
@@ -792,7 +891,6 @@ paths:
       summary: Delete a board
       operationId: deleteUserBoard
       parameters:
-        - $ref: '#/components/parameters/UserId'
         - $ref: '#/components/parameters/BoardId'
       responses:
         '204':
@@ -800,14 +898,12 @@ paths:
         '404':
           description: Board or user not found
 
-  /groups/{userId}:
+  /groups:
     get:
       tags:
         - MusicGroups
       summary: Get all groups for a user
       operationId: getUserGroups
-      parameters:
-        - $ref: '#/components/parameters/UserId'
       responses:
         '200':
           description: Successful response
@@ -819,8 +915,6 @@ paths:
                   $ref: '#/components/schemas/Group'
         '404':
           description: User not found
-
-  /groups:
     post:
       tags:
         - MusicGroups
@@ -946,6 +1040,198 @@ paths:
           description: Forbidden
         '404':
           description: Group or sharing not found
+  /boards/{boardId}/playback/play:
+    post:
+      tags:
+        - Playback
+      summary: Start playback on a board
+      description: >
+        Starts playback on the given board. If trackId is omitted, plays the board's selectedTrack.
+        The board must belong to the authenticated user.
+      operationId: playBoard
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayRequest'
+      responses:
+        '200':
+          description: Playback started (or restarted) successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackState'
+        '400':
+          description: Invalid input
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user or track not accessible)
+        '404':
+          description: Board or track not found
+        '409':
+          description: No track selected on board (and no trackId provided)
+
+  /boards/{boardId}/playback/stop:
+    post:
+      tags:
+        - Playback
+      summary: Stop playback on a board
+      operationId: stopBoard
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      responses:
+        '200':
+          description: Playback stopped successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackState'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user)
+        '404':
+          description: Board not found
+        '409':
+          description: Action not valid in current playback state
+
+  /boards/{boardId}/playback/pause:
+    post:
+      tags:
+        - Playback
+      summary: Pause playback on a board
+      operationId: pauseBoard
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      responses:
+        '200':
+          description: Playback paused successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackState'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user)
+        '404':
+          description: Board not found
+        '409':
+          description: Action not valid in current playback state
+
+  /boards/{boardId}/playback/resume:
+    post:
+      tags:
+        - Playback
+      summary: Resume playback on a board
+      operationId: resumeBoard
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      responses:
+        '200':
+          description: Playback resumed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackState'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user)
+        '404':
+          description: Board not found
+        '409':
+          description: Action not valid in current playback state
+
+  /boards/{boardId}/playback/seek:
+    post:
+      tags:
+        - Playback
+      summary: Seek within the current track on a board
+      description: Seeks to the given position in seconds from start of track.
+      operationId: seekBoard
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeekRequest'
+      responses:
+        '200':
+          description: Seek applied successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackState'
+        '400':
+          description: Invalid input (negative position, etc.)
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user)
+        '404':
+          description: Board not found
+        '409':
+          description: Action not valid in current playback state
+
+  /boards/{boardId}/playback/state:
+    get:
+      tags:
+        - Playback
+      summary: Get current playback state of a board
+      operationId: getBoardPlaybackState
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      responses:
+        '200':
+          description: Current playback state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlaybackState'
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user)
+        '404':
+          description: Board not found
+
+  /boards/{boardId}/stream:
+    get:
+      tags:
+        - Playback
+      summary: Stream audio for a board
+      description: >
+        Streams the currently playing board audio as an MP3 stream.
+        Requires authentication. Board must belong to the authenticated user.
+      operationId: streamBoardAudio
+      parameters:
+        - $ref: '#/components/parameters/BoardId'
+      responses:
+        '200':
+          description: MP3 audio stream
+          content:
+            audio/mpeg:
+              schema:
+                type: string
+                format: binary
+        '401':
+          description: User not authenticated
+        '403':
+          description: Forbidden (board not owned by user)
+        '404':
+          description: Board not found
+        '409':
+          description: Board is not playing
+
+
+
 
 
 
