@@ -9,6 +9,7 @@ import org.dnd.api.model.TrackRequest;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.mappers.TrackMapper;
 import org.dnd.model.TrackEntity;
+import org.dnd.model.TrackMetadata;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
@@ -26,6 +27,8 @@ public class TrackService {
 
     private final UserRepository userRepository;
 
+    private final TrackMetadataService trackMetadataService;
+
     TrackMapper mapper = Mappers.getMapper(TrackMapper.class);
 
     public void deleteTrack(Long trackId) {
@@ -41,9 +44,20 @@ public class TrackService {
         log.debug("Adding track {}", trackRequest);
 
         TrackEntity track = mapper.toEntity(trackRequest);
+        setTrackMetadata(track, trackRequest);
         track.setOwner(userRepository.getReferenceById(SecurityUtils.getCurrentUserId()));
 
         return mapper.toDto(trackRepository.save(track));
+    }
+
+    private void setTrackMetadata(TrackEntity track, TrackRequest trackRequest) {
+        TrackMetadata meta = trackMetadataService.resolveMetadata(trackRequest.getTrackLink());
+        if (track.getTrackName() == null || track.getTrackName().isEmpty()) {
+            track.setTrackName(meta.title());
+        }
+        if (meta.durationSecondsOrNull() != null) {
+            track.setDuration(meta.durationSecondsOrNull().intValue());
+        }
     }
 
     @Transactional
@@ -55,7 +69,7 @@ public class TrackService {
             throw new ForbiddenException("You can only update tracks you own");
         }
         mapper.updateTrackFromRequest(request, entity);
-        return mapper.toDto(trackRepository.save(entity));
+        return mapper.toDto(entity);
     }
 
     public List<Track> getAllTracksForUser() {

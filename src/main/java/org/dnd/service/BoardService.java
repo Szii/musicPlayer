@@ -13,6 +13,7 @@ import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
 import org.dnd.repository.BoardRepository;
 import org.dnd.repository.TrackRepository;
+import org.dnd.repository.TrackWindowRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final TrackRepository trackRepository;
+    private final TrackWindowRepository trackWindowRepository;
     private final BoardMapper boardMapper;
 
     public List<Board> getUserBoards() {
@@ -38,7 +40,6 @@ public class BoardService {
         log.debug("Creating board for user with id {}", userId);
         UserEntity owner = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
-
         BoardEntity board = boardMapper.toEntity(request);
         board.setOwner(owner);
 
@@ -49,8 +50,6 @@ public class BoardService {
 
     public void deleteUserBoard(Long boardId) {
         Long userId = SecurityUtils.getCurrentUserId();
-        System.out.println(boardId);
-        System.out.println(userId);
         log.debug("Deleting board {} for user {}", boardId, userId);
         if (!boardRepository.existsByIdAndOwner_Id(boardId, userId)) {
             throw new NotFoundException(String.format("Board with id %d not found for user %d", boardId, userId));
@@ -64,9 +63,8 @@ public class BoardService {
         BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
                 .orElseThrow(() -> new NotFoundException(String.format("Board with id %d not found for user %d", boardId, userId)));
 
-        setTrackIfExist(request.getSelectedTrack(), board);
-
         boardMapper.updateBoardFromRequest(request, board);
+        setTrackIfExist(request.getSelectedTrack(), board);
         return boardMapper.toDto(boardRepository.save(board));
     }
 

@@ -125,7 +125,7 @@ class TrackControllerTest extends DatabaseBase {
     void createTrack_Success() throws Exception {
         TrackRequest req = new TrackRequest()
                 .trackName("New Track")
-                .trackLink("https://example.com/new.mp3");
+                .trackLink("https://www.youtube.com/watch?v=gbFGnw2JYe0&list=PLDtPBNsaMdk-M7oRThTgSQm--LuxMUW4S");
 
         mockMvc.perform(post("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)

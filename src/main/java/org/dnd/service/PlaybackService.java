@@ -1,18 +1,17 @@
 package org.dnd.service;
 
 import com.sedmelluq.discord.lavaplayer.format.AudioDataFormat;
-import com.sedmelluq.discord.lavaplayer.format.StandardAudioDataFormats;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
-import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.event.AudioEventAdapter;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackEndReason;
 import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;
-import dev.lavalink.youtube.YoutubeAudioSourceManager;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.PlayRequest;
 import org.dnd.api.model.PlaybackState;
@@ -22,8 +21,8 @@ import org.dnd.model.BoardEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.repository.BoardRepository;
 import org.dnd.repository.TrackRepository;
+import org.dnd.repository.TrackWindowRepository;
 import org.dnd.utils.SecurityUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -41,25 +40,24 @@ import static org.springframework.http.HttpStatus.*;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PlaybackService {
 
+    private final BoardRepository boardRepository;
+
+    private final TrackRepository trackRepository;
+
+    private final TrackWindowRepository trackWindowRepository;
+
     private final AudioPlayerManager playerManager;
-    private final ExecutorService audioLoops;
-
-    @Autowired
-    private BoardRepository boardRepository;
-
-    @Autowired
-    private TrackRepository trackRepository;
 
     // One session per board
     private final ConcurrentMap<Long, BoardSession> sessions = new ConcurrentHashMap<>();
 
-    public PlaybackService() {
-        this.playerManager = new DefaultAudioPlayerManager();
-        this.playerManager.getConfiguration().setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_LE);
-        this.playerManager.registerSourceManager(new YoutubeAudioSourceManager());
+    private ExecutorService audioLoops;
 
+    @PostConstruct
+    private void init() {
         this.audioLoops = Executors.newCachedThreadPool(r -> {
             Thread t = new Thread(r);
             t.setName("board-audio-loop");
@@ -85,25 +83,34 @@ public class PlaybackService {
         Long userId = SecurityUtils.getCurrentUserId();
         BoardEntity board = requireOwnedBoard(boardId);
 
-        Long requestedTrackId = (request == null) ? null : request.getTrackId();
 
         TrackEntity trackToPlay;
-        if (requestedTrackId != null) {
-            trackToPlay = trackRepository.findById(requestedTrackId)
-                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Track not found"));
-        } else {
-            trackToPlay = board.getSelectedTrack();
-            if (trackToPlay == null) {
-                throw new ResponseStatusException(CONFLICT, "No track selected on board (and no trackId provided)");
-            }
+
+        trackToPlay = board.getSelectedTrack();
+
+        if (trackToPlay == null) {
+            throw new ResponseStatusException(CONFLICT, "No track selected on board");
         }
 
         if (!isTrackAccessible(userId, trackToPlay)) {
             throw new ResponseStatusException(FORBIDDEN, "Forbidden (track not accessible)");
         }
 
+        Long requestedWindowId = (request == null) ? null : request.getWindowId();
+
         BoardSession s = sessions.computeIfAbsent(boardId, id -> new BoardSession(id, playerManager));
-        s.setWindowSeconds(null, null);
+
+        if (requestedWindowId != null) {
+            var window = trackWindowRepository.findById(requestedWindowId).orElseThrow(() ->
+                    new ResponseStatusException(NOT_FOUND, "Track window not found"));
+
+            Long from = window.getPositionFrom();
+            Long to = window.getPositionTo();
+
+            s.setWindowSeconds(from, to);
+        } else {
+            s.setWindowSeconds(null, null);
+        }
         s.loadAndPlay(trackToPlay);
 
         return s.toPlaybackState();
@@ -267,15 +274,34 @@ public class PlaybackService {
             playerManager.loadItem(trackResolved.getTrackLink(), new AudioLoadResultHandler() {
                 @Override
                 public void trackLoaded(AudioTrack track) {
-                    //TODO make it seekable / clone-proof
                     player.playTrack(track);
+
+                    if (windowStartS != null && windowStartS > 0) {
+                        long startMs = windowStartS * 1000L;
+
+                        long dur = track.getDuration();
+                        if (dur > 0) startMs = Math.min(startMs, Math.max(0, dur - 1000));
+
+                        track.setPosition(startMs);
+                    }
+
                     latch.countDown();
                 }
+
 
                 @Override
                 public void playlistLoaded(AudioPlaylist playlist) {
                     AudioTrack first = playlist.getTracks().isEmpty() ? null : playlist.getTracks().get(0);
-                    if (first != null) player.playTrack(first);
+                    if (first != null) {
+                        player.playTrack(first);
+
+                        if (windowStartS != null && windowStartS > 0) {
+                            long startMs = windowStartS * 1000L;
+                            long dur = first.getDuration();
+                            if (dur > 0) startMs = Math.min(startMs, Math.max(0, dur - 1000));
+                            first.setPosition(startMs);
+                        }
+                    }
                     latch.countDown();
                 }
 
@@ -333,7 +359,6 @@ public class PlaybackService {
             this.windowEndS = endS;
         }
 
-        //TODO implement cutting track according to track points
         private void startInternalLoopIfNeeded() {
             if (!loopRunning.compareAndSet(false, true)) {
                 return;

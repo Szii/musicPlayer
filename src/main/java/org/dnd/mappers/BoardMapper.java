@@ -26,9 +26,7 @@ public interface BoardMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "selectedTrack.owner", ignore = true)
-    @Mapping(target = "selectedTrack.groups", ignore = true)
-    @Mapping(target = "selectedTrack.shares", ignore = true)
+    @Mapping(target = "selectedTrack", ignore = true)
     void updateBoardFromRequest(BoardUpdateRequest request, @MappingTarget BoardEntity entity);
 
     List<Board> toDtos(List<BoardEntity> entities);
