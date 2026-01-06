@@ -2,7 +2,7 @@ package org.dnd.repository;
 
 import jakarta.transaction.Transactional;
 import org.dnd.model.TrackEntity;
-import org.dnd.model.TrackPointEntity;
+import org.dnd.model.TrackWindowEntity;
 import org.dnd.model.UserEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @DirtiesContext
-class TrackPointRepositoryTest extends DatabaseBase {
+class TrackWindowRepositoryTest extends DatabaseBase {
     @Autowired
     private UserRepository userRepository;
 
@@ -24,11 +24,11 @@ class TrackPointRepositoryTest extends DatabaseBase {
     private TrackRepository trackRepository;
 
     @Autowired
-    private TrackPointRepository trackPointRepository;
+    private TrackWindowRepository trackWindowRepository;
 
     @Test
     @Transactional
-    void createUpdateAndDeleteTrackPoint() {
+    void createUpdateAndDeleteTrackWindow() {
         UserEntity owner = new UserEntity();
         owner.setName("owner2");
         owner.setPassword("pw");
@@ -41,27 +41,28 @@ class TrackPointRepositoryTest extends DatabaseBase {
         track.setOwner(owner);
         track = trackRepository.save(track);
 
-        TrackPointEntity point = new TrackPointEntity();
-        point.setTrack(track);
-        point.setName("Intro");
-        point.setPosition(10L);
-        point.setFadeIn(true);
-        point.setFadeOut(false);
-        point = trackPointRepository.save(point);
+        TrackWindowEntity window = new TrackWindowEntity();
+        window.setTrack(track);
+        window.setName("Intro");
+        window.setPositionFrom(10L);
+        window.setPositionTo(10L);
+        window.setFadeIn(true);
+        window.setFadeOut(false);
+        window = trackWindowRepository.save(window);
 
-        List<TrackPointEntity> points = trackPointRepository.findByTrack_Id(track.getId());
-        assertThat(points).hasSize(1);
+        List<TrackWindowEntity> windows = trackWindowRepository.findByTrack_Id(track.getId());
+        assertThat(windows).hasSize(1);
 
-        Optional<TrackPointEntity> loaded = trackPointRepository.findByIdAndTrack_Id(point.getId(), track.getId());
+        Optional<TrackWindowEntity> loaded = trackWindowRepository.findByIdAndTrack_Id(window.getId(), track.getId());
         assertThat(loaded).isPresent();
         loaded.get().setName("Intro updated");
-        trackPointRepository.save(loaded.get());
+        trackWindowRepository.save(loaded.get());
 
-        TrackPointEntity updated = trackPointRepository.findById(point.getId()).orElseThrow();
+        TrackWindowEntity updated = trackWindowRepository.findById(window.getId()).orElseThrow();
         assertThat(updated.getName()).isEqualTo("Intro updated");
 
-        trackPointRepository.deleteByIdAndTrack_Id(point.getId(), track.getId());
-        assertThat(trackPointRepository.findByTrack_Id(track.getId())).isEmpty();
+        trackWindowRepository.deleteByIdAndTrack_Id(window.getId(), track.getId());
+        assertThat(trackWindowRepository.findByTrack_Id(track.getId())).isEmpty();
     }
 }
 

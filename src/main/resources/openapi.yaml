@@ -31,10 +31,10 @@ components:
           format: int64
           example: 1
 
-      PointId:
-        name: pointId
+      WindowId:
+        name: windowId
         in: path
-        description: ID of the point
+        description: ID of the track window
         required: true
         schema:
           type: integer
@@ -214,15 +214,15 @@ components:
             type: integer
             format: int64
           example: [3, 7, 12]
-        trackPoints:
+        trackWindows:
           type: array
-          description: Points of interest for the track
+          description: Windows of interest for the track
           items:
-            $ref: '#/components/schemas/TrackPoint'
+            $ref: '#/components/schemas/TrackWindow'
 
-    TrackPoint:
+    TrackWindow:
       type: object
-      description: Point of interest in track
+      description: Window of interest in track
       properties:
           id:
             type: integer
@@ -230,16 +230,19 @@ components:
             description: Unique identifier (auto-generated)
           name:
               type: string
-              description: name for point
-          position:
+              description: name for window
+          positionFrom:
             type: integer
-            description: Point of interest in the track
+            description: Start of track window
+          positionTo:
+            type: integer
+            description: End of track window
           fadeIn:
             type: boolean
-            description: point makes a fade in
+            description: window makes a fade in
           fadeOut:
             type: boolean
-            description: point makes a fade out
+            description: window makes a fade out
 
     TrackRequest:
       type: object
@@ -255,22 +258,25 @@ components:
           type: string
           description: URL or link to the track audio
           example: "https://example.com/track.mp3"
-    TrackPointRequest:
+    TrackWindowRequest:
       type: object
-      description: Point of interest in track
+      description: Window of interest in track
       properties:
-        position:
+        positionFrom:
           type: integer
-          description: Point of interest in the track
+          description: Start position of window
+        positionTo:
+          type: integer
+          description: End position of window
         name:
           type: string
-          description: name for point
+          description: name for window
         fadeIn:
           type: boolean
-          description: point makes a fade in
+          description: window makes a fade in
         fadeOut:
           type: boolean
-          description: point makes a fade out
+          description: window makes a fade out
     Group:
       type: object
       description: A playlist or group of tracks
@@ -438,7 +444,7 @@ components:
 
     WindowRequest:
       type: object
-      description: Request to limit playback to a window (useful for track points)
+      description: Request to limit playback to a window
       required:
         - startS
       properties:
@@ -656,13 +662,13 @@ paths:
           description: Track deleted successfully
         '404':
           description: Track not found
-  /tracks/{trackId}/points:
+  /tracks/{trackId}/windows:
     post:
       tags:
          - MusicTracks
-      summary: Create a track point
-      description: Adds a new point of interest to the specified track
-      operationId: createTrackPoint
+      summary: Create a track window
+      description: Adds a new window of interest to the specified track
+      operationId: createTrackWindow
       parameters:
           - $ref: '#/components/parameters/TrackId'
       requestBody:
@@ -670,10 +676,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrackPointRequest'
+              $ref: '#/components/schemas/TrackWindowRequest'
       responses:
         '200':
-          description: Updated track with the new point
+          description: Update track with adding an new window
           content:
             application/json:
               schema:
@@ -682,25 +688,25 @@ paths:
           description: Bad request (validation error, etc.)
         '500':
           description: Server error
-  /tracks/{trackId}/points/{pointId}:
+  /tracks/{trackId}/windows/{windowId}:
     patch:
       tags:
         - MusicTracks
-      summary: Update a track point
-      description: Partially updates the specified point of interest on the track
-      operationId: updateTrackPoint
+      summary: Update a track window
+      description: Partially updates the specified track window
+      operationId: updateTrackWindow
       parameters:
         - $ref: '#/components/parameters/TrackId'
-        - $ref: '#/components/parameters/PointId'
+        - $ref: '#/components/parameters/WindowId'
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrackPointRequest'
+              $ref: '#/components/schemas/TrackWindowRequest'
       responses:
         '200':
-          description: Updated track with the modified point
+          description: Updated track with the modified windows
           content:
             application/json:
               schema:
@@ -712,15 +718,15 @@ paths:
     delete:
       tags:
         - MusicTracks
-      summary: Delete a track point
-      description: Removes the specified point from the track
-      operationId: deleteTrackPoint
+      summary: Delete a track window
+      description: Removes the specified window from the track
+      operationId: deleteTrackWindow
       parameters:
         - $ref: '#/components/parameters/TrackId'
-        - $ref: '#/components/parameters/PointId'
+        - $ref: '#/components/parameters/WindowId'
       responses:
         '200':
-          description: Updated track without the point
+          description: Removed window from a track
           content:
             application/json:
               schema:

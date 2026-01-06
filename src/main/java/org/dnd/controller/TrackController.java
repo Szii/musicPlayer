@@ -5,8 +5,8 @@ import lombok.AllArgsConstructor;
 import org.dnd.api.MusicTracksApi;
 import org.dnd.api.model.*;
 import org.dnd.service.ShareService;
-import org.dnd.service.TrackPointService;
 import org.dnd.service.TrackService;
+import org.dnd.service.TrackWindowService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,7 +25,7 @@ public class TrackController implements MusicTracksApi {
 
     private final ShareService shareService;
 
-    private final TrackPointService trackPointService;
+    private final TrackWindowService trackWindowService;
 
     @Override
     public ResponseEntity<List<Track>> getUserTracks() throws Exception {
@@ -50,18 +50,18 @@ public class TrackController implements MusicTracksApi {
     }
 
     @Override
-    public ResponseEntity<Track> updateTrackPoint(Long trackId, Long pointId, TrackPointRequest trackRequest) throws Exception {
-        return ResponseEntity.ok().body(trackPointService.updateTrackPoint(trackId, pointId, trackRequest));
+    public ResponseEntity<Track> updateTrackWindow(Long trackId, Long pointId, TrackWindowRequest trackRequest) throws Exception {
+        return ResponseEntity.ok().body(trackWindowService.updateTrackWindow(trackId, pointId, trackRequest));
     }
 
     @Override
-    public ResponseEntity<Track> deleteTrackPoint(Long trackId, Long pointId) throws Exception {
-        return ResponseEntity.ok().body(trackPointService.deleteTrackPoint(trackId, pointId));
+    public ResponseEntity<Track> deleteTrackWindow(Long trackId, Long pointId) throws Exception {
+        return ResponseEntity.ok().body(trackWindowService.deleteTrackWindow(trackId, pointId));
     }
 
     @Override
-    public ResponseEntity<Track> createTrackPoint(Long trackId, TrackPointRequest trackRequest) throws Exception {
-        return ResponseEntity.ok().body(trackPointService.createTrackPoint(trackId, trackRequest));
+    public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
+        return ResponseEntity.ok().body(trackWindowService.createTrackWindow(trackId, trackRequest));
     }
 
     @Override

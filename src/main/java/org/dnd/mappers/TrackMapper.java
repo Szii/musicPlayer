@@ -19,13 +19,13 @@ public interface TrackMapper {
     @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "shares", ignore = true)
-    @Mapping(target = "trackPoints", ignore = true)
+    @Mapping(target = "trackWindows", ignore = true)
     TrackEntity toEntity(Track dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
-    @Mapping(target = "trackPoints", ignore = true)
+    @Mapping(target = "trackWindows", ignore = true)
     @Mapping(target = "shares", ignore = true)
     TrackEntity toEntity(TrackRequest request);
 
@@ -50,7 +50,7 @@ public interface TrackMapper {
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
-    @Mapping(target = "trackPoints", ignore = true)
+    @Mapping(target = "trackWindows", ignore = true)
     @Mapping(target = "shares", ignore = true)
     void updateTrackFromRequest(TrackRequest request, @MappingTarget TrackEntity entity);
 }

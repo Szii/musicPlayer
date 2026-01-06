@@ -38,8 +38,8 @@ public class TrackEntity {
     private Set<GroupEntity> groups = new HashSet<>();
 
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("position ASC")
-    private Set<TrackPointEntity> trackPoints = new HashSet<>();
+    @OrderBy("name ASC")
+    private Set<TrackWindowEntity> trackWindows = new HashSet<>();
 
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<UserTrackShareEntity> shares = new HashSet<>();

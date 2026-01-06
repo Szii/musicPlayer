@@ -26,6 +26,4 @@ public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
                or ts.user.id = :userId
             """)
     List<TrackEntity> findAccessibleTracksForUser(@Param("userId") Long userId);
-
-
 }

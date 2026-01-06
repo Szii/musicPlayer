@@ -52,7 +52,7 @@ public class PlaybackService {
     @Autowired
     private TrackRepository trackRepository;
 
-    // One session per board (boardId -> session)
+    // One session per board
     private final ConcurrentMap<Long, BoardSession> sessions = new ConcurrentHashMap<>();
 
     public PlaybackService() {

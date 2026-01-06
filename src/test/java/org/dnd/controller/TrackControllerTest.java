@@ -42,7 +42,7 @@ class TrackControllerTest extends DatabaseBase {
     @Autowired
     private UserGroupShareRepository userGroupShareRepository;
     @Autowired
-    private TrackPointRepository trackPointRepository;
+    private TrackWindowRepository trackWindowRepository;
 
     @Autowired
     private JwtService jwtService;
@@ -52,7 +52,7 @@ class TrackControllerTest extends DatabaseBase {
 
     @BeforeEach
     void setUp() {
-        trackPointRepository.deleteAll();
+        trackWindowRepository.deleteAll();
         userTrackShareRepository.deleteAll();
         userGroupShareRepository.deleteAll();
         trackRepository.deleteAll();
@@ -314,41 +314,44 @@ class TrackControllerTest extends DatabaseBase {
     }
 
     @Test
-    void createTrackPoint_Owner_Success() throws Exception {
+    void createTrackWindow_Owner_Success() throws Exception {
         TrackEntity track = createTrackEntity("My Track", testUser, null);
 
-        TrackPointRequest req = new TrackPointRequest()
+        TrackWindowRequest req = new TrackWindowRequest()
                 .name("Intro")
-                .position(10)
+                .positionFrom(10)
+                .positionTo(20)
                 .fadeIn(true)
                 .fadeOut(false);
 
-        mockMvc.perform(post("/api/v1/tracks/{trackId}/points", track.getId())
+        mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(track.getId().intValue()))
-                .andExpect(jsonPath("$.trackPoints").isArray())
-                .andExpect(jsonPath("$.trackPoints", hasSize(1)))
-                .andExpect(jsonPath("$.trackPoints[0].name").value("Intro"))
-                .andExpect(jsonPath("$.trackPoints[0].position").value(10))
-                .andExpect(jsonPath("$.trackPoints[0].fadeIn").value(true))
-                .andExpect(jsonPath("$.trackPoints[0].fadeOut").value(false));
+                .andExpect(jsonPath("$.trackWindows").isArray())
+                .andExpect(jsonPath("$.trackWindows", hasSize(1)))
+                .andExpect(jsonPath("$.trackWindows[0].name").value("Intro"))
+                .andExpect(jsonPath("$.trackWindows[0].positionFrom").value(10))
+                .andExpect(jsonPath("$.trackWindows[0].positionTo").value(20))
+                .andExpect(jsonPath("$.trackWindows[0].fadeIn").value(true))
+                .andExpect(jsonPath("$.trackWindows[0].fadeOut").value(false));
     }
 
     @Test
-    void createTrackPoint_NonOwner_Forbidden() throws Exception {
+    void createTrackWindow_NonOwner_Forbidden() throws Exception {
         UserEntity other = createUser("otherUser");
         TrackEntity track = createTrackEntity("Other Track", other, null);
 
-        TrackPointRequest req = new TrackPointRequest()
+        TrackWindowRequest req = new TrackWindowRequest()
                 .name("Nope")
-                .position(10)
+                .positionFrom(10)
+                .positionTo(20)
                 .fadeIn(false)
                 .fadeOut(false);
 
-        mockMvc.perform(post("/api/v1/tracks/{trackId}/points", track.getId())
+        mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -356,16 +359,17 @@ class TrackControllerTest extends DatabaseBase {
     }
 
     @Test
-    void createTrackPoint_PositionOutsideDuration_BadRequest() throws Exception {
+    void createTrackWindow_PositionOutsideDuration_BadRequest() throws Exception {
         TrackEntity track = createTrackEntity("My Track", testUser, null);
 
-        TrackPointRequest req = new TrackPointRequest()
+        TrackWindowRequest req = new TrackWindowRequest()
                 .name("Too far")
-                .position(999)
+                .positionFrom(999)
+                .positionTo(500)
                 .fadeIn(false)
                 .fadeOut(false);
 
-        mockMvc.perform(post("/api/v1/tracks/{trackId}/points", track.getId())
+        mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
@@ -373,55 +377,56 @@ class TrackControllerTest extends DatabaseBase {
     }
 
     @Test
-    void getUserTracks_TrackPointsAreOrderedAscending() throws Exception {
+    void getUserTracks_TrackWindowsAreOrderedAscending() throws Exception {
         TrackEntity track = createTrackEntity("Ordered Track", testUser, null);
 
-        createTrackPoint(track, "B", 50L, false, false);
-        createTrackPoint(track, "A", 10L, false, false);
-        createTrackPoint(track, "C", 90L, false, false);
+        createTrackWindow(track, "B", 50L, 100L, false, false);
+        createTrackWindow(track, "A", 10L, 100L, false, false);
+        createTrackWindow(track, "C", 90L, 100L, false, false);
 
         mockMvc.perform(get("/api/v1/tracks")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].trackPoints[*].position", contains(10, 50, 90)))
-                .andExpect(jsonPath("$[0].trackPoints[*].name", contains("A", "B", "C")));
+                .andExpect(jsonPath("$[0].trackWindows[*].name", contains("A", "B", "C")));
     }
 
     @Test
-    void updateTrackPoint_Owner_Success() throws Exception {
+    void updateTrackWindow_Owner_Success() throws Exception {
         TrackEntity track = createTrackEntity("My Track", testUser, null);
-        TrackPointEntity point = createTrackPoint(track, "Intro", 10L, true, false);
+        TrackWindowEntity point = createTrackWindow(track, "Intro", 10L, 20L, true, false);
 
-        TrackPointRequest update = new TrackPointRequest()
+        TrackWindowRequest update = new TrackWindowRequest()
                 .name("Intro Updated")
-                .position(20)
+                .positionFrom(20)
+                .positionTo(45)
                 .fadeIn(false)
                 .fadeOut(true);
 
-        mockMvc.perform(patch("/api/v1/tracks/{trackId}/points/{pointId}", track.getId(), point.getId())
+        mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), point.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(update)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.trackPoints[*].id", hasItem(point.getId().intValue())))
-                .andExpect(jsonPath("$.trackPoints[0].name").value("Intro Updated"))
-                .andExpect(jsonPath("$.trackPoints[0].position").value(20))
-                .andExpect(jsonPath("$.trackPoints[0].fadeIn").value(false))
-                .andExpect(jsonPath("$.trackPoints[0].fadeOut").value(true));
+                .andExpect(jsonPath("$.trackWindows[*].id", hasItem(point.getId().intValue())))
+                .andExpect(jsonPath("$.trackWindows[0].name").value("Intro Updated"))
+                .andExpect(jsonPath("$.trackWindows[0].positionFrom").value(20))
+                .andExpect(jsonPath("$.trackWindows[0].positionTo").value(45))
+                .andExpect(jsonPath("$.trackWindows[0].fadeIn").value(false))
+                .andExpect(jsonPath("$.trackWindows[0].fadeOut").value(true));
     }
 
     @Test
-    void deleteTrackPoint_Owner_Success() throws Exception {
+    void deleteTrackWindow_Owner_Success() throws Exception {
         TrackEntity track = createTrackEntity("My Track", testUser, null);
-        TrackPointEntity point = createTrackPoint(track, "Intro", 10L, true, false);
+        TrackWindowEntity window = createTrackWindow(track, "Intro", 10L, 20L, true, false);
 
-        mockMvc.perform(delete("/api/v1/tracks/{trackId}/points/{pointId}", track.getId(), point.getId())
+        mockMvc.perform(delete("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), window.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.trackPoints").isArray())
-                .andExpect(jsonPath("$.trackPoints", is(empty())));
+                .andExpect(jsonPath("$.trackWindows").isArray())
+                .andExpect(jsonPath("$.trackWindows", is(empty())));
     }
 
 
@@ -480,14 +485,15 @@ class TrackControllerTest extends DatabaseBase {
                 .andExpect(status().isOk());
     }
 
-    private TrackPointEntity createTrackPoint(TrackEntity track, String name, Long position, boolean fadeIn, boolean fadeOut) {
-        TrackPointEntity p = new TrackPointEntity();
+    private TrackWindowEntity createTrackWindow(TrackEntity track, String name, Long positionFrom, Long positionTo, boolean fadeIn, boolean fadeOut) {
+        TrackWindowEntity p = new TrackWindowEntity();
         p.setTrack(track);
         p.setName(name);
-        p.setPosition(position);
+        p.setPositionFrom(positionFrom);
+        p.setPositionTo(positionTo);
         p.setFadeIn(fadeIn);
         p.setFadeOut(fadeOut);
-        return trackPointRepository.save(p);
+        return trackWindowRepository.save(p);
     }
 
 
