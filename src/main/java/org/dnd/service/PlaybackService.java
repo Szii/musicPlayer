@@ -97,6 +97,8 @@ public class PlaybackService {
 
         BoardSession s = sessions.computeIfAbsent(boardId, id -> new BoardSession(id, playerManager));
 
+        s.setRepeat(board.isRepeat());
+
         if (requestedWindowId != null) {
             var window = trackWindowRepository.findById(requestedWindowId).orElseThrow(() ->
                     new ResponseStatusException(NOT_FOUND, "Track window not found"));
@@ -185,6 +187,12 @@ public class PlaybackService {
         private volatile PlaybackStatus status = PlaybackStatus.STOPPED;
         private volatile Long currentTrackId = null;
 
+        private volatile boolean repeat;
+
+        private volatile boolean paused;
+
+        private volatile AudioTrack templateTrack = null;
+
         private volatile Long windowStartS = null;
         private volatile Long windowEndS = null;
 
@@ -215,24 +223,30 @@ public class PlaybackService {
                 @Override
                 public void onTrackEnd(AudioPlayer player, AudioTrack track, AudioTrackEndReason endReason) {
                     log.debug("[board={}] track end: reason={}", boardId, endReason);
-                    if (endReason.mayStartNext) {
-                        // TODO repeat track based on board state
+
+                    if (repeat && endReason.mayStartNext) {
+                        replayFromStartOrWindow();
+                        return;
                     }
+
                     status = PlaybackStatus.STOPPED;
                     currentTrackId = null;
                     stopInternalLoop();
                     pcmFrames.clear();
                     streaming.set(false);
+                    templateTrack = null;
                 }
 
                 @Override
                 public void onPlayerPause(AudioPlayer player) {
                     status = PlaybackStatus.PAUSED;
+                    paused = true;
                 }
 
                 @Override
                 public void onPlayerResume(AudioPlayer player) {
                     status = PlaybackStatus.PLAYING;
+                    paused = false;
                 }
 
                 @Override
@@ -271,33 +285,19 @@ public class PlaybackService {
             playerManager.loadItem(trackResolved.getTrackLink(), new AudioLoadResultHandler() {
                 @Override
                 public void trackLoaded(AudioTrack track) {
+                    templateTrack = track;
+                    applyWindowStartIfAny(track);
                     player.playTrack(track);
-
-                    if (windowStartS != null && windowStartS > 0) {
-                        long startMs = windowStartS * 1000L;
-
-                        long dur = track.getDuration();
-                        if (dur > 0) startMs = Math.min(startMs, Math.max(0, dur - 1000));
-
-                        track.setPosition(startMs);
-                    }
-
                     latch.countDown();
                 }
-
 
                 @Override
                 public void playlistLoaded(AudioPlaylist playlist) {
                     AudioTrack first = playlist.getTracks().isEmpty() ? null : playlist.getTracks().get(0);
                     if (first != null) {
+                        templateTrack = first;
+                        applyWindowStartIfAny(first);
                         player.playTrack(first);
-
-                        if (windowStartS != null && windowStartS > 0) {
-                            long startMs = windowStartS * 1000L;
-                            long dur = first.getDuration();
-                            if (dur > 0) startMs = Math.min(startMs, Math.max(0, dur - 1000));
-                            first.setPosition(startMs);
-                        }
                     }
                     latch.countDown();
                 }
@@ -356,6 +356,10 @@ public class PlaybackService {
             this.windowEndS = endS;
         }
 
+        private void setRepeat(boolean repeat) {
+            this.repeat = repeat;
+        }
+
         private void startInternalLoopIfNeeded() {
             if (!loopRunning.compareAndSet(false, true)) {
                 return;
@@ -370,9 +374,8 @@ public class PlaybackService {
                             sleepQuiet(20);
                             continue;
                         }
-
-                        // stop at window end
-                        if (windowEndS != null) {
+                        
+                        if (!paused && windowEndS != null) {
                             long endMs = windowEndS * 1000L;
                             if (t.getPosition() >= endMs) {
                                 player.stopTrack();
@@ -410,6 +413,37 @@ public class PlaybackService {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+
+        private void applyWindowStartIfAny(AudioTrack t) {
+            if (windowStartS == null || windowStartS <= 0) return;
+
+            long startMs = windowStartS * 1000L;
+
+            long dur = t.getDuration();
+            if (dur > 0) startMs = Math.min(startMs, Math.max(0, dur - 1000));
+
+            t.setPosition(startMs);
+        }
+
+        private void replayFromStartOrWindow() {
+            AudioTrack tpl = templateTrack;
+            if (tpl == null) {
+                log.warn("[board={}] repeat requested but templateTrack is null", boardId);
+                return;
+            }
+
+            AudioTrack next = tpl.makeClone();
+
+            if (windowStartS != null && windowStartS > 0) {
+                applyWindowStartIfAny(next);
+            } else {
+                next.setPosition(0);
+            }
+
+            pcmFrames.clear();
+
+            player.playTrack(next);
         }
     }
 
