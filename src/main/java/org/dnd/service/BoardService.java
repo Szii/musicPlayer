@@ -13,7 +13,6 @@ import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
 import org.dnd.repository.BoardRepository;
 import org.dnd.repository.TrackRepository;
-import org.dnd.repository.TrackWindowRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,6 @@ public class BoardService {
     private final BoardRepository boardRepository;
     private final UserRepository userRepository;
     private final TrackRepository trackRepository;
-    private final TrackWindowRepository trackWindowRepository;
     private final BoardMapper boardMapper;
 
     public List<Board> getUserBoards() {

@@ -20,7 +20,6 @@ import org.dnd.api.model.SeekRequest;
 import org.dnd.model.BoardEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.repository.BoardRepository;
-import org.dnd.repository.TrackRepository;
 import org.dnd.repository.TrackWindowRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.core.io.InputStreamResource;
@@ -44,8 +43,6 @@ import static org.springframework.http.HttpStatus.*;
 public class PlaybackService {
 
     private final BoardRepository boardRepository;
-
-    private final TrackRepository trackRepository;
 
     private final TrackWindowRepository trackWindowRepository;
 
