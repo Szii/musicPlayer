@@ -22,7 +22,7 @@ public class BoardEntity {
     private TrackEntity selectedTrack;
 
     @Column(nullable = false)
-    private int volume;
+    private int volume = 50;
 
     @Column(nullable = false)
     private String name;
