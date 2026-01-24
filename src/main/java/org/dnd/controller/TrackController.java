@@ -3,7 +3,9 @@ package org.dnd.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.dnd.api.MusicTracksApi;
-import org.dnd.api.model.*;
+import org.dnd.api.model.Track;
+import org.dnd.api.model.TrackRequest;
+import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.service.ShareService;
 import org.dnd.service.TrackService;
 import org.dnd.service.TrackWindowService;
@@ -63,24 +65,6 @@ public class TrackController implements MusicTracksApi {
     public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
         return ResponseEntity.ok().body(trackWindowService.createTrackWindow(trackId, trackRequest));
     }
-
-    @Override
-    public ResponseEntity<List<TrackShare>> listTrackShares(Long trackId) throws Exception {
-        return ResponseEntity.ok().body(shareService.getTrackShares(trackId));
-    }
-
-    @Override
-    public ResponseEntity<TrackShare> shareTrack(Long trackId, TrackShareRequest trackShareRequest) throws Exception {
-        shareService.shareTrack(trackId, trackShareRequest.getUserId());
-        return ResponseEntity.ok().build();
-    }
-
-    @Override
-    public ResponseEntity<Void> unshareTrack(Long trackId, Long userId) throws Exception {
-        shareService.unshareTrack(trackId, userId);
-        return ResponseEntity.ok().build();
-    }
-
 }
 
 

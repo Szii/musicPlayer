@@ -1,18 +1,13 @@
 package org.dnd.repository;
 
-import jakarta.transaction.Transactional;
-import org.dnd.model.*;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @DirtiesContext
 class ShareRepositoryTest extends DatabaseBase {
-
+    //TODO reimplement after share service is done
+/*
     @Autowired
     private UserRepository userRepository;
 
@@ -85,4 +80,6 @@ class ShareRepositoryTest extends DatabaseBase {
         assertThat(groupShareRepository.findByUser_Id(viewer.getId())).isEmpty();
         assertThat(groupShareRepository.findByGroup_Id(group.getId())).isEmpty();
     }
+    */
+
 }

@@ -53,8 +53,6 @@ public class GroupService {
             throw new ForbiddenException("You can only delete your own groups");
         }
 
-        group.getShares().forEach(s -> shareService.unshareGroup(groupId, s.getUser().getId()));
-
         groupRepository.deleteById(groupId);
     }
 

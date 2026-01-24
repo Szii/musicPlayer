@@ -25,8 +25,6 @@ public interface UserMapper {
     @Mapping(target = "ownedTracks", ignore = true)
     @Mapping(target = "ownedGroups", ignore = true)
     @Mapping(target = "boards", ignore = true)
-    @Mapping(target = "trackShares", ignore = true)
-    @Mapping(target = "groupShares", ignore = true)
     UserEntity fromRegisterRequest(UserRegisterRequest request);
 
 }

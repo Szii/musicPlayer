@@ -143,44 +143,6 @@ components:
           description: Authentication token (e.g., JWT) used for subsequent requests
           example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
-    TrackShareRequest:
-      type: object
-      description: Request to share a track with another user
-      required:
-        - userId
-      properties:
-        userId:
-          type: integer
-          format: int64
-          description: ID of the user to share the track with
-          example: 2
-
-    TrackShare:
-      type: object
-      description: Track sharing information for a specific user
-      properties:
-        user:
-          $ref: '#/components/schemas/User'
-
-    GroupShareRequest:
-      type: object
-      description: Request to share a group with another user
-      required:
-        - userId
-      properties:
-        userId:
-          type: integer
-          format: int64
-          description: ID of the user to share the group with
-          example: 2
-
-    GroupShare:
-      type: object
-      description: Group sharing information for a specific user
-      properties:
-        user:
-          $ref: '#/components/schemas/User'
-
     Track:
       type: object
       description: A music track
@@ -736,80 +698,6 @@ paths:
         '500':
           description: Server error
 
-  /tracks/{trackId}/shares:
-    get:
-      tags:
-        - MusicTracks
-      summary: List users the track is shared with
-      description: Returns all users that have view access to this track. Only the owner can call this endpoint.
-      operationId: listTrackShares
-      parameters:
-        - $ref: '#/components/parameters/TrackId'
-      responses:
-        '200':
-          description: List of users the track is shared with
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/TrackShare'
-        '403':
-          description: Forbidden (only the owner can view shares)
-        '404':
-          description: Track not found
-    post:
-      tags:
-        - MusicTracks
-      summary: Share a track with a user
-      description: >
-        Shares the track with another user. If already shared, this is a no-op.
-        Only the owner can call this endpoint.
-      operationId: shareTrack
-      parameters:
-        - $ref: '#/components/parameters/TrackId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TrackShareRequest'
-      responses:
-        '200':
-          description: Track sharing created (or already existed)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TrackShare'
-        '400':
-          description: Invalid input
-        '403':
-          description: Forbidden (only the owner can share)
-        '404':
-          description: Track or user not found
-
-  /tracks/{trackId}/shares/{userId}:
-    delete:
-      tags:
-        - MusicTracks
-      summary: Remove sharing of a track for a user
-      description: >
-        Removes access to the track for the specified user.
-        Only the owner can call this endpoint.
-      operationId: unshareTrack
-      parameters:
-        - $ref: '#/components/parameters/TrackId'
-        - $ref: '#/components/parameters/UserId'
-      responses:
-        '204':
-          description: Sharing removed successfully
-        '403':
-          description: Forbidden (only the owner can unshare)
-        '404':
-          description: Track or sharing not found
-
-
-
   /boards:
     get:
       tags:
@@ -976,76 +864,6 @@ paths:
         '404':
           description: Group not found
 
-  /groups/{groupId}/shares:
-    get:
-      tags:
-        - MusicGroups
-      summary: List users the group is shared with
-      description: Returns all users that have view access to this group. Only the owner can call this endpoint.
-      operationId: listGroupShares
-      parameters:
-        - $ref: '#/components/parameters/GroupId'
-      responses:
-        '200':
-          description: List of users the group is shared with
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/GroupShare'
-        '403':
-          description: Forbidden (only the owner can view shares)
-        '404':
-          description: Group not found
-    post:
-      tags:
-        - MusicGroups
-      summary: Share a group with a user
-      description: >
-        Shares the group with another user. If already shared, this is a no-op.
-        Only the owner can call this endpoint.
-      operationId: shareGroup
-      parameters:
-        - $ref: '#/components/parameters/GroupId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/GroupShareRequest'
-      responses:
-        '200':
-          description: Group sharing created (or already existed)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/GroupShare'
-        '400':
-          description: Invalid input
-        '403':
-          description: Forbidden
-        '404':
-          description: Group or user not found
-
-  /groups/{groupId}/shares/{userId}:
-    delete:
-      tags:
-        - MusicGroups
-      summary: Remove sharing of a group for a user
-      description: >
-        Removes access to the group for the specified user.
-      operationId: unshareGroup
-      parameters:
-        - $ref: '#/components/parameters/GroupId'
-        - $ref: '#/components/parameters/UserId'
-      responses:
-        '204':
-          description: Sharing removed successfully
-        '403':
-          description: Forbidden
-        '404':
-          description: Group or sharing not found
   /boards/{boardId}/playback/play:
     post:
       tags:

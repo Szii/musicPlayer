@@ -17,14 +17,15 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TrackEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "track_name", nullable = false)
     private String trackName;
 
-    @Column(nullable = false)
+    @Column(name = "track_link", nullable = false)
     private String trackLink;
 
     @Column(nullable = false)
@@ -40,9 +41,7 @@ public class TrackEntity {
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("name ASC")
     private Set<TrackWindowEntity> trackWindows = new HashSet<>();
-
-    @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserTrackShareEntity> shares = new HashSet<>();
 }
+
 
 

@@ -16,11 +16,12 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class GroupEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "list_name", nullable = false)
     private String listName;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -34,9 +35,7 @@ public class GroupEntity {
             inverseJoinColumns = @JoinColumn(name = "track_id")
     )
     private Set<TrackEntity> tracks = new HashSet<>();
-
-    @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserGroupShareEntity> shares = new HashSet<>();
 }
+
 
 

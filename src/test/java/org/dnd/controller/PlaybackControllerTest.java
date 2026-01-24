@@ -86,7 +86,6 @@ class PlaybackControllerTest extends DatabaseBase {
         track.setTrackName("Selected Track");
         track.setTrackLink("someLink");
         track.setOwner(testUser);
-        track.setShares(new java.util.HashSet<>());
         track = trackRepository.save(track);
 
         board = new BoardEntity();

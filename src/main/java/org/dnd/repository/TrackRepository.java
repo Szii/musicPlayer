@@ -21,9 +21,7 @@ public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
     @Query("""
             select distinct t
             from TrackEntity t
-            left join t.shares ts
             where t.owner.id = :userId
-               or ts.user.id = :userId
             """)
     List<TrackEntity> findAccessibleTracksForUser(@Param("userId") Long userId);
 }

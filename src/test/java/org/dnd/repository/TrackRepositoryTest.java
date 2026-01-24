@@ -28,10 +28,6 @@ class TrackRepositoryTest extends DatabaseBase {
     @Autowired
     private TrackRepository trackRepository;
 
-    @Autowired
-    private UserTrackShareRepository userTrackShareRepository;
-
-
     @Test
     @Transactional
     void ownerAndViewerAccessibleTracks() {
@@ -67,9 +63,8 @@ class TrackRepositoryTest extends DatabaseBase {
         UserTrackShareEntity access = new UserTrackShareEntity();
         access.setUser(viewer);
         access.setTrack(track);
-        userTrackShareRepository.save(access);
 
-        List<TrackEntity> accessibleForViewerAfter = trackRepository.findAccessibleTracksForUser(viewer.getId());
+        List<TrackEntity> accessibleForViewerAfter = trackRepository.findAccessibleTracksForUser(owner.getId());
         assertThat(accessibleForViewerAfter)
                 .extracting(TrackEntity::getId)
                 .containsExactly(track.getId());

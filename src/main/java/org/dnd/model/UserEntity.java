@@ -34,12 +34,7 @@ public class UserEntity {
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BoardEntity> boards = new HashSet<>();
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserTrackShareEntity> trackShares = new HashSet<>();
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<UserGroupShareEntity> groupShares = new HashSet<>();
+    
 }
 
 

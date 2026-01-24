@@ -1,8 +1,13 @@
 package org.dnd.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.dnd.api.model.*;
-import org.dnd.model.*;
+import org.dnd.api.model.TrackRequest;
+import org.dnd.api.model.TrackWindowRequest;
+import org.dnd.api.model.UserAuthDTO;
+import org.dnd.model.GroupEntity;
+import org.dnd.model.TrackEntity;
+import org.dnd.model.TrackWindowEntity;
+import org.dnd.model.UserEntity;
 import org.dnd.repository.*;
 import org.dnd.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,10 +19,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.List;
-
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,10 +41,6 @@ class TrackControllerTest extends DatabaseBase {
     @Autowired
     private GroupRepository groupRepository;
     @Autowired
-    private UserTrackShareRepository userTrackShareRepository;
-    @Autowired
-    private UserGroupShareRepository userGroupShareRepository;
-    @Autowired
     private TrackWindowRepository trackWindowRepository;
 
     @Autowired
@@ -53,8 +52,6 @@ class TrackControllerTest extends DatabaseBase {
     @BeforeEach
     void setUp() {
         trackWindowRepository.deleteAll();
-        userTrackShareRepository.deleteAll();
-        userGroupShareRepository.deleteAll();
         trackRepository.deleteAll();
         groupRepository.deleteAll();
         userRepository.deleteAll();
@@ -74,52 +71,6 @@ class TrackControllerTest extends DatabaseBase {
                 .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("T1", "T2")))
                 .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(testUser.getId().intValue()))));
     }
-
-    @Test
-    void getUserTracks_SharedTrack_Success() throws Exception {
-        UserEntity owner = createUser("owner");
-        TrackEntity t1 = createTrackEntity("Shared 1", owner, null);
-        TrackEntity t2 = createTrackEntity("Shared 2", owner, null);
-
-        mockMvc.perform(get("/api/v1/tracks")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$").isEmpty());
-
-        String ownerToken = getTokenForUser(owner);
-        shareTrack(t1.getId(), testUser.getId(), ownerToken);
-        shareTrack(t2.getId(), testUser.getId(), ownerToken);
-
-        mockMvc.perform(get("/api/v1/tracks")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("Shared 1", "Shared 2")))
-                .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(owner.getId().intValue()))));
-    }
-
-    @Test
-    void getUserTracks_SharedViaGroup_Success() throws Exception {
-        UserEntity owner = createUser("owner2");
-        GroupEntity group = createGroup("G1", owner);
-        TrackEntity t1 = createTrackEntity("GT1", owner, group);
-        TrackEntity t2 = createTrackEntity("GT2", owner, group);
-
-        mockMvc.perform(get("/api/v1/tracks")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$").isEmpty());
-
-        shareGroup(group.getId(), testUser.getId(), getTokenForUser(owner));
-
-        mockMvc.perform(get("/api/v1/tracks")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("GT1", "GT2")))
-                .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(owner.getId().intValue()))));
-    }
-
 
     @Test
     void createTrack_Success() throws Exception {
@@ -196,121 +147,6 @@ class TrackControllerTest extends DatabaseBase {
         mockMvc.perform(delete("/api/v1/tracks/{trackId}", t.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isForbidden());
-    }
-
-
-    @Test
-    void listTrackShares_Success_AsOwner() throws Exception {
-        UserEntity shared = createUser("shared1");
-        TrackEntity t = createTrackEntity("S", testUser, null);
-
-        shareTrack(t.getId(), shared.getId(), authToken);
-
-        mockMvc.perform(get("/api/v1/tracks/{trackId}/shares", t.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].user.id").exists());
-    }
-
-    @Test
-    void listTrackShares_Forbidden_WhenNotOwner() throws Exception {
-        UserEntity owner = createUser("owner");
-        TrackEntity t = createTrackEntity("S2", owner, null);
-
-        mockMvc.perform(get("/api/v1/tracks/{trackId}/shares", t.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isForbidden());
-    }
-
-
-    @Test
-    void shareTrack_Success() throws Exception {
-        UserEntity owner = createUser("owner6");
-        UserEntity target = createUser("target1");
-        TrackEntity t = createTrackEntity("TT", owner, null);
-
-        String ownerToken = getTokenForUser(owner);
-
-        TrackShareRequest req = new TrackShareRequest().userId(target.getId());
-
-        mockMvc.perform(post("/api/v1/tracks/{trackId}/shares", t.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
-
-        assertTrue(userTrackShareRepository.existsByUser_IdAndTrack_Id(target.getId(), t.getId()));
-    }
-
-    @Test
-    void shareTrack_AlreadyShared_IsIdempotent() throws Exception {
-        UserEntity owner = createUser("owner7");
-        UserEntity target = createUser("target2");
-        TrackEntity t = createTrackEntity("TT2", owner, null);
-
-        createTrackShare(t, target);
-
-        String ownerToken = getTokenForUser(owner);
-        TrackShareRequest req = new TrackShareRequest().userId(target.getId());
-
-        mockMvc.perform(post("/api/v1/tracks/{trackId}/shares", t.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
-
-        List<UserTrackShareEntity> shares = userTrackShareRepository.findByUser_Id(target.getId());
-        long count = shares.stream().filter(s -> s.getTrack().getId().equals(t.getId())).count();
-        assertEquals(1, count);
-    }
-
-
-    @Test
-    void unshareTrack_UserUnsharesSelf_Success() throws Exception {
-        UserEntity owner = createUser("owner8");
-        TrackEntity t = createTrackEntity("UU", owner, null);
-
-        // share to testUser
-        createTrackShare(t, testUser);
-
-        // self unshare (authToken belongs to testUser)
-        mockMvc.perform(delete("/api/v1/tracks/{trackId}/shares/{userId}", t.getId(), testUser.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk());
-
-        assertFalse(userTrackShareRepository.existsByUser_IdAndTrack_Id(testUser.getId(), t.getId()));
-    }
-
-    @Test
-    void unshareTrack_OwnerUnsharesOther_Success() throws Exception {
-        UserEntity owner = createUser("owner9");
-        UserEntity target = createUser("target3");
-        TrackEntity t = createTrackEntity("UU2", owner, null);
-
-        createTrackShare(t, target);
-
-        mockMvc.perform(delete("/api/v1/tracks/{trackId}/shares/{userId}", t.getId(), target.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + getTokenForUser(owner)))
-                .andExpect(status().isOk());
-
-        assertFalse(userTrackShareRepository.existsByUser_IdAndTrack_Id(target.getId(), t.getId()));
-    }
-
-    @Test
-    void unshareTrack_NonOwnerUnsharesOther_Forbidden() throws Exception {
-        UserEntity owner = createUser("owner10");
-        UserEntity target = createUser("target4");
-        TrackEntity t = createTrackEntity("UU3", owner, null);
-
-        createTrackShare(t, target);
-
-        // testUser tries to unshare target -> should be forbidden
-        mockMvc.perform(delete("/api/v1/tracks/{trackId}/shares/{userId}", t.getId(), target.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isForbidden());
-
-        assertTrue(userTrackShareRepository.existsByUser_IdAndTrack_Id(target.getId(), t.getId()));
     }
 
     @Test
@@ -456,33 +292,6 @@ class TrackControllerTest extends DatabaseBase {
             groupRepository.addTrackToGroup(group.getId(), saved.getId());
         }
         return saved;
-    }
-
-    private void createTrackShare(TrackEntity track, UserEntity user) {
-        if (!userTrackShareRepository.existsByUser_IdAndTrack_Id(user.getId(), track.getId())) {
-            UserTrackShareEntity s = new UserTrackShareEntity();
-            s.setUser(user);
-            s.setTrack(track);
-            userTrackShareRepository.save(s);
-        }
-    }
-
-    private void shareTrack(Long trackId, Long userId, String ownerToken) throws Exception {
-        TrackShareRequest req = new TrackShareRequest().userId(userId);
-        mockMvc.perform(post("/api/v1/tracks/{trackId}/shares", trackId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
-    }
-
-    private void shareGroup(Long groupId, Long userId, String ownerToken) throws Exception {
-        GroupShareRequest req = new GroupShareRequest().userId(userId);
-        mockMvc.perform(post("/api/v1/groups/{groupId}/shares", groupId)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + ownerToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(req)))
-                .andExpect(status().isOk());
     }
 
     private TrackWindowEntity createTrackWindow(TrackEntity track, String name, Long positionFrom, Long positionTo, boolean fadeIn, boolean fadeOut) {

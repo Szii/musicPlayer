@@ -2,11 +2,9 @@ package org.dnd.mappers;
 
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
-import org.dnd.api.model.TrackShare;
 import org.dnd.api.model.User;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.model.UserTrackShareEntity;
 import org.mapstruct.*;
 
 import java.util.List;
@@ -18,7 +16,6 @@ import java.util.List;
 public interface TrackMapper {
     @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
-    @Mapping(target = "shares", ignore = true)
     @Mapping(target = "trackWindows", ignore = true)
     TrackEntity toEntity(Track dto);
 
@@ -26,7 +23,6 @@ public interface TrackMapper {
     @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "trackWindows", ignore = true)
-    @Mapping(target = "shares", ignore = true)
     TrackEntity toEntity(TrackRequest request);
 
     @Mapping(target = "ownerId", expression = "java(entity.getOwner() != null ? entity.getOwner().getId() : null)")
@@ -44,14 +40,10 @@ public interface TrackMapper {
                 .name(entity.getName());
     }
 
-    @Mapping(target = "user", expression = "java(toUserDto(entity.getUser()))")
-    TrackShare toTrackShareDto(UserTrackShareEntity entity);
-
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "groups", ignore = true)
     @Mapping(target = "owner", ignore = true)
     @Mapping(target = "trackWindows", ignore = true)
-    @Mapping(target = "shares", ignore = true)
     void updateTrackFromRequest(TrackRequest request, @MappingTarget TrackEntity entity);
 }
 

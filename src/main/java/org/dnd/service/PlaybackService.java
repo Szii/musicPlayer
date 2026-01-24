@@ -374,7 +374,7 @@ public class PlaybackService {
                             sleepQuiet(20);
                             continue;
                         }
-                        
+
                         if (!paused && windowEndS != null) {
                             long endMs = windowEndS * 1000L;
                             if (t.getPosition() >= endMs) {
@@ -448,12 +448,7 @@ public class PlaybackService {
     }
 
     private boolean isTrackAccessible(Long userId, TrackEntity track) {
-        if (track.getOwner().getId().equals(userId)) {
-            return true;
-        }
-
-        return track.getShares().stream()
-                .anyMatch(share -> share.getUser().getId().equals(userId));
+        return track.getOwner().getId().equals(userId);
     }
 
 
