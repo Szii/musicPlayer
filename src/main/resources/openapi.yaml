@@ -18,6 +18,8 @@ tags:
     description: User authentication and profile operations
   - name: Playback
     description: Playback control operations for a specific board
+  - name: Share
+    description: Share operations for sharing and subscribing to tracks
 
 components:
   parameters:
@@ -156,6 +158,10 @@ components:
           type: string
           description: Name or title of the track
           example: "Sample Song"
+        trackOriginalName:
+          type: string
+          description: Original title of the track
+          example: "Sample Song"
         trackLink:
           type: string
           description: URL or link to the track audio
@@ -220,6 +226,7 @@ components:
           type: string
           description: URL or link to the track audio
           example: "https://example.com/track.mp3"
+
     TrackWindowRequest:
       type: object
       description: Window of interest in track
@@ -239,6 +246,39 @@ components:
         fadeOut:
           type: boolean
           description: window makes a fade out
+
+    PublishTrackRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of the shared track
+          example: "Great track for studying"
+
+    SubscribeRequest:
+      type: object
+      required:
+        - shareCode
+      properties:
+        shareCode:
+          type: string
+          description: Share code of the track to subscribe to
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    TrackShareResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        description:
+          type: string
+        shareCode:
+          type: string
+        track:
+          $ref: '#/components/schemas/Track'
+
+
     Group:
       type: object
       description: A playlist or group of tracks
@@ -1053,6 +1093,80 @@ paths:
           description: Board not found
         '409':
           description: Board is not playing
+
+  /share/tracks/{trackId}/publish:
+    post:
+      tags:
+        - Share
+      summary: Publish a track
+      operationId: publishTrack
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishTrackRequest'
+      responses:
+        '201':
+          description: Track published successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackShareResponse'
+        '400':
+          description: Invalid input
+        '404':
+          description: Track not found
+        '409':
+          description: Track already published
+    delete:
+      tags:
+        - Share
+      summary: Unpublish a track
+      operationId: unpublishTrack
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Track unpublished successfully
+        '404':
+          description: Track not found
+
+  /share/subscribe:
+    post:
+      tags:
+        - Share
+      summary: Subscribe to a shared track
+      operationId: subscribeToTrack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscribeRequest'
+      responses:
+        '201':
+          description: Successfully subscribed to track
+        '400':
+          description: Invalid share code
+        '404':
+          description: Track not found
+
+  /share/tracks/{trackId}/unsubscribe:
+    delete:
+      tags:
+        - Share
+      summary: Unsubscribe from a track
+      operationId: unsubscribeFromTrack
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '204':
+          description: Successfully unsubscribed from track
+        '404':
+          description: Track not found
 
 
 

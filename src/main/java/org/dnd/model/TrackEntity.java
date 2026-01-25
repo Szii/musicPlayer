@@ -25,6 +25,9 @@ public class TrackEntity {
     @Column(name = "track_name", nullable = false)
     private String trackName;
 
+    @Column(name = "track_original_name", nullable = false)
+    private String trackOriginalName;
+
     @Column(name = "track_link", nullable = false)
     private String trackLink;
 
@@ -41,6 +44,10 @@ public class TrackEntity {
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("name ASC")
     private Set<TrackWindowEntity> trackWindows = new HashSet<>();
+
+    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+    @JoinColumn(name = "track_share_id", unique = true)
+    private TrackShareEntity trackShare;
 }
 
 

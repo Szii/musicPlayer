@@ -34,7 +34,16 @@ public class UserEntity {
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<BoardEntity> boards = new HashSet<>();
-    
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "user_subscribed_tracks",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "track_id")
+    )
+    private Set<TrackEntity> subscribedTracks = new HashSet<>();
+
+
 }
 
 

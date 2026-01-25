@@ -5,7 +5,6 @@ import jakarta.transaction.Transactional;
 import org.dnd.model.GroupEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.model.UserTrackShareEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -59,10 +58,6 @@ class TrackRepositoryTest extends DatabaseBase {
 
         List<TrackEntity> accessibleForViewerBefore = trackRepository.findAccessibleTracksForUser(viewer.getId());
         assertThat(accessibleForViewerBefore).isEmpty();
-
-        UserTrackShareEntity access = new UserTrackShareEntity();
-        access.setUser(viewer);
-        access.setTrack(track);
 
         List<TrackEntity> accessibleForViewerAfter = trackRepository.findAccessibleTracksForUser(owner.getId());
         assertThat(accessibleForViewerAfter)

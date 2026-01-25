@@ -52,6 +52,7 @@ public class TrackService {
 
     private void setTrackMetadata(TrackEntity track, TrackRequest trackRequest) {
         TrackMetadata meta = trackMetadataService.resolveMetadata(trackRequest.getTrackLink());
+        track.setTrackOriginalName(meta.title());
         if (track.getTrackName() == null || track.getTrackName().isEmpty()) {
             track.setTrackName(meta.title());
         }

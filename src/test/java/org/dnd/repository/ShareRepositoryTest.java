@@ -1,85 +1,152 @@
 package org.dnd.repository;
 
+import jakarta.transaction.Transactional;
+import org.dnd.model.TrackEntity;
+import org.dnd.model.TrackShareEntity;
+import org.dnd.model.UserEntity;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
+
 @SpringBootTest
-@DirtiesContext
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class ShareRepositoryTest extends DatabaseBase {
-    //TODO reimplement after share service is done
-/*
-    @Autowired
-    private UserRepository userRepository;
 
     @Autowired
-    private GroupRepository groupRepository;
+    private TrackShareRepository trackShareRepository;
 
     @Autowired
     private TrackRepository trackRepository;
 
     @Autowired
-    private UserTrackShareRepository trackShareRepository;
+    private UserRepository userRepository;
 
-    @Autowired
-    private UserGroupShareRepository groupShareRepository;
+    private UserEntity testUser;
+    private TrackEntity testTrack;
+    private TrackShareEntity trackShare;
+
+    @BeforeEach
+    @Transactional
+    void setUp() {
+        trackShareRepository.deleteAll();
+        trackRepository.deleteAll();
+        userRepository.deleteAll();
+
+        testUser = new UserEntity();
+        testUser.setName("testUser_" + System.currentTimeMillis());
+        testUser.setPassword("password");
+        testUser = userRepository.save(testUser);
+
+        testTrack = new TrackEntity();
+        testTrack.setTrackName("Test Track");
+        testTrack.setTrackLink("https://example.com/test.mp3");
+        testTrack.setDuration(180);
+        testTrack.setOwner(testUser);
+        testTrack = trackRepository.save(testTrack);
+
+        trackShare = new TrackShareEntity();
+        trackShare.setDescription("Test track");
+        trackShare.setShareCode("550e8400-e29b-41d4-a716-446655440000");
+    }
 
     @Test
     @Transactional
-    void shareAndUnshareTrackAndGroup() {
-        // Setup users
-        UserEntity owner = new UserEntity();
-        owner.setName("ownerShare");
-        owner.setPassword("pw");
-        owner = userRepository.save(owner);
+    void findByShareCode_Found() {
+        TrackShareEntity saved = trackShareRepository.save(trackShare);
+        testTrack.setTrackShare(saved);
+        saved.setTrack(testTrack);
+        trackRepository.save(testTrack);
 
-        UserEntity viewer = new UserEntity();
-        viewer.setName("viewerShare");
-        viewer.setPassword("pw");
-        viewer = userRepository.save(viewer);
 
-        // Setup group
-        GroupEntity group = new GroupEntity();
-        group.setListName("Shared Group");
-        group.setOwner(owner);
-        group = groupRepository.save(group);
+        Optional<TrackShareEntity> result = trackShareRepository.findByShareCode("550e8400-e29b-41d4-a716-446655440000");
 
-        // Setup track
-        TrackEntity track = new TrackEntity();
-        track.setTrackName("Shared Track");
-        track.setTrackLink("https://example.com/shared.mp3");
-        track.setDuration(200);
-        track.setOwner(owner);
-        track.getGroups().add(group);
-        track = trackRepository.save(track);
-
-        // Share track
-        UserTrackShareEntity trackShare = new UserTrackShareEntity();
-        trackShare.setUser(viewer);
-        trackShare.setTrack(track);
-        trackShareRepository.save(trackShare);
-
-        // Share group
-        UserGroupShareEntity groupShare = new UserGroupShareEntity();
-        groupShare.setUser(viewer);
-        groupShare.setGroup(group);
-        groupShareRepository.save(groupShare);
-
-        // Verify shares exist
-        assertThat(trackShareRepository.findByUser_Id(viewer.getId())).hasSize(1);
-        assertThat(groupShareRepository.findByUser_Id(viewer.getId())).hasSize(1);
-
-        // Unshare track
-        trackShareRepository.deleteByUser_IdAndTrack_Id(viewer.getId(), track.getId());
-
-        // Unshare group
-        groupShareRepository.deleteByUser_IdAndGroup_Id(viewer.getId(), group.getId());
-
-        // Verify shares are removed
-        assertThat(trackShareRepository.findByUser_Id(viewer.getId())).isEmpty();
-        assertThat(trackShareRepository.findByTrack_Id(track.getId())).isEmpty();
-        assertThat(groupShareRepository.findByUser_Id(viewer.getId())).isEmpty();
-        assertThat(groupShareRepository.findByGroup_Id(group.getId())).isEmpty();
+        assertTrue(result.isPresent());
+        assertEquals("Test track", result.get().getDescription());
+        assertEquals("Test Track", result.get().getTrack().getTrackName());
     }
-    */
 
+    @Test
+    void findByShareCode_NotFound() {
+        Optional<TrackShareEntity> result = trackShareRepository.findByShareCode("invalid-code");
+
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    @Transactional
+    void save_Success() {
+        TrackShareEntity saved = trackShareRepository.save(trackShare);
+        testTrack.setTrackShare(saved);
+        saved.setTrack(testTrack);
+        trackRepository.save(testTrack);
+
+        // Retrieve the saved share to verify it provides access to the track
+        TrackShareEntity retrieved = trackShareRepository.findById(saved.getId()).orElseThrow();
+
+        assertNotNull(retrieved.getId());
+        assertEquals("Test track", retrieved.getDescription());
+        assertEquals("550e8400-e29b-41d4-a716-446655440000", retrieved.getShareCode());
+        // Verify the TrackShareEntity can provide the associated TrackEntity
+        assertNotNull(retrieved.getTrack());
+        assertEquals("Test Track", retrieved.getTrack().getTrackName());
+    }
+
+    @Test
+    @Transactional
+    void findById_Success() {
+        TrackShareEntity saved = trackShareRepository.save(trackShare);
+        testTrack.setTrackShare(saved);
+        saved.setTrack(testTrack);
+        trackRepository.save(testTrack);
+
+        Optional<TrackShareEntity> result = trackShareRepository.findById(saved.getId());
+
+        assertTrue(result.isPresent());
+        assertEquals("Test track", result.get().getDescription());
+        assertEquals("Test Track", result.get().getTrack().getTrackName());
+    }
+
+    @Test
+    void delete_Success() {
+        TrackShareEntity saved = trackShareRepository.save(trackShare);
+
+        trackShareRepository.delete(saved);
+
+        Optional<TrackShareEntity> result = trackShareRepository.findById(saved.getId());
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    @Transactional
+    void cascade_DeleteTrackDeletesShare() {
+        TrackShareEntity saved = trackShareRepository.save(trackShare);
+        Long shareId = saved.getId();
+        testTrack.setTrackShare(saved);
+        saved.setTrack(testTrack);
+        trackRepository.save(testTrack);
+
+        trackRepository.delete(testTrack);
+
+        Optional<TrackShareEntity> result = trackShareRepository.findById(shareId);
+        assertFalse(result.isPresent());
+    }
+
+    @Test
+    @Transactional
+    void oneToOneRelationship_OneSharePerTrack() {
+        TrackShareEntity saved = trackShareRepository.save(trackShare);
+        testTrack.setTrackShare(saved);
+        saved.setTrack(testTrack);
+        trackRepository.save(testTrack);
+
+        TrackEntity updatedTrack = trackRepository.findById(testTrack.getId()).orElseThrow();
+        assertNotNull(updatedTrack.getTrackShare());
+        assertEquals(saved.getId(), updatedTrack.getTrackShare().getId());
+    }
 }

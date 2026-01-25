@@ -7,22 +7,23 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "user_track_shares")
+@Table(name = "track_shares")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserTrackShareEntity {
+public class TrackShareEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id")
-    private UserEntity user;
+    @Column
+    private String description;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "track_id")
+    @Column(nullable = false)
+    private String shareCode;
+
+    @OneToOne(mappedBy = "trackShare")
     private TrackEntity track;
 }
 
