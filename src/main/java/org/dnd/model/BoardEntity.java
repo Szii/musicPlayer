@@ -21,6 +21,10 @@ public class BoardEntity {
     @JoinColumn(name = "selected_track_id")
     private TrackEntity selectedTrack;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "selected_group_id")
+    private GroupEntity selectedGroup;
+
     @Column(nullable = false)
     private int volume = 50;
 

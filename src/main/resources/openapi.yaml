@@ -346,6 +346,13 @@ components:
           example: "Default Playback"
         selectedTrack:
           $ref: '#/components/schemas/Track'
+        selectedGroup:
+          $ref: '#/components/schemas/Group'
+        availableTracks:
+          type: array
+          description: Tracks available to select on this board
+          items:
+            $ref: '#/components/schemas/Track'
         volume:
           type: integer
           description: Playback volume (0-100)
@@ -366,11 +373,11 @@ components:
           description: owner id of group
           example: 1
 
+
     BoardCreateRequest:
       type: object
       description: Request to create a new board
-      required:
-        []
+      required: []
       properties:
         name:
           type: string
@@ -378,6 +385,8 @@ components:
           example: "Default Playback"
         selectedTrack:
           $ref: '#/components/schemas/Track'
+        selectedGroup:
+          $ref: '#/components/schemas/Group'
         volume:
           type: integer
           description: Playback volume (0-100)
@@ -392,6 +401,7 @@ components:
           type: boolean
           description: Overplay/overlay mode
           example: false
+
     BoardUpdateRequest:
       type: object
       description: Update for a board
@@ -399,6 +409,8 @@ components:
       properties:
         selectedTrack:
           $ref: '#/components/schemas/Track'
+        selectedGroup:
+         $ref: '#/components/schemas/Group'
         volume:
           type: integer
           description: Playback volume (0-100)

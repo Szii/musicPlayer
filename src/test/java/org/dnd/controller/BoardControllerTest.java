@@ -5,11 +5,12 @@ import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.model.BoardEntity;
+import org.dnd.model.GroupEntity;
+import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.repository.BoardRepository;
-import org.dnd.repository.DatabaseBase;
-import org.dnd.repository.UserRepository;
+import org.dnd.repository.*;
 import org.dnd.service.JwtService;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -37,6 +40,10 @@ class BoardControllerTest extends DatabaseBase {
     private BoardRepository boardRepository;
     @Autowired
     private JwtService jwtService;
+    @Autowired
+    private TrackRepository trackRepository;
+    @Autowired
+    private GroupRepository groupRepository;
 
     private UserEntity testUser;
     private String authToken;
@@ -190,5 +197,159 @@ class BoardControllerTest extends DatabaseBase {
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void getUserBoards_NoBoards() throws Exception {
+        mockMvc.perform(get("/api/v1/boards")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void deleteUserBoard_NotFound() throws Exception {
+        mockMvc.perform(delete("/api/v1/boards/{boardId}", 999L)
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void createUserBoard_InvalidRequest() throws Exception {
+        BoardCreateRequest request = new BoardCreateRequest()
+                .volume(-10) // Invalid volume
+                .repeat(true)
+                .overplay(false)
+                .name("Invalid Board");
+
+        mockMvc.perform(post("/api/v1/boards")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void updateUserBoard_InvalidRequest() throws Exception {
+        BoardEntity board = new BoardEntity();
+        board.setName("Original Board");
+        board.setOwner(testUser);
+        board.setVolume(50);
+        board.setRepeat(false);
+        board.setOverplay(false);
+        board = boardRepository.save(board);
+
+        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+                .volume(150); // Invalid volume
+
+        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void getTracksForBoard_SuccessForSelectedGroup() throws Exception {
+        BoardEntity board = new BoardEntity();
+        board.setOwner(testUser);
+        board.setName("Test Board");
+        board.setVolume(50);
+        board.setRepeat(false);
+        board.setOverplay(false);
+
+
+        TrackEntity trackInGroup = new TrackEntity();
+        trackInGroup.setTrackName("Track In Group");
+        trackInGroup.setTrackLink("https://example.com/test.mp3");
+        trackInGroup.setDuration(180);
+        trackInGroup.setTrackOriginalName("original name");
+        trackInGroup.setOwner(testUser);
+
+        TrackEntity trackWhichIsNotInGroup = new TrackEntity();
+        trackWhichIsNotInGroup.setTrackName("Track not In Group");
+        trackWhichIsNotInGroup.setTrackLink("https://example.com/test.mp3");
+        trackWhichIsNotInGroup.setDuration(180);
+        trackWhichIsNotInGroup.setTrackOriginalName("original name");
+        trackWhichIsNotInGroup.setOwner(testUser);
+
+        trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
+
+        GroupEntity group = new GroupEntity();
+        group.setListName("Test Group");
+        group.setOwner(testUser);
+        group.setTracks(Set.of(trackInGroup));
+        group = groupRepository.save(group);
+        board.setSelectedGroup(group);
+
+        boardRepository.save(board);
+
+        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+                .volume(100)
+                .repeat(true)
+                .overplay(true);
+
+        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableTracks.length()").value(1))
+                .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()));
+
+    }
+
+    @Test
+    void getTracksForBoard_SuccessWhenGroupIsNotSelected() throws Exception {
+        BoardEntity board = new BoardEntity();
+        board.setOwner(testUser);
+        board.setName("Test Board");
+        board.setVolume(50);
+        board.setRepeat(false);
+        board.setOverplay(false);
+
+
+        TrackEntity trackInGroup = new TrackEntity();
+        trackInGroup.setTrackName("Track In Group");
+        trackInGroup.setTrackLink("https://example1.com/test.mp3");
+        trackInGroup.setDuration(180);
+        trackInGroup.setTrackOriginalName("original name in group");
+        trackInGroup.setOwner(testUser);
+
+        TrackEntity trackWhichIsNotInGroup = new TrackEntity();
+        trackWhichIsNotInGroup.setTrackName("Track not In Group");
+        trackWhichIsNotInGroup.setTrackLink("https://example2.com/test.mp3");
+        trackWhichIsNotInGroup.setDuration(50);
+        trackWhichIsNotInGroup.setTrackOriginalName("original name not in group");
+        trackWhichIsNotInGroup.setOwner(testUser);
+
+        trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
+
+        GroupEntity group = new GroupEntity();
+        group.setListName("Test Group");
+        group.setOwner(testUser);
+        group.setTracks(Set.of(trackInGroup));
+        groupRepository.save(group);
+        boardRepository.save(board);
+
+        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+                .volume(100)
+                .repeat(true)
+                .overplay(true);
+
+        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.availableTracks.length()").value(2))
+                .andExpect(jsonPath("$.availableTracks[*].id").value(
+                        Matchers.containsInAnyOrder(
+                                trackInGroup.getId().intValue(),
+                                trackWhichIsNotInGroup.getId().intValue()
+                        )
+                ));
+
+
+    }
+
 
 }
