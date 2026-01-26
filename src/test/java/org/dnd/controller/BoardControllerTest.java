@@ -327,6 +327,7 @@ class BoardControllerTest extends DatabaseBase {
         group.setListName("Test Group");
         group.setOwner(testUser);
         group.setTracks(Set.of(trackInGroup));
+        board.setSelectedGroup(null);
         groupRepository.save(group);
         boardRepository.save(board);
 
