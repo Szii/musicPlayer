@@ -14,7 +14,6 @@ public class AudioPlayerConfiguration {
         AudioPlayerManager mgr = new DefaultAudioPlayerManager();
         mgr.getConfiguration().setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_LE);
 
-        // YouTube source (same as you already do in PlaybackService)
         mgr.registerSourceManager(new YoutubeAudioSourceManager());
 
         return mgr;

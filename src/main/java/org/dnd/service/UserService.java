@@ -29,6 +29,7 @@ public class UserService {
         log.debug("Registering new user with name: {}", request.getName());
 
         if (userRepository.findByName(request.getName()).isPresent()) {
+            log.debug("ser with name: {} already exists", request.getName());
             throw new ConflictException("Username already exists");
         }
 
@@ -47,8 +48,8 @@ public class UserService {
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new UnauthorizedException("Invalid username or password");
-        }
 
+        }
         return createAuthResponse(user);
     }
 
@@ -67,7 +68,7 @@ public class UserService {
     private AuthResponse createAuthResponse(UserEntity user) {
         AuthResponse response = new AuthResponse();
         response.setUser(userMapper.toDto(user));
-        response.setToken(generateToken(userMapper.toAuthDto(user))); // Updated to use auth DTO
+        response.setToken(generateToken(userMapper.toAuthDto(user)));
         return response;
     }
 
