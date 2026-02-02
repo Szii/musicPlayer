@@ -25,6 +25,7 @@ public class UserService {
     private final JwtService jwtService;
 
 
+    @Transactional
     public AuthResponse registerUser(UserRegisterRequest request) {
         log.debug("Registering new user with name: {}", request.getName());
 
