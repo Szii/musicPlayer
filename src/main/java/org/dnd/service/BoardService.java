@@ -2,7 +2,10 @@ package org.dnd.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.dnd.api.model.*;
+import org.dnd.api.model.Board;
+import org.dnd.api.model.BoardCreateRequest;
+import org.dnd.api.model.BoardUpdateRequest;
+import org.dnd.api.model.Track;
 import org.dnd.exception.NotFoundException;
 import org.dnd.mappers.BoardMapper;
 import org.dnd.mappers.TrackMapper;
@@ -43,8 +46,8 @@ public class BoardService {
         BoardEntity board = boardMapper.toEntity(request);
         board.setOwner(owner);
 
-        setTrackIfExist(request.getSelectedTrack(), board);
-        setGroupIfExist(request.getSelectedGroup(), board);
+        setTrackIfExist(request.getSelectedTrackId(), board);
+        setGroupIfExist(request.getSelectedGroupId(), board);
 
         Board boardDto = boardMapper.toDto(boardRepository.save(board));
         boardDto.setAvailableTracks(getTracksForBoard(board.getId()));
@@ -67,8 +70,8 @@ public class BoardService {
                 .orElseThrow(() -> new NotFoundException(String.format("Board with id %d not found for user %d", boardId, userId)));
 
         boardMapper.updateBoardFromRequest(request, board);
-        setTrackIfExist(request.getSelectedTrack(), board);
-        setGroupIfExist(request.getSelectedGroup(), board);
+        setTrackIfExist(request.getSelectedTrackId(), board);
+        setGroupIfExist(request.getSelectedGroupId(), board);
 
         Board boardDto = boardMapper.toDto(boardRepository.save(board));
         boardDto.setAvailableTracks(getTracksForBoard(boardId));
@@ -76,20 +79,17 @@ public class BoardService {
         return boardDto;
     }
 
-    public void setTrackIfExist(Track selectedTrack, BoardEntity board) {
-        if (selectedTrack != null && selectedTrack.getId() != null) {
-            TrackEntity track = trackRepository.findById(selectedTrack.getId())
-                    .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", selectedTrack.getId())));
-            board.setSelectedTrack(track);
-        }
+    public void setTrackIfExist(Long selectedTrackId, BoardEntity board) {
+        TrackEntity track = trackRepository.findById(selectedTrackId)
+                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", selectedTrackId)));
+        board.setSelectedTrack(track);
     }
 
-    public void setGroupIfExist(Group selectedGroup, BoardEntity board) {
-        if (selectedGroup != null && selectedGroup.getId() != null) {
-            GroupEntity group = groupRepository.findById(selectedGroup.getId())
-                    .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", selectedGroup.getId())));
-            board.setSelectedGroup(group);
-        }
+    public void setGroupIfExist(Long selectedGroupId, BoardEntity board) {
+        GroupEntity group = groupRepository.findById(selectedGroupId)
+                .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", selectedGroupId)));
+        board.setSelectedGroup(group);
+
     }
 
     private List<Track> getTracksForBoard(Long boardId) {

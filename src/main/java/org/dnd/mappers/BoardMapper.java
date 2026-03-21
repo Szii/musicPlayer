@@ -20,7 +20,6 @@ public interface BoardMapper {
     @Mapping(target = "selectedGroup", ignore = true)
     BoardEntity toEntity(BoardCreateRequest request);
 
-    @Mapping(target = "userId", expression = "java(entity.getOwner().getId())")
     @Mapping(target = "availableTracks", ignore = true)
     Board toDto(BoardEntity entity);
 

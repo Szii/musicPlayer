@@ -13,7 +13,6 @@ import org.dnd.model.TrackMetadata;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
-import org.mapstruct.factory.Mappers;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -29,7 +28,7 @@ public class TrackService {
 
     private final TrackMetadataService trackMetadataService;
 
-    TrackMapper mapper = Mappers.getMapper(TrackMapper.class);
+    private final TrackMapper mapper;
 
     public void deleteTrack(Long trackId) {
         TrackEntity track = trackRepository.findById(trackId)
