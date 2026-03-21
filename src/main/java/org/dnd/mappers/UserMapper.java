@@ -2,6 +2,7 @@ package org.dnd.mappers;
 
 import org.dnd.api.model.User;
 import org.dnd.api.model.UserAuthDTO;
+import org.dnd.api.model.UserInfoLite;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.model.UserEntity;
 import org.mapstruct.Mapper;
@@ -26,5 +27,7 @@ public interface UserMapper {
     @Mapping(target = "ownedGroups", ignore = true)
     @Mapping(target = "boards", ignore = true)
     UserEntity fromRegisterRequest(UserRegisterRequest request);
+
+    UserInfoLite toLiteUserDto(UserEntity entity);
 
 }

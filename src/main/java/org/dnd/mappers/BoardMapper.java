@@ -11,7 +11,7 @@ import java.util.List;
 @Mapper(
         componentModel = "spring",
         unmappedTargetPolicy = ReportingPolicy.IGNORE,
-        uses = {TrackMapper.class, GroupMapper.class}
+        uses = {TrackMapper.class, GroupMapper.class, UserMapper.class}
 )
 public interface BoardMapper {
     @Mapping(target = "owner", ignore = true)
@@ -20,7 +20,6 @@ public interface BoardMapper {
     @Mapping(target = "selectedGroup", ignore = true)
     BoardEntity toEntity(BoardCreateRequest request);
 
-    @Mapping(target = "ownerId", expression = "java(entity.getOwner().getId())")
     @Mapping(target = "userId", expression = "java(entity.getOwner().getId())")
     @Mapping(target = "availableTracks", ignore = true)
     Board toDto(BoardEntity entity);

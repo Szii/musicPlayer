@@ -32,9 +32,10 @@ public class GroupService {
     }
 
     public Group createGroup(GroupRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
         log.debug("Creating group with name {}", request.getListName());
-        UserEntity owner = userRepository.findById(request.getOwnerId())
-                .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", request.getOwnerId())));
+        UserEntity owner = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
 
         GroupEntity group = new GroupEntity();
         group.setListName(request.getListName());

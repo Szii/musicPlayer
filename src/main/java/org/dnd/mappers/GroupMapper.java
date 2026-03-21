@@ -10,7 +10,7 @@ import java.util.List;
 
 @Mapper(
         componentModel = "spring",
-        uses = {TrackMapper.class},
+        uses = {TrackMapper.class, UserMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface GroupMapper {
@@ -18,7 +18,6 @@ public interface GroupMapper {
     @Mapping(target = "owner", ignore = true)
     GroupEntity toEntity(Group dto);
 
-    @Mapping(target = "ownerId", expression = "java(entity.getOwner() != null ? entity.getOwner().getId() : null)")
     Group toDto(GroupEntity entity);
 
     List<GroupEntity> toEntities(List<Group> dtos);
