@@ -8,12 +8,15 @@ import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.mappers.GroupMapper;
 import org.dnd.model.GroupEntity;
+import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
 import org.dnd.repository.GroupRepository;
+import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
 
 @Service
@@ -23,7 +26,7 @@ public class GroupService {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final GroupMapper groupMapper;
-    private final ShareService shareService;
+    private final TrackRepository trackRepository;
 
     public List<Group> getUserGroups() {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -66,7 +69,16 @@ public class GroupService {
             throw new ForbiddenException("You can only update your own groups");
         }
 
+        List<TrackEntity> tracks = trackRepository.findAllById(request.getTrackIds());
+
+        tracks.forEach(track -> {
+            if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+                throw new ForbiddenException(String.format("You can only add tracks you own. Track id %d is not accessible", track.getId()));
+            }
+        });
+
         group.setListName(request.getListName());
+        group.setTracks(new HashSet<>(tracks));
         return groupMapper.toDto(groupRepository.save(group));
     }
 }

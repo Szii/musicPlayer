@@ -14,20 +14,42 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class JwtService {
+
+    private static final String CLAIM_TYPE = "typ";
+    private static final String CLAIM_BOARD_ID = "boardId";
+    private static final String TYPE_ACCESS = "access";
+    private static final String TYPE_STREAM = "stream";
+
     private final JwtConfiguration jwtConfiguration;
 
     public String generateToken(UserAuthDTO user) {
         return Jwts.builder()
                 .setSubject(user.getId().toString())
                 .claim("name", user.getName())
+                .claim(CLAIM_TYPE, TYPE_ACCESS)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtConfiguration.getExpiration()))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String generateStreamToken(Long userId, Long boardId) {
+        long streamExpirationMs = 360_000;
+
+        return Jwts.builder()
+                .setSubject(userId.toString())
+                .claim(CLAIM_TYPE, TYPE_STREAM)
+                .claim(CLAIM_BOARD_ID, boardId)
+                .setId(UUID.randomUUID().toString())
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + streamExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -36,16 +58,53 @@ public class JwtService {
         return getClaimFromToken(token, Claims::getSubject);
     }
 
+    public Long getBoardIdFromStreamToken(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        Object raw = claims.get(CLAIM_BOARD_ID);
+
+        if (raw instanceof Integer i) {
+            return i.longValue();
+        }
+        if (raw instanceof Long l) {
+            return l;
+        }
+        if (raw instanceof String s) {
+            return Long.parseLong(s);
+        }
+
+        throw new IllegalArgumentException("Missing or invalid boardId claim");
+    }
+
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token);
-            return true;
+            Claims claims = getAllClaimsFromToken(token);
+            return TYPE_ACCESS.equals(claims.get(CLAIM_TYPE, String.class));
         } catch (JwtException | IllegalArgumentException e) {
             log.error("Invalid JWT token: {}", e.getMessage());
             return false;
+        }
+    }
+
+    public boolean validateStreamToken(String token, Long expectedBoardId) {
+        try {
+            Claims claims = getAllClaimsFromToken(token);
+
+            String tokenType = claims.get(CLAIM_TYPE, String.class);
+            if (!TYPE_STREAM.equals(tokenType)) {
+                return false;
+            }
+
+            Long tokenBoardId = getBoardIdFromStreamToken(token);
+            return expectedBoardId.equals(tokenBoardId);
+        } catch (JwtException | IllegalArgumentException e) {
+            log.error("Invalid stream JWT token: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    public void validateStreamTokenOrThrow(String token, Long expectedBoardId) {
+        if (!validateStreamToken(token, expectedBoardId)) {
+            throw new JwtException("Invalid stream token");
         }
     }
 
@@ -67,4 +126,3 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
-

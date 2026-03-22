@@ -13,7 +13,7 @@ import org.dnd.repository.DatabaseBase;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.service.JwtService;
-import org.dnd.service.PlaybackService;
+import org.dnd.service.playback.PlaybackService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

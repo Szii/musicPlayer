@@ -6,7 +6,8 @@ import org.dnd.api.PlaybackApi;
 import org.dnd.api.model.PlayRequest;
 import org.dnd.api.model.PlaybackState;
 import org.dnd.api.model.SeekRequest;
-import org.dnd.service.PlaybackService;
+import org.dnd.service.JwtService;
+import org.dnd.service.playback.PlaybackService;
 import org.springframework.core.io.Resource;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class PlaybackController implements PlaybackApi {
     private final PlaybackService playbackService;
+    private final JwtService jwtService;
 
     @Override
     public ResponseEntity<PlaybackState> getBoardPlaybackState(Long boardId) {
@@ -37,22 +39,28 @@ public class PlaybackController implements PlaybackApi {
     }
 
     @Override
+    @Deprecated
     public ResponseEntity<PlaybackState> pauseBoard(Long boardId) {
         return ResponseEntity.ok(playbackService.pause(boardId));
     }
 
     @Override
+    @Deprecated
     public ResponseEntity<PlaybackState> resumeBoard(Long boardId) {
         return ResponseEntity.ok(playbackService.resume(boardId));
     }
 
     @Override
+    @Deprecated
     public ResponseEntity<PlaybackState> seekBoard(Long boardId, SeekRequest seekRequest) {
         return ResponseEntity.ok(playbackService.seek(boardId, seekRequest));
     }
 
     @Override
-    public ResponseEntity<Resource> streamBoardAudio(Long boardId) {
-        return playbackService.streamMp3(boardId);
+    public ResponseEntity<Resource> streamBoardAudio(Long boardId, String streamToken) {
+        jwtService.validateStreamTokenOrThrow(streamToken, boardId);
+        long userId = Long.parseLong(jwtService.getUserIdFromToken(streamToken));
+
+        return playbackService.streamMp3ForUser(boardId, userId);
     }
 }

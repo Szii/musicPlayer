@@ -73,5 +73,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return null;
     }
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri.matches("^/api/v1/boards/[^/]+/stream$");
+    }
 }
 

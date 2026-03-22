@@ -80,12 +80,21 @@ public class BoardService {
     }
 
     public void setTrackIfExist(Long selectedTrackId, BoardEntity board) {
+        if (selectedTrackId == null) {
+            board.setSelectedTrack(null);
+            return;
+        }
+
         TrackEntity track = trackRepository.findById(selectedTrackId)
                 .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", selectedTrackId)));
         board.setSelectedTrack(track);
     }
 
     public void setGroupIfExist(Long selectedGroupId, BoardEntity board) {
+        if (selectedGroupId == null) {
+            board.setSelectedGroup(null);
+            return;
+        }
         GroupEntity group = groupRepository.findById(selectedGroupId)
                 .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", selectedGroupId)));
         board.setSelectedGroup(group);
