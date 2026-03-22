@@ -43,6 +43,11 @@ public class BoardController implements MusicBoardsApi {
     }
 
     @Override
+    public ResponseEntity<Board> getUserBoard(Long boardId) throws Exception {
+        return ResponseEntity.ok(boardService.getUserBoard(boardId));
+    }
+
+    @Override
     public ResponseEntity<Board> updateUserBoard(Long boardId, BoardUpdateRequest boardRequest) {
         return ResponseEntity.ok(boardService.updateUserBoard(boardId, boardRequest));
     }

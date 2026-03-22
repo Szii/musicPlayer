@@ -9,7 +9,7 @@ import java.util.List;
 
 @Mapper(
         componentModel = "spring",
-        uses = {UserMapper.class},
+        uses = {UserMapper.class, ShareMapper.class},
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface TrackMapper {

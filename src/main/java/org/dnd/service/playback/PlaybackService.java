@@ -18,10 +18,13 @@ import org.dnd.api.model.PlayRequest;
 import org.dnd.api.model.PlaybackState;
 import org.dnd.api.model.PlaybackStatus;
 import org.dnd.api.model.SeekRequest;
+import org.dnd.exception.NotFoundException;
 import org.dnd.model.BoardEntity;
 import org.dnd.model.TrackEntity;
+import org.dnd.model.UserEntity;
 import org.dnd.repository.BoardRepository;
 import org.dnd.repository.TrackWindowRepository;
+import org.dnd.repository.UserRepository;
 import org.dnd.service.JwtService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.core.io.InputStreamResource;
@@ -54,6 +57,7 @@ public class PlaybackService {
     private final TrackWindowRepository trackWindowRepository;
     private final AudioPlayerManager playerManager;
     private final JwtService jwtService;
+    private final UserRepository userRepository;
 
     private final ConcurrentMap<Long, BoardSession> sessions = new ConcurrentHashMap<>();
     private ExecutorService workers;
@@ -82,12 +86,11 @@ public class PlaybackService {
     }
 
     public PlaybackState play(long boardId, PlayRequest request) {
-        Long userId = SecurityUtils.getCurrentUserId();
         BoardEntity board = requireOwnedBoard(boardId);
 
         TrackEntity track = board.getSelectedTrack();
         if (track == null) throw conflict("No track selected on board");
-        if (!track.getOwner().getId().equals(userId)) throw forbidden("Track not accessible");
+        if (!validateTrackAccessForCurrentUser(track)) throw forbidden("Track not accessible");
 
         Long windowId = request != null ? request.getWindowId() : null;
         Long windowStartS = null, windowEndS = null;
@@ -560,4 +563,12 @@ public class PlaybackService {
         } catch (Exception ignored) {
         }
     }
+
+    private boolean validateTrackAccessForCurrentUser(TrackEntity track) {
+        UserEntity user = userRepository.findById(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", SecurityUtils.getCurrentUserId())));
+        return track.getOwner().getId().equals(SecurityUtils.getCurrentUserId()) ||
+                (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(user));
+    }
+
 }

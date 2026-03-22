@@ -8,12 +8,9 @@ import org.mapstruct.ReportingPolicy;
 @Mapper(
         componentModel = "spring",
         unmappedTargetPolicy = ReportingPolicy.IGNORE,
-        uses = {TrackMapper.class}
+        uses = {}
 )
 public interface ShareMapper {
 
     TrackShareResponse toResponse(TrackShareEntity entity);
-
-    TrackShareEntity toEntity(TrackShareResponse response);
-
 }

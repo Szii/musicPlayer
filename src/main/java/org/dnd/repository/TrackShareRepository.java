@@ -9,4 +9,6 @@ import java.util.Optional;
 @Repository
 public interface TrackShareRepository extends JpaRepository<TrackShareEntity, Long> {
     Optional<TrackShareEntity> findByShareCode(String shareCode);
+
+    Boolean existsByShareCode(String shareCode);
 }

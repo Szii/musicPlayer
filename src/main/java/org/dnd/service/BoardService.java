@@ -6,6 +6,7 @@ import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.Track;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.mappers.BoardMapper;
 import org.dnd.mappers.TrackMapper;
@@ -36,6 +37,16 @@ public class BoardService {
     public List<Board> getUserBoards() {
         log.debug("Getting boards for user with id {}", SecurityUtils.getCurrentUserId());
         return boardMapper.toDtos(boardRepository.findByOwner_Id(SecurityUtils.getCurrentUserId()));
+    }
+
+    public Board getUserBoard(Long boardId) {
+        log.debug("Getting single board for user with id {}", SecurityUtils.getCurrentUserId());
+        BoardEntity board = boardRepository.findById(boardId)
+                .orElseThrow(() -> new NotFoundException(String.format("Board with id %d not found", boardId)));
+        if (!board.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            throw new ForbiddenException("You can get only a board which you own");
+        }
+        return boardMapper.toDto(board);
     }
 
     public Board createUserBoard(BoardCreateRequest request) {

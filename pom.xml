@@ -231,6 +231,7 @@
                                 <interfaceOnly>true</interfaceOnly>
                                 <useSpringBoot3>true</useSpringBoot3>
                                 <dateLibrary>java8</dateLibrary>
+                                <skipDefaultInterface>true</skipDefaultInterface>
                                 <unhandledException>true</unhandledException>
                                 <useTags>true</useTags>
                                 <openApiNullable>false</openApiNullable>

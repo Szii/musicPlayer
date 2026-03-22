@@ -62,6 +62,16 @@ public class TrackController implements MusicTracksApi {
     }
 
     @Override
+    public ResponseEntity<List<Track>> getPublishedTracks() throws Exception {
+        return ResponseEntity.ok().body(shareService.getPublishedTracks());
+    }
+
+    @Override
+    public ResponseEntity<List<Track>> getUserSubscribedTracks() throws Exception {
+        return ResponseEntity.ok().body(shareService.getSubscribedTracks());
+    }
+
+    @Override
     public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
         return ResponseEntity.ok().body(trackWindowService.createTrackWindow(trackId, trackRequest));
     }

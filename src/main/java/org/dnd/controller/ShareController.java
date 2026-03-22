@@ -6,8 +6,6 @@ import org.dnd.api.ShareApi;
 import org.dnd.api.model.PublishTrackRequest;
 import org.dnd.api.model.SubscribeRequest;
 import org.dnd.api.model.TrackShareResponse;
-import org.dnd.mappers.ShareMapper;
-import org.dnd.model.TrackShareEntity;
 import org.dnd.service.ShareService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,12 +21,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ShareController implements ShareApi {
 
     private final ShareService shareService;
-    private final ShareMapper shareMapper;
 
     @Override
     public ResponseEntity<TrackShareResponse> publishTrack(Long trackId, PublishTrackRequest request) {
-        TrackShareEntity trackShare = shareService.publish(trackId, request.getDescription());
-        return ResponseEntity.status(HttpStatus.CREATED).body(shareMapper.toResponse(trackShare));
+        TrackShareResponse trackShare = shareService.publish(trackId, request.getDescription());
+        return ResponseEntity.status(HttpStatus.CREATED).body(trackShare);
     }
 
     @Override

@@ -72,7 +72,7 @@ public class GroupService {
         List<TrackEntity> tracks = trackRepository.findAllById(request.getTrackIds());
 
         tracks.forEach(track -> {
-            if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+            if (!validateTrackAccessForCurrentUser(track)) {
                 throw new ForbiddenException(String.format("You can only add tracks you own. Track id %d is not accessible", track.getId()));
             }
         });
@@ -80,5 +80,12 @@ public class GroupService {
         group.setListName(request.getListName());
         group.setTracks(new HashSet<>(tracks));
         return groupMapper.toDto(groupRepository.save(group));
+    }
+
+    private boolean validateTrackAccessForCurrentUser(TrackEntity track) {
+        UserEntity user = userRepository.findById(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", SecurityUtils.getCurrentUserId())));
+        return track.getOwner().getId().equals(SecurityUtils.getCurrentUserId()) ||
+                (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(user));
     }
 }

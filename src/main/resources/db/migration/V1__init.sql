@@ -97,8 +97,6 @@ CREATE TABLE user_subscribed_tracks (
     CONSTRAINT fk_track_subscribed FOREIGN KEY (track_id) REFERENCES tracks(id) ON DELETE CASCADE
 );
 
-
-
 CREATE INDEX idx_track_owner ON tracks(owner_id);
 CREATE INDEX idx_track_share ON tracks(track_share_id);
 CREATE INDEX idx_group_owner ON groups(owner_id);

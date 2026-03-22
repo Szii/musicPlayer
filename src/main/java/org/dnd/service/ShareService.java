@@ -2,8 +2,12 @@ package org.dnd.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dnd.api.model.Track;
+import org.dnd.api.model.TrackShareResponse;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
+import org.dnd.mappers.ShareMapper;
+import org.dnd.mappers.TrackMapper;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.TrackShareEntity;
 import org.dnd.model.UserEntity;
@@ -14,6 +18,9 @@ import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -24,9 +31,12 @@ public class ShareService {
     private final TrackShareRepository trackShareRepository;
     private final TrackRepository trackRepository;
     private final UserRepository userRepository;
+    private final TrackMapper trackMapper;
+    private final ShareMapper shareMapper;
+
 
     @Transactional
-    public TrackShareEntity publish(Long trackId, String description) {
+    public TrackShareResponse publish(Long trackId, String description) {
         TrackEntity track = trackRepository.findById(trackId)
                 .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
@@ -39,12 +49,12 @@ public class ShareService {
 
         TrackShareEntity share = new TrackShareEntity();
         share.setDescription(description);
-        share.setShareCode(UUID.randomUUID().toString());
+        share.setShareCode(generateUniqueShareCode().toString());
 
         track.setTrackShare(share);
         share.setTrack(track);
 
-        return share;
+        return shareMapper.toResponse(trackShareRepository.save(share));
     }
 
 
@@ -57,11 +67,11 @@ public class ShareService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
-        TrackEntity track = trackShare.getTrack();
-        user.getSubscribedTracks().add(track);
+        user.getShares().add(trackShare);
+        trackShare.getUsers().add(user);
         userRepository.save(user);
 
-        log.info("User {} subscribed to track {} via workshop", userId, track.getId());
+        log.info("User {} subscribed to track {} via workshop", userId, trackShare.getTrack().getId());
     }
 
     @Transactional
@@ -73,8 +83,19 @@ public class ShareService {
         TrackEntity track = trackRepository.findById(trackId)
                 .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-        user.getSubscribedTracks().remove(track);
+        TrackShareEntity trackShare = track.getTrackShare();
+        if (trackShare == null) {
+            throw new NotFoundException("Track is not published");
+        }
+
+        if (!user.getShares().contains(trackShare)) {
+            throw new NotFoundException("You are not subscribed to this track");
+        }
+
+        user.getShares().remove(trackShare);
+        trackShare.getUsers().remove(user);
         userRepository.save(user);
+        trackShareRepository.save(trackShare);
 
         log.info("User {} unsubscribed from track {}", userId, trackId);
     }
@@ -97,8 +118,51 @@ public class ShareService {
         share.setTrack(null);
 
         trackRepository.save(track);
+        trackShareRepository.delete(share);
 
         log.info("Track {} unpublished", trackId);
+    }
+
+    public List<Track> getSubscribedTracks() {
+        Long userId = SecurityUtils.getCurrentUserId();
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+
+        return user.getShares().stream()
+                .map(TrackShareEntity::getTrack)
+                .map(trackMapper::toDto)
+                .toList();
+    }
+
+    public List<Track> getPublishedTracks() {
+        Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
+
+        return allShares.stream()
+                .map(TrackShareEntity::getTrack)
+                .map(trackMapper::toDto)
+                .toList();
+
+    }
+
+    public List<Track> getTracksPublishedByCurrentUser() {
+        Long userId = SecurityUtils.getCurrentUserId();
+
+        Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
+
+        return allShares.stream()
+                .map(TrackShareEntity::getTrack)
+                .filter(track -> track.getOwner().getId().equals(userId))
+                .map(trackMapper::toDto)
+                .toList();
+
+    }
+
+    private UUID generateUniqueShareCode() {
+        UUID shareCode;
+        do {
+            shareCode = UUID.randomUUID();
+        } while (trackShareRepository.existsByShareCode(shareCode.toString()));
+        return shareCode;
     }
 
 }

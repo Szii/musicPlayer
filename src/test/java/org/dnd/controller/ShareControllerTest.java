@@ -44,6 +44,8 @@ class ShareControllerTest extends DatabaseBase {
     private TrackRepository trackRepository;
     @Autowired
     private TrackShareRepository trackShareRepository;
+    @Autowired
+    private TrackShareRepository shareRepository;
 
     @Autowired
     private JwtService jwtService;
@@ -164,8 +166,8 @@ class ShareControllerTest extends DatabaseBase {
                 .andExpect(status().isCreated());
 
         UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
-        assertTrue(user.getSubscribedTracks().stream()
-                .anyMatch(t -> t.getId().equals(track.getId())));
+        assertTrue(user.getShares().stream()
+                .anyMatch(t -> t.getTrack().getId().equals(track.getId())));
     }
 
     @Test
@@ -183,18 +185,20 @@ class ShareControllerTest extends DatabaseBase {
     @Test
     void unsubscribeFromTrack_Success() throws Exception {
         TrackEntity track = createTrackEntity("Shared Track", otherUser);
-        createTrackShare(track, "Popular track");
+        TrackShareEntity share = createTrackShare(track, "Popular track");
 
         UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
-        user.getSubscribedTracks().add(track);
+        user.getShares().add(share);
+        share.getUsers().add(user);
         userRepository.save(user);
+        shareRepository.save(share);
 
         mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/unsubscribe", track.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
                 .andExpect(status().isNoContent());
 
         UserEntity updatedUser = userRepository.findById(testUser.getId()).orElseThrow();
-        assertFalse(updatedUser.getSubscribedTracks().contains(track));
+        assertFalse(updatedUser.getShares().contains(share));
     }
 
     @Test

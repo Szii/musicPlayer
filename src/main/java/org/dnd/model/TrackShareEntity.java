@@ -6,6 +6,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "track_shares")
 @Getter
@@ -25,5 +28,8 @@ public class TrackShareEntity {
 
     @OneToOne(mappedBy = "trackShare")
     private TrackEntity track;
+
+    @ManyToMany(mappedBy = "shares")
+    private Set<UserEntity> users = new HashSet<>();
 }
 

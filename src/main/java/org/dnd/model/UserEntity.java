@@ -37,11 +37,11 @@ public class UserEntity {
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
-            name = "user_subscribed_tracks",
+            name = "user_shares",
             joinColumns = @JoinColumn(name = "user_id"),
-            inverseJoinColumns = @JoinColumn(name = "track_id")
+            inverseJoinColumns = @JoinColumn(name = "share_id")
     )
-    private Set<TrackEntity> subscribedTracks = new HashSet<>();
+    private Set<TrackShareEntity> shares = new HashSet<>();
 
 
 }
