@@ -1,5 +1,6 @@
 package org.dnd.service;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Group;
@@ -10,6 +11,7 @@ import org.dnd.mappers.GroupMapper;
 import org.dnd.model.GroupEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
+import org.dnd.repository.BoardRepository;
 import org.dnd.repository.GroupRepository;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
@@ -27,6 +29,7 @@ public class GroupService {
     private final UserRepository userRepository;
     private final GroupMapper groupMapper;
     private final TrackRepository trackRepository;
+    private final BoardRepository boardRepository;
 
     public List<Group> getUserGroups() {
         Long userId = SecurityUtils.getCurrentUserId();
@@ -47,17 +50,23 @@ public class GroupService {
         return groupMapper.toDto(groupRepository.save(group));
     }
 
+    @Transactional
     public void deleteGroup(Long groupId) {
         log.debug("Deleting group with id {}", groupId);
 
         GroupEntity group = groupRepository.findById(groupId)
-                .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
+                .orElseThrow(() -> new NotFoundException(
+                        String.format("Group with id %d not found", groupId)));
 
         if (!group.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
             throw new ForbiddenException("You can only delete your own groups");
         }
 
-        groupRepository.deleteById(groupId);
+        boardRepository.clearSelectedGroupFromBoards(groupId);
+
+        group.getTracks().clear();
+
+        groupRepository.delete(group);
     }
 
     public Group updateGroup(Long groupId, GroupRequest request) {

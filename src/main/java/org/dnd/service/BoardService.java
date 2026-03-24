@@ -36,7 +36,9 @@ public class BoardService {
 
     public List<Board> getUserBoards() {
         log.debug("Getting boards for user with id {}", SecurityUtils.getCurrentUserId());
-        return boardMapper.toDtos(boardRepository.findByOwner_Id(SecurityUtils.getCurrentUserId()));
+        List<Board> boards = boardMapper.toDtos(boardRepository.findByOwner_Id(SecurityUtils.getCurrentUserId()));
+        boards.forEach(board -> board.setAvailableTracks(getTracksForBoard(board.getId())));
+        return boards;
     }
 
     public Board getUserBoard(Long boardId) {
@@ -121,9 +123,8 @@ public class BoardService {
         if (board.getSelectedGroup() != null) {
             tracks = trackRepository.findByGroups_Id(board.getSelectedGroup().getId());
         } else {
-            tracks = trackRepository.findByOwner_Id(userId);
+            tracks = trackRepository.findAllAccessibleByUserId(userId);
         }
-
 
         List<Track> result = tracks.stream()
                 .map(trackMapper::toDto)

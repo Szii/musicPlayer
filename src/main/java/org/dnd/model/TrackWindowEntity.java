@@ -30,6 +30,7 @@ public class TrackWindowEntity {
     @Column(nullable = false)
     private Long positionTo;
 
+    
     @Column(nullable = false)
     private boolean fadeIn;
 

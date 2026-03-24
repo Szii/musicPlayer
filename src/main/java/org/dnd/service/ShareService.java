@@ -8,12 +8,11 @@ import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.mappers.ShareMapper;
 import org.dnd.mappers.TrackMapper;
+import org.dnd.model.GroupEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.TrackShareEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.repository.TrackRepository;
-import org.dnd.repository.TrackShareRepository;
-import org.dnd.repository.UserRepository;
+import org.dnd.repository.*;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +30,8 @@ public class ShareService {
     private final TrackShareRepository trackShareRepository;
     private final TrackRepository trackRepository;
     private final UserRepository userRepository;
+    private final BoardRepository boardRepository;
+    private final GroupRepository groupRepository;
     private final TrackMapper trackMapper;
     private final ShareMapper shareMapper;
 
@@ -77,25 +78,27 @@ public class ShareService {
     @Transactional
     public void unsubscribe(Long trackId) {
         Long userId = SecurityUtils.getCurrentUserId();
+
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
         TrackEntity track = trackRepository.findById(trackId)
                 .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-        TrackShareEntity trackShare = track.getTrackShare();
-        if (trackShare == null) {
+        TrackShareEntity share = track.getTrackShare();
+        if (share == null) {
             throw new NotFoundException("Track is not published");
         }
 
-        if (!user.getShares().contains(trackShare)) {
+        if (!user.getShares().contains(share)) {
             throw new NotFoundException("You are not subscribed to this track");
         }
 
-        user.getShares().remove(trackShare);
-        trackShare.getUsers().remove(user);
-        userRepository.save(user);
-        trackShareRepository.save(trackShare);
+        user.getShares().remove(share);
+        share.getUsers().remove(user);
+
+        removeTrackFromGroupsOwnedByUser(trackId, userId);
+        boardRepository.clearSelectedTrackFromBoardsOwnedByUser(trackId, userId);
 
         log.info("User {} unsubscribed from track {}", userId, trackId);
     }
@@ -114,15 +117,38 @@ public class ShareService {
             throw new NotFoundException("Track is not published");
         }
 
+        detachShareFromAllUsers(share);
         track.setTrackShare(null);
-        share.setTrack(null);
 
-        trackRepository.save(track);
-        trackShareRepository.delete(share);
+        removeTrackFromAllGroups(trackId);
+        boardRepository.clearSelectedTrackFromAllBoards(trackId);
 
         log.info("Track {} unpublished", trackId);
     }
 
+
+    private void removeTrackFromAllGroups(Long trackId) {
+        List<GroupEntity> groups = groupRepository.findAllContainingTrack(trackId);
+        for (GroupEntity group : groups) {
+            group.getTracks().removeIf(t -> t.getId().equals(trackId));
+        }
+    }
+
+    private void removeTrackFromGroupsOwnedByUser(Long trackId, Long ownerId) {
+        List<GroupEntity> groups = groupRepository.findAllContainingTrackOwnedByUser(trackId, ownerId);
+        for (GroupEntity group : groups) {
+            group.getTracks().removeIf(t -> t.getId().equals(trackId));
+        }
+    }
+
+    private void detachShareFromAllUsers(TrackShareEntity share) {
+        for (UserEntity user : new HashSet<>(share.getUsers())) {
+            user.getShares().remove(share);
+            share.getUsers().remove(user);
+        }
+    }
+
+    @Transactional(readOnly = true)
     public List<Track> getSubscribedTracks() {
         Long userId = SecurityUtils.getCurrentUserId();
         UserEntity user = userRepository.findById(userId)
@@ -134,6 +160,7 @@ public class ShareService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<Track> getPublishedTracks() {
         Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
 
@@ -144,6 +171,7 @@ public class ShareService {
 
     }
 
+    @Transactional(readOnly = true)
     public List<Track> getTracksPublishedByCurrentUser() {
         Long userId = SecurityUtils.getCurrentUserId();
 

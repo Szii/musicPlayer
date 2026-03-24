@@ -36,4 +36,22 @@ public interface GroupRepository extends JpaRepository<GroupEntity, Long> {
     void addTrackToGroup(@Param("groupId") Long groupId,
                          @Param("trackId") Long trackId);
 
+    @Query("""
+            select distinct g
+            from GroupEntity g
+            join g.tracks t
+            where t.id = :trackId
+            """)
+    List<GroupEntity> findAllContainingTrack(@Param("trackId") Long trackId);
+
+    @Query("""
+            select distinct g
+            from GroupEntity g
+            join g.tracks t
+            where t.id = :trackId
+              and g.owner.id = :ownerId
+            """)
+    List<GroupEntity> findAllContainingTrackOwnedByUser(@Param("trackId") Long trackId,
+                                                        @Param("ownerId") Long ownerId);
+    
 }

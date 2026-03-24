@@ -12,6 +12,16 @@ public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
 
     List<TrackEntity> findByOwner_Id(Long ownerId);
 
+    @Query("""
+            select distinct t
+            from TrackEntity t
+            left join t.trackShare ts
+            left join ts.users u
+            where t.owner.id = :userId
+               or u.id = :userId
+            """)
+    List<TrackEntity> findAllAccessibleByUserId(@Param("userId") Long userId);
+
     List<TrackEntity> findByGroups_Id(Long groupId);
 
     boolean existsByIdAndOwner_Id(Long trackId, Long ownerId);
@@ -24,4 +34,5 @@ public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
             where t.owner.id = :userId
             """)
     List<TrackEntity> findAccessibleTracksForUser(@Param("userId") Long userId);
+
 }

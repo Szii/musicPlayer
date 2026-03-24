@@ -42,9 +42,4 @@ public class UserEntity {
             inverseJoinColumns = @JoinColumn(name = "share_id")
     )
     private Set<TrackShareEntity> shares = new HashSet<>();
-
-
 }
-
-
-
