@@ -6,6 +6,7 @@ import org.dnd.api.PlaybackApi;
 import org.dnd.api.model.PlayRequest;
 import org.dnd.api.model.PlaybackState;
 import org.dnd.api.model.SeekRequest;
+import org.dnd.api.model.StreamInfoResponse;
 import org.dnd.service.JwtService;
 import org.dnd.service.playback.PlaybackService;
 import org.springframework.core.io.Resource;
@@ -20,47 +21,64 @@ import org.springframework.web.bind.annotation.RestController;
 @AllArgsConstructor
 @Validated
 public class PlaybackController implements PlaybackApi {
-    private final PlaybackService playbackService;
-    private final JwtService jwtService;
 
-    @Override
-    public ResponseEntity<PlaybackState> getBoardPlaybackState(Long boardId) {
-        return ResponseEntity.ok(playbackService.getState(boardId));
-    }
+  private final PlaybackService playbackService;
+  private final JwtService jwtService;
 
-    @Override
-    public ResponseEntity<PlaybackState> playBoard(Long boardId, PlayRequest playRequest) {
-        return ResponseEntity.ok(playbackService.play(boardId, playRequest));
-    }
+  @Override
+  public ResponseEntity<PlaybackState> getBoardPlaybackState(Long boardId) {
+    return ResponseEntity.ok(playbackService.getState(boardId));
+  }
 
-    @Override
-    public ResponseEntity<PlaybackState> stopBoard(Long boardId) {
-        return ResponseEntity.ok(playbackService.stop(boardId));
-    }
+  @Override
+  public ResponseEntity<PlaybackState> playBoard(Long boardId, PlayRequest playRequest) {
+    return ResponseEntity.ok(playbackService.playBoard(boardId, playRequest));
+  }
 
-    @Override
-    @Deprecated
-    public ResponseEntity<PlaybackState> pauseBoard(Long boardId) {
-        return ResponseEntity.ok(playbackService.pause(boardId));
-    }
+  @Override
+  public ResponseEntity<PlaybackState> stopBoard(Long boardId) {
+    return ResponseEntity.ok(playbackService.stop(boardId));
+  }
 
-    @Override
-    @Deprecated
-    public ResponseEntity<PlaybackState> resumeBoard(Long boardId) {
-        return ResponseEntity.ok(playbackService.resume(boardId));
-    }
+  @Override
+  @Deprecated
+  public ResponseEntity<PlaybackState> pauseBoard(Long boardId) {
+    return ResponseEntity.ok(playbackService.pause(boardId));
+  }
 
-    @Override
-    @Deprecated
-    public ResponseEntity<PlaybackState> seekBoard(Long boardId, SeekRequest seekRequest) {
-        return ResponseEntity.ok(playbackService.seek(boardId, seekRequest));
-    }
+  @Override
+  @Deprecated
+  public ResponseEntity<PlaybackState> resumeBoard(Long boardId) {
+    return ResponseEntity.ok(playbackService.resume(boardId));
+  }
 
-    @Override
-    public ResponseEntity<Resource> streamBoardAudio(Long boardId, String streamToken) {
-        jwtService.validateStreamTokenOrThrow(streamToken, boardId);
-        long userId = Long.parseLong(jwtService.getUserIdFromToken(streamToken));
+  @Override
+  @Deprecated
+  public ResponseEntity<PlaybackState> seekBoard(Long boardId, SeekRequest seekRequest) {
+    return ResponseEntity.ok(playbackService.seek(boardId, seekRequest));
+  }
 
-        return playbackService.streamMp3ForUser(boardId, userId);
-    }
+  @Override
+  public ResponseEntity<Resource> streamBoardAudio(Long boardId, String streamToken) {
+    jwtService.validateStreamTokenOrThrow(streamToken, boardId);
+    long userId = Long.parseLong(jwtService.getUserIdFromToken(streamToken));
+    return playbackService.streamMp3ForUser(boardId, userId);
+  }
+
+  @Override
+  public ResponseEntity<PlaybackState> playTrack(Long trackId, PlayRequest playRequest) {
+    return ResponseEntity.ok(playbackService.playTrack(trackId, playRequest));
+  }
+
+  @Override
+  public ResponseEntity<Resource> streamTrackAudio(Long trackId, String streamToken) {
+    jwtService.validateTrackStreamTokenOrThrow(streamToken, trackId);
+    long userId = Long.parseLong(jwtService.getUserIdFromToken(streamToken));
+    return playbackService.streamMp3ForTrack(trackId, userId);
+  }
+
+  @Override
+  public ResponseEntity<StreamInfoResponse> getTrackStreamInfo(Long trackId) {
+    return ResponseEntity.ok(playbackService.getTrackStreamInfo(trackId));
+  }
 }

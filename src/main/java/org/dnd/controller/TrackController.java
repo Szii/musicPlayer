@@ -6,9 +6,11 @@ import org.dnd.api.MusicTracksApi;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
+import org.dnd.api.model.WaveformResponse;
 import org.dnd.service.ShareService;
 import org.dnd.service.TrackService;
 import org.dnd.service.TrackWindowService;
+import org.dnd.service.playback.PlaybackService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,58 +25,65 @@ import java.util.List;
 @Validated
 public class TrackController implements MusicTracksApi {
 
-    private final TrackService trackService;
+  private final TrackService trackService;
 
-    private final ShareService shareService;
+  private final ShareService shareService;
 
-    private final TrackWindowService trackWindowService;
+  private final TrackWindowService trackWindowService;
 
-    @Override
-    public ResponseEntity<List<Track>> getUserTracks() throws Exception {
-        return ResponseEntity.ok()
-                .body(trackService.getAllTracksForUser());
-    }
+  private final PlaybackService playbackService;
 
-    public ResponseEntity<Track> createTrack(TrackRequest trackRequest) throws Exception {
-        return ResponseEntity.ok().body(trackService.addTrack(trackRequest));
-    }
+  @Override
+  public ResponseEntity<List<Track>> getUserTracks() throws Exception {
+    return ResponseEntity.ok()
+            .body(trackService.getAllTracksForUser());
+  }
 
-    @Override
-    public ResponseEntity<Void> deleteTrack(Long trackId) throws Exception {
-        trackService.deleteTrack(trackId);
-        return ResponseEntity.noContent().build();
-    }
+  public ResponseEntity<Track> createTrack(TrackRequest trackRequest) throws Exception {
+    return ResponseEntity.ok().body(trackService.addTrack(trackRequest));
+  }
 
-    @Override
-    public ResponseEntity<Track> updateTrack(Long trackId, TrackRequest trackRequest) throws Exception {
+  @Override
+  public ResponseEntity<Void> deleteTrack(Long trackId) throws Exception {
+    trackService.deleteTrack(trackId);
+    return ResponseEntity.noContent().build();
+  }
 
-        return ResponseEntity.ok().body(trackService.updateTrack(trackId, trackRequest));
-    }
+  @Override
+  public ResponseEntity<Track> updateTrack(Long trackId, TrackRequest trackRequest) throws Exception {
 
-    @Override
-    public ResponseEntity<Track> updateTrackWindow(Long trackId, Long pointId, TrackWindowRequest trackRequest) throws Exception {
-        return ResponseEntity.ok().body(trackWindowService.updateTrackWindow(trackId, pointId, trackRequest));
-    }
+    return ResponseEntity.ok().body(trackService.updateTrack(trackId, trackRequest));
+  }
 
-    @Override
-    public ResponseEntity<Track> deleteTrackWindow(Long trackId, Long pointId) throws Exception {
-        return ResponseEntity.ok().body(trackWindowService.deleteTrackWindow(trackId, pointId));
-    }
+  @Override
+  public ResponseEntity<Track> updateTrackWindow(Long trackId, Long pointId, TrackWindowRequest trackRequest) throws Exception {
+    return ResponseEntity.ok().body(trackWindowService.updateTrackWindow(trackId, pointId, trackRequest));
+  }
 
-    @Override
-    public ResponseEntity<List<Track>> getPublishedTracks() throws Exception {
-        return ResponseEntity.ok().body(shareService.getPublishedTracks());
-    }
+  @Override
+  public ResponseEntity<Track> deleteTrackWindow(Long trackId, Long pointId) throws Exception {
+    return ResponseEntity.ok().body(trackWindowService.deleteTrackWindow(trackId, pointId));
+  }
 
-    @Override
-    public ResponseEntity<List<Track>> getUserSubscribedTracks() throws Exception {
-        return ResponseEntity.ok().body(shareService.getSubscribedTracks());
-    }
+  @Override
+  public ResponseEntity<List<Track>> getPublishedTracks() throws Exception {
+    return ResponseEntity.ok().body(shareService.getPublishedTracks());
+  }
 
-    @Override
-    public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
-        return ResponseEntity.ok().body(trackWindowService.createTrackWindow(trackId, trackRequest));
-    }
+  @Override
+  public ResponseEntity<List<Track>> getUserSubscribedTracks() throws Exception {
+    return ResponseEntity.ok().body(shareService.getSubscribedTracks());
+  }
+
+  @Override
+  public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
+    return ResponseEntity.ok().body(trackWindowService.createTrackWindow(trackId, trackRequest));
+  }
+
+  @Override
+  public ResponseEntity<WaveformResponse> getTrackWaveform(Long trackId) {
+    return ResponseEntity.ok(playbackService.getTrackWaveform(trackId));
+  }
 }
 
 

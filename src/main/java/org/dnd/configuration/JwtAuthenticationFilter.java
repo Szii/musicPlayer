@@ -24,60 +24,60 @@ import java.util.Collections;
 @RequiredArgsConstructor
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    private final JwtService jwtService;
-    private final UserRepository userRepository;
-    private final UserMapper userMapper;
+  private final JwtService jwtService;
+  private final UserRepository userRepository;
+  private final UserMapper userMapper;
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
-        String token = extractToken(request);
+  @Override
+  protected void doFilterInternal(HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  FilterChain filterChain) throws ServletException, IOException {
+    String token = extractToken(request);
 
-        if (token == null) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        try {
-            if (jwtService.validateToken(token)) {
-                String userId = jwtService.getUserIdFromToken(token);
-                UserEntity user = userRepository.findById(Long.parseLong(userId))
-                        .orElseThrow();
-
-                UserAuthDTO userAuth = userMapper.toAuthDto(user);
-
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                        userAuth,
-                        null,
-                        Collections.emptyList()
-                );
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            } else {
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                return;
-            }
-        } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
-
-        filterChain.doFilter(request, response);
+    if (token == null) {
+      filterChain.doFilter(request, response);
+      return;
     }
 
-    private String extractToken(HttpServletRequest request) {
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith("Bearer ")) {
-            return header.substring(7);
-        }
-        return null;
+    try {
+      if (jwtService.validateToken(token)) {
+        String userId = jwtService.getUserIdFromToken(token);
+        UserEntity user = userRepository.findById(Long.parseLong(userId))
+                .orElseThrow();
+
+        UserAuthDTO userAuth = userMapper.toAuthDto(user);
+
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userAuth,
+                null,
+                Collections.emptyList()
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(authToken);
+      } else {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        return;
+      }
+    } catch (Exception e) {
+      response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+      return;
     }
 
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        return uri.matches("^/api/v1/boards/[^/]+/stream$");
+    filterChain.doFilter(request, response);
+  }
+
+  private String extractToken(HttpServletRequest request) {
+    String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+    if (header != null && header.startsWith("Bearer ")) {
+      return header.substring(7);
     }
+    return null;
+  }
+
+  @Override
+  protected boolean shouldNotFilter(HttpServletRequest request) {
+    String uri = request.getRequestURI();
+    return uri.matches("^/api/v1/boards/[^/]+/stream$")
+            || uri.matches("^/api/v1/tracks/[^/]+/stream$");
+  }
 }
-
