@@ -92,8 +92,6 @@ public class PlaybackService {
     scheduler.shutdownNow();
   }
 
-  // ── Board playback ────────────────────────────────────────────
-
   public PlaybackState getState(long boardId) {
     requireOwnedBoard(boardId);
     StreamSession s = sessions.get(boardId);
@@ -169,8 +167,6 @@ public class PlaybackService {
     }
   }
 
-  // ── Track playback ────────────────────────────────────────────
-
   public PlaybackState playTrack(long trackId, PlayRequest request) {
     TrackEntity track = requireOwnedTrack(trackId);
     Long userId = SecurityUtils.getCurrentUserId();
@@ -188,7 +184,6 @@ public class PlaybackService {
 
     StreamSession existing = trackSessions.get(key);
 
-    // Reuse cached full-track session when no saved window playback is requested
     if (existing != null && existing.isReusableForReplay() && windowId == null) {
       existing.activateForReplay();
       return existing.snapshot();
@@ -260,8 +255,6 @@ public class PlaybackService {
     return s.getWaveformResponse();
   }
 
-  // ── Helpers ──────────────────────────────────────────────────
-
   private static String trackSessionKey(Long userId, long trackId) {
     return userId + ":" + trackId;
   }
@@ -325,8 +318,6 @@ public class PlaybackService {
     }
   }
 
-  // ── StreamSession ─────────────────────────────────────────────
-
   private final class StreamSession {
 
     private final long sessionId;
@@ -383,7 +374,7 @@ public class PlaybackService {
     }
 
     WaveformResponse getWaveformResponse() {
-      return waveform.toResponse(sessionId);
+      return waveform.toResponse(sessionId, fullyDecoded);
     }
 
     PlaybackState snapshot() {
@@ -597,8 +588,8 @@ public class PlaybackService {
       });
 
       startDaemon("pcm-feeder-" + prefix + sessionId, () -> {
+        boolean normalExit = false;
         try (OutputStream in = new BufferedOutputStream(ffmpeg.getOutputStream(), 64 * 1024)) {
-          // Write already decoded history first
           for (byte[] pcm : snapshot) {
             in.write(pcm);
           }
@@ -614,6 +605,7 @@ public class PlaybackService {
               }
 
               if (pcmBuffer.isComplete()) {
+                normalExit = true;
                 break;
               }
 
@@ -622,12 +614,17 @@ public class PlaybackService {
               }
             }
             in.flush();
+          } else {
+            normalExit = true;
           }
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
         } catch (Exception ignored) {
         } finally {
-          cleanup.run();
+          if (!normalExit) {
+            cleanup.run();
+          }
+          pcmBuffer.unregisterListener(listener);
         }
       });
 
@@ -680,12 +677,7 @@ public class PlaybackService {
               }
               break;
             }
-
-            if (windowEndS != null && t.getPosition() >= windowEndS * 1000L) {
-              p.stopTrack();
-              continue;
-            }
-
+            // if needed to check window end, do it here before providing frame
             AudioFrame frame = p.provide();
             if (frame == null) {
               sleepQuiet(5);

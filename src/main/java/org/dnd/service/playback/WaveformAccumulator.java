@@ -8,6 +8,8 @@ import java.util.List;
 
 public class WaveformAccumulator {
 
+  private final boolean[] touchedBuckets;
+
   private final int buckets;
   private final float[] peakByBucket;
   private volatile long durationMs;
@@ -15,16 +17,13 @@ public class WaveformAccumulator {
   public WaveformAccumulator(int buckets) {
     this.buckets = buckets;
     this.peakByBucket = new float[buckets];
+    this.touchedBuckets = new boolean[buckets];
   }
 
   public void setDurationMs(long durationMs) {
     this.durationMs = Math.max(1, durationMs);
   }
 
-  /**
-   * Accept a PCM frame in signed 16-bit big-endian stereo format.
-   * We map the frame to a bucket using the current track position.
-   */
   public void accept(byte[] pcmFrame, long trackPositionMs) {
     if (pcmFrame == null || pcmFrame.length < 2 || durationMs <= 0) return;
 
@@ -45,6 +44,8 @@ public class WaveformAccumulator {
             Math.max(0, (trackPositionMs * buckets) / durationMs)
     );
 
+    touchedBuckets[bucket] = true;
+
     if (max > peakByBucket[bucket]) {
       peakByBucket[bucket] = max;
     }
@@ -55,9 +56,10 @@ public class WaveformAccumulator {
       if (v > 0f) return true;
     }
     return false;
+
   }
 
-  public WaveformResponse toResponse(long trackId) {
+  public WaveformResponse toResponse(long trackId, boolean complete) {
     WaveformResponse response = new WaveformResponse();
     response.setTrackId(trackId);
     response.setDurationS(durationMs / 1000L);
@@ -68,6 +70,17 @@ public class WaveformAccumulator {
       peaks.add(BigDecimal.valueOf(v));
     }
     response.setPeaks(peaks);
+
+    response.setComplete(complete);
+    response.setProcessedBuckets(getProcessedBuckets());
     return response;
+  }
+
+  public int getProcessedBuckets() {
+    int count = 0;
+    for (boolean touched : touchedBuckets) {
+      if (touched) count++;
+    }
+    return count;
   }
 }

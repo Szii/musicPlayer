@@ -503,6 +503,10 @@ components:
           type: integer
           description: Number of peak buckets in the response
           example: 512
+        processedBuckets:
+          type: integer
+          description: Number of peak buckets in the response
+          example: 512
         peaks:
           type: array
           description: Normalized waveform peak values in the range 0..1
@@ -510,6 +514,10 @@ components:
             type: number
             x-java-type: java.math.BigDecimal
           example: [0.12, 0.44, 0.31, 0.22, 0.67]
+        complete:
+          type: boolean
+          description: Whether the waveform data is complete or there are still some left to be fetched
+          example: true
         generatedAt:
           type: string
           format: date-time

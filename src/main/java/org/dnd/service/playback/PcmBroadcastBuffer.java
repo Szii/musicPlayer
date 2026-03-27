@@ -1,5 +1,7 @@
 package org.dnd.service.playback;
 
+import lombok.Getter;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -12,6 +14,7 @@ public class PcmBroadcastBuffer {
   private final List<byte[]> history = new ArrayList<>();
   private final Set<BlockingQueue<byte[]>> listeners = ConcurrentHashMap.newKeySet();
 
+  @Getter
   private volatile boolean complete = false;
 
   public synchronized void append(byte[] pcm) {
@@ -44,10 +47,6 @@ public class PcmBroadcastBuffer {
 
   public void markComplete() {
     complete = true;
-  }
-
-  public boolean isComplete() {
-    return complete;
   }
 
   public synchronized boolean hasHistory() {
