@@ -182,6 +182,10 @@ components:
           type: string
           description: Name or title of the track
           example: "Sample Song"
+        owned:
+          type: boolean
+          description: Whether the track is owned by the authenticated user
+          example: true
         trackOriginalName:
           type: string
           description: Original title of the track

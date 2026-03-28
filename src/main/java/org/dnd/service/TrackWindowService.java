@@ -22,85 +22,90 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 public class TrackWindowService {
-    private final TrackRepository trackRepository;
-    private final TrackWindowMapper trackWindowMapper;
-    private final TrackWindowRepository trackWindowRepository;
-    private final TrackMapper trackMapper;
+  private final TrackRepository trackRepository;
+  private final TrackWindowMapper trackWindowMapper;
+  private final TrackWindowRepository trackWindowRepository;
+  private final TrackMapper trackMapper;
 
-    @Transactional
-    public Track deleteTrackWindow(Long trackId, Long windowId) {
-        log.debug("Deleting track point {} from track {}", windowId, trackId);
+  @Transactional
+  public Track deleteTrackWindow(Long trackId, Long windowId) {
+    log.debug("Deleting track point {} from track {}", windowId, trackId);
 
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException("Track with id %d not found".formatted(trackId)));
+    Long userId = SecurityUtils.getCurrentUserId();
 
-        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only delete track points from your own tracks");
-        }
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException("Track with id %d not found".formatted(trackId)));
 
-        TrackWindowEntity point = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
-                .orElseThrow(() -> new NotFoundException(
-                        "Track point with id %d not found for track %d".formatted(windowId, trackId)));
-
-        track.getTrackWindows().remove(point);
-
-        return trackMapper.toDto(trackRepository.save(track));
+    if (!track.getOwner().getId().equals(userId)) {
+      throw new ForbiddenException("You can only delete track points from your own tracks");
     }
 
-    @Transactional
-    public Track updateTrackWindow(Long trackId, Long windowId, TrackWindowRequest trackWindowRequest) {
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+    TrackWindowEntity point = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
+            .orElseThrow(() -> new NotFoundException(
+                    "Track point with id %d not found for track %d".formatted(windowId, trackId)));
 
-        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only update track points on your own tracks");
-        }
+    track.getTrackWindows().remove(point);
 
-        TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
-                .orElseThrow(() -> new NotFoundException(String.format("Track point with id %d not found", windowId)));
+    return trackMapper.toDto(trackRepository.save(track), userId);
+  }
 
-        entity = trackWindowMapper.updateFromRequest(trackWindowRequest, entity);
-        trackWindowRepository.save(entity);
-        log.debug("Updated track point with id {} for track {}", windowId, trackId);
+  @Transactional
+  public Track updateTrackWindow(Long trackId, Long windowId, TrackWindowRequest trackWindowRequest) {
+    Long userId = SecurityUtils.getCurrentUserId();
 
-        return trackMapper.toDto(track);
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+
+    if (!track.getOwner().getId().equals(userId)) {
+      throw new ForbiddenException("You can only update track points on your own tracks");
     }
 
-    @Transactional
-    public Track createTrackWindow(Long trackId, TrackWindowRequest trackWindowRequest) {
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+    TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
+            .orElseThrow(() -> new NotFoundException(String.format("Track point with id %d not found", windowId)));
 
-        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only create track windows on your own tracks");
-        }
+    entity = trackWindowMapper.updateFromRequest(trackWindowRequest, entity);
+    trackWindowRepository.save(entity);
+    log.debug("Updated track point with id {} for track {}", windowId, trackId);
 
-        if (trackWindowRequest.getPositionFrom() < 0 || trackWindowRequest.getPositionTo() > track.getDuration()) {
-            throw new BadRequestException("Track window position must be within track duration");
-        }
+    return trackMapper.toDto(track, userId);
+  }
 
-        if (trackWindowRequest.getPositionFrom() > trackWindowRequest.getPositionTo()) {
-            throw new BadRequestException("Track window from position must be greater than track window to position");
-        }
+  @Transactional
+  public Track createTrackWindow(Long trackId, TrackWindowRequest trackWindowRequest) {
+    Long userId = SecurityUtils.getCurrentUserId();
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
 
-        TrackWindowEntity window = trackWindowMapper.fromRequest(trackWindowRequest, track);
-        log.debug("Created track point with id {} for track {}", window.getId(), trackId);
-        window.setTrack(track);
-        track.getTrackWindows().add(window);
-        trackWindowRepository.save(window);
-        return trackMapper.toDto(trackRepository.findById(trackId).orElseThrow());
+    if (!track.getOwner().getId().equals(userId)) {
+      throw new ForbiddenException("You can only create track windows on your own tracks");
     }
 
-    public TrackWindow getTrackWindow(Long trackId, Long windowId) {
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
-        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only get track points for your own tracks");
-        }
-        TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
-                .orElseThrow(() -> new NotFoundException(String.format("Track point with id %d not found", windowId)));
-
-        log.debug("Retrieved track point with id {} for track {}", entity.getId(), trackId);
-        return trackWindowMapper.toDto(entity);
+    if (trackWindowRequest.getPositionFrom() < 0 || trackWindowRequest.getPositionTo() > track.getDuration()) {
+      throw new BadRequestException("Track window position must be within track duration");
     }
+
+    if (trackWindowRequest.getPositionFrom() > trackWindowRequest.getPositionTo()) {
+      throw new BadRequestException("Track window from position must be greater than track window to position");
+    }
+
+    TrackWindowEntity window = trackWindowMapper.fromRequest(trackWindowRequest, track);
+    log.debug("Created track point with id {} for track {}", window.getId(), trackId);
+    window.setTrack(track);
+    track.getTrackWindows().add(window);
+    trackWindowRepository.save(window);
+    return trackMapper.toDto(trackRepository.findById(trackId).orElseThrow(), userId);
+  }
+
+  public TrackWindow getTrackWindow(Long trackId, Long windowId) {
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
+    if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+      throw new ForbiddenException("You can only get track points for your own tracks");
+    }
+    TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
+            .orElseThrow(() -> new NotFoundException(String.format("Track point with id %d not found", windowId)));
+
+    log.debug("Retrieved track point with id {} for track {}", entity.getId(), trackId);
+    return trackWindowMapper.toDto(entity);
+  }
 }

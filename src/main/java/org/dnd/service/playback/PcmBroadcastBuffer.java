@@ -40,6 +40,7 @@ public class PcmBroadcastBuffer {
   }
 
   public synchronized void clear() {
+    System.out.println("[pcmBuffer] clear called");
     history.clear();
     complete = false;
     listeners.clear();

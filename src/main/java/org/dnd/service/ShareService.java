@@ -27,171 +27,171 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ShareService {
 
-    private final TrackShareRepository trackShareRepository;
-    private final TrackRepository trackRepository;
-    private final UserRepository userRepository;
-    private final BoardRepository boardRepository;
-    private final GroupRepository groupRepository;
-    private final TrackMapper trackMapper;
-    private final ShareMapper shareMapper;
+  private final TrackShareRepository trackShareRepository;
+  private final TrackRepository trackRepository;
+  private final UserRepository userRepository;
+  private final BoardRepository boardRepository;
+  private final GroupRepository groupRepository;
+  private final TrackMapper trackMapper;
+  private final ShareMapper shareMapper;
 
 
-    @Transactional
-    public TrackShareResponse publish(Long trackId, String description) {
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
+  @Transactional
+  public TrackShareResponse publish(Long trackId, String description) {
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only publish tracks you own");
-        }
-        if (track.getTrackShare() != null) {
-            throw new NotFoundException("Track is already published");
-        }
-
-        TrackShareEntity share = new TrackShareEntity();
-        share.setDescription(description);
-        share.setShareCode(generateUniqueShareCode().toString());
-
-        track.setTrackShare(share);
-        share.setTrack(track);
-
-        return shareMapper.toResponse(trackShareRepository.save(share));
+    if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+      throw new ForbiddenException("You can only publish tracks you own");
+    }
+    if (track.getTrackShare() != null) {
+      throw new NotFoundException("Track is already published");
     }
 
+    TrackShareEntity share = new TrackShareEntity();
+    share.setDescription(description);
+    share.setShareCode(generateUniqueShareCode().toString());
 
-    @Transactional
-    public void subscribe(String shareCode) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        TrackShareEntity trackShare = trackShareRepository.findByShareCode(shareCode)
-                .orElseThrow(() -> new NotFoundException("Invalid share code: " + shareCode));
+    track.setTrackShare(share);
+    share.setTrack(track);
 
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+    return shareMapper.toResponse(trackShareRepository.save(share));
+  }
 
-        user.getShares().add(trackShare);
-        trackShare.getUsers().add(user);
-        userRepository.save(user);
 
-        log.info("User {} subscribed to track {} via workshop", userId, trackShare.getTrack().getId());
+  @Transactional
+  public void subscribe(String shareCode) {
+    Long userId = SecurityUtils.getCurrentUserId();
+    TrackShareEntity trackShare = trackShareRepository.findByShareCode(shareCode)
+            .orElseThrow(() -> new NotFoundException("Invalid share code: " + shareCode));
+
+    UserEntity user = userRepository.findById(userId)
+            .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+
+    user.getShares().add(trackShare);
+    trackShare.getUsers().add(user);
+    userRepository.save(user);
+
+    log.info("User {} subscribed to track {} via workshop", userId, trackShare.getTrack().getId());
+  }
+
+  @Transactional
+  public void unsubscribe(Long trackId) {
+    Long userId = SecurityUtils.getCurrentUserId();
+
+    UserEntity user = userRepository.findById(userId)
+            .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
+
+    TrackShareEntity share = track.getTrackShare();
+    if (share == null) {
+      throw new NotFoundException("Track is not published");
     }
 
-    @Transactional
-    public void unsubscribe(Long trackId) {
-        Long userId = SecurityUtils.getCurrentUserId();
-
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
-
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
-
-        TrackShareEntity share = track.getTrackShare();
-        if (share == null) {
-            throw new NotFoundException("Track is not published");
-        }
-
-        if (!user.getShares().contains(share)) {
-            throw new NotFoundException("You are not subscribed to this track");
-        }
-
-        user.getShares().remove(share);
-        share.getUsers().remove(user);
-
-        removeTrackFromGroupsOwnedByUser(trackId, userId);
-        boardRepository.clearSelectedTrackFromBoardsOwnedByUser(trackId, userId);
-
-        log.info("User {} unsubscribed from track {}", userId, trackId);
+    if (!user.getShares().contains(share)) {
+      throw new NotFoundException("You are not subscribed to this track");
     }
 
-    @Transactional
-    public void unpublish(Long trackId) {
-        TrackEntity track = trackRepository.findById(trackId)
-                .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
+    user.getShares().remove(share);
+    share.getUsers().remove(user);
 
-        if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
-            throw new ForbiddenException("You can only unpublish tracks you own");
-        }
+    removeTrackFromGroupsOwnedByUser(trackId, userId);
+    boardRepository.clearSelectedTrackFromBoardsOwnedByUser(trackId, userId);
 
-        TrackShareEntity share = track.getTrackShare();
-        if (share == null) {
-            throw new NotFoundException("Track is not published");
-        }
+    log.info("User {} unsubscribed from track {}", userId, trackId);
+  }
 
-        detachShareFromAllUsers(share);
-        track.setTrackShare(null);
+  @Transactional
+  public void unpublish(Long trackId) {
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-        removeTrackFromAllGroups(trackId);
-        boardRepository.clearSelectedTrackFromAllBoards(trackId);
-
-        log.info("Track {} unpublished", trackId);
+    if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+      throw new ForbiddenException("You can only unpublish tracks you own");
     }
 
-
-    private void removeTrackFromAllGroups(Long trackId) {
-        List<GroupEntity> groups = groupRepository.findAllContainingTrack(trackId);
-        for (GroupEntity group : groups) {
-            group.getTracks().removeIf(t -> t.getId().equals(trackId));
-        }
+    TrackShareEntity share = track.getTrackShare();
+    if (share == null) {
+      throw new NotFoundException("Track is not published");
     }
 
-    private void removeTrackFromGroupsOwnedByUser(Long trackId, Long ownerId) {
-        List<GroupEntity> groups = groupRepository.findAllContainingTrackOwnedByUser(trackId, ownerId);
-        for (GroupEntity group : groups) {
-            group.getTracks().removeIf(t -> t.getId().equals(trackId));
-        }
+    detachShareFromAllUsers(share);
+    track.setTrackShare(null);
+
+    removeTrackFromAllGroups(trackId);
+    boardRepository.clearSelectedTrackFromAllBoards(trackId);
+
+    log.info("Track {} unpublished", trackId);
+  }
+
+
+  private void removeTrackFromAllGroups(Long trackId) {
+    List<GroupEntity> groups = groupRepository.findAllContainingTrack(trackId);
+    for (GroupEntity group : groups) {
+      group.getTracks().removeIf(t -> t.getId().equals(trackId));
     }
+  }
 
-    private void detachShareFromAllUsers(TrackShareEntity share) {
-        for (UserEntity user : new HashSet<>(share.getUsers())) {
-            user.getShares().remove(share);
-            share.getUsers().remove(user);
-        }
+  private void removeTrackFromGroupsOwnedByUser(Long trackId, Long ownerId) {
+    List<GroupEntity> groups = groupRepository.findAllContainingTrackOwnedByUser(trackId, ownerId);
+    for (GroupEntity group : groups) {
+      group.getTracks().removeIf(t -> t.getId().equals(trackId));
     }
+  }
 
-    @Transactional(readOnly = true)
-    public List<Track> getSubscribedTracks() {
-        Long userId = SecurityUtils.getCurrentUserId();
-        UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
-
-        return user.getShares().stream()
-                .map(TrackShareEntity::getTrack)
-                .map(trackMapper::toDto)
-                .toList();
+  private void detachShareFromAllUsers(TrackShareEntity share) {
+    for (UserEntity user : new HashSet<>(share.getUsers())) {
+      user.getShares().remove(share);
+      share.getUsers().remove(user);
     }
+  }
 
-    @Transactional(readOnly = true)
-    public List<Track> getPublishedTracks() {
-        Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
+  @Transactional(readOnly = true)
+  public List<Track> getSubscribedTracks() {
+    Long userId = SecurityUtils.getCurrentUserId();
+    UserEntity user = userRepository.findById(userId)
+            .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
-        return allShares.stream()
-                .map(TrackShareEntity::getTrack)
-                .map(trackMapper::toDto)
-                .toList();
+    return user.getShares().stream()
+            .map(TrackShareEntity::getTrack)
+            .map(entity -> trackMapper.toDto(entity, userId))
+            .toList();
+  }
 
-    }
+  @Transactional(readOnly = true)
+  public List<Track> getPublishedTracks() {
+    Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
 
-    @Transactional(readOnly = true)
-    public List<Track> getTracksPublishedByCurrentUser() {
-        Long userId = SecurityUtils.getCurrentUserId();
+    return allShares.stream()
+            .map(TrackShareEntity::getTrack)
+            .map(entity -> trackMapper.toDto(entity, SecurityUtils.getCurrentUserId()))
+            .toList();
 
-        Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
+  }
 
-        return allShares.stream()
-                .map(TrackShareEntity::getTrack)
-                .filter(track -> track.getOwner().getId().equals(userId))
-                .map(trackMapper::toDto)
-                .toList();
+  @Transactional(readOnly = true)
+  public List<Track> getTracksPublishedByCurrentUser() {
+    Long userId = SecurityUtils.getCurrentUserId();
 
-    }
+    Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
 
-    private UUID generateUniqueShareCode() {
-        UUID shareCode;
-        do {
-            shareCode = UUID.randomUUID();
-        } while (trackShareRepository.existsByShareCode(shareCode.toString()));
-        return shareCode;
-    }
+    return allShares.stream()
+            .map(TrackShareEntity::getTrack)
+            .filter(track -> track.getOwner().getId().equals(userId))
+            .map(entity -> trackMapper.toDto(entity, userId))
+            .toList();
+
+  }
+
+  private UUID generateUniqueShareCode() {
+    UUID shareCode;
+    do {
+      shareCode = UUID.randomUUID();
+    } while (trackShareRepository.existsByShareCode(shareCode.toString()));
+    return shareCode;
+  }
 
 }
 

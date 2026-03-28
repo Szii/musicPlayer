@@ -452,7 +452,6 @@ public class PlaybackService {
           if (reason == AudioTrackEndReason.REPLACED) return;
           trackFinished = true;
           fullyDecoded = true;
-          pcmBuffer.markComplete();
         }
 
         @Override
@@ -605,6 +604,10 @@ public class PlaybackService {
               }
 
               if (pcmBuffer.isComplete()) {
+                byte[] tail;
+                while ((tail = listener.poll()) != null) {
+                  in.write(tail);
+                }
                 normalExit = true;
                 break;
               }
@@ -658,6 +661,8 @@ public class PlaybackService {
       long myVersion = streamVersion;
 
       workers.submit(() -> {
+        boolean drainedToNaturalEnd = false;
+
         try {
           while (!Thread.currentThread().isInterrupted()) {
             if (streamVersion != myVersion) break;
@@ -671,13 +676,21 @@ public class PlaybackService {
               AudioFrame leftover;
               while ((leftover = p.provide()) != null) {
                 if (streamVersion != myVersion) break;
+
                 byte[] pcm = leftover.getData().clone();
                 pcmBuffer.append(pcm);
                 waveformWarmup.countDown();
               }
-              break;
+
+              if (trackFinished) {
+                drainedToNaturalEnd = true;
+                break;
+              }
+
+              sleepQuiet(5);
+              continue;
             }
-            // if needed to check window end, do it here before providing frame
+
             AudioFrame frame = p.provide();
             if (frame == null) {
               sleepQuiet(5);
@@ -692,11 +705,18 @@ public class PlaybackService {
             waveformWarmup.countDown();
           }
         } finally {
+          log.warn("[session={}] pcm loop finally drainedToNaturalEnd={}, fullyDecoded={}, trackMode={}",
+                  sessionId, drainedToNaturalEnd, fullyDecoded, trackMode);
+          if (drainedToNaturalEnd) {
+            fullyDecoded = true;
+            pcmBuffer.markComplete();
+          }
+
           status = PlaybackStatus.STOPPED;
 
-          if (trackMode && fullyDecoded && windowStartS == null && windowEndS == null) {
+          if (fullyDecoded) {
             scheduleExpiry();
-          } else if (!trackMode) {
+          } else if (status == PlaybackStatus.ERROR) {
             removeThisSession();
           }
         }
@@ -717,6 +737,7 @@ public class PlaybackService {
     }
 
     private void removeThisSession() {
+      log.warn("[session={}] removeThisSession called", sessionId);
       stopInternal();
       if (trackMode) {
         trackSessions.values().remove(this);
