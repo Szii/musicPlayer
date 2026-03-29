@@ -30,7 +30,7 @@ public interface TrackMapper {
   )
   @Mapping(
           target = "owned",
-          expression = "java(entity.getId().equals(userId))"
+          expression = "java(entity.getOwner().getId().equals(userId))"
   )
   Track toDto(TrackEntity entity, Long userId);
 

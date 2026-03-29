@@ -17,22 +17,22 @@ import java.util.Set;
 @AllArgsConstructor
 public class GroupEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(name = "list_name", nullable = false)
-    private String listName;
+  @Column(name = "list_name", nullable = false)
+  private String listName;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private UserEntity owner;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "owner_id", nullable = false)
+  private UserEntity owner;
 
-    @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @JoinTable(
-            name = "group_tracks",
-            joinColumns = @JoinColumn(name = "group_id"),
-            inverseJoinColumns = @JoinColumn(name = "track_id")
-    )
-    private Set<TrackEntity> tracks = new HashSet<>();
+  @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+  @JoinTable(
+          name = "group_tracks",
+          joinColumns = @JoinColumn(name = "group_id"),
+          inverseJoinColumns = @JoinColumn(name = "track_id")
+  )
+  private Set<TrackEntity> tracks = new HashSet<>();
 }

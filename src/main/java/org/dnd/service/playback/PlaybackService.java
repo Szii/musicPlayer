@@ -335,7 +335,7 @@ public class PlaybackService {
     private volatile boolean trackFinished;
     private volatile boolean fullyDecoded;
 
-    private final PcmBroadcastBuffer pcmBuffer = new PcmBroadcastBuffer();
+    private final PcmBroadcastBuffer pcmBuffer;
     private final WaveformAccumulator waveform = new WaveformAccumulator(WAVEFORM_BUCKETS);
     private final CountDownLatch waveformWarmup = new CountDownLatch(1);
 
@@ -346,6 +346,8 @@ public class PlaybackService {
     private volatile ScheduledFuture<?> expiryFuture;
 
     private StreamSession(long sessionId, boolean trackMode) {
+
+      pcmBuffer = new PcmBroadcastBuffer(trackMode);
       this.sessionId = sessionId;
       this.trackMode = trackMode;
     }
