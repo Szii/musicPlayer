@@ -20,6 +20,7 @@ import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -34,6 +35,7 @@ public class BoardService {
   private final BoardMapper boardMapper;
   private final TrackMapper trackMapper;
 
+  @Transactional(readOnly = true)
   public List<Board> getUserBoards() {
     log.debug("Getting boards for user with id {}", SecurityUtils.getCurrentUserId());
     List<Board> boards = boardMapper.toDtos(boardRepository.findByOwner_Id(SecurityUtils.getCurrentUserId()));
@@ -41,6 +43,7 @@ public class BoardService {
     return boards;
   }
 
+  @Transactional(readOnly = true)
   public Board getUserBoard(Long boardId) {
     log.debug("Getting single board for user with id {}", SecurityUtils.getCurrentUserId());
     BoardEntity board = boardRepository.findById(boardId)
@@ -51,6 +54,7 @@ public class BoardService {
     return boardMapper.toDto(board);
   }
 
+  @Transactional
   public Board createUserBoard(BoardCreateRequest request) {
     Long userId = SecurityUtils.getCurrentUserId();
     log.debug("Creating board for user with id {}", userId);
@@ -67,6 +71,7 @@ public class BoardService {
     return boardDto;
   }
 
+  @Transactional
   public void deleteUserBoard(Long boardId) {
     Long userId = SecurityUtils.getCurrentUserId();
     log.debug("Deleting board {} for user {}", boardId, userId);
@@ -76,6 +81,7 @@ public class BoardService {
     boardRepository.deleteById(boardId);
   }
 
+  @Transactional
   public Board updateUserBoard(Long boardId, BoardUpdateRequest request) {
     Long userId = SecurityUtils.getCurrentUserId();
     log.debug("Updating board {} for user {}", boardId, userId);
@@ -92,7 +98,7 @@ public class BoardService {
     return boardDto;
   }
 
-  public void setTrackIfExist(Long selectedTrackId, BoardEntity board) {
+  private void setTrackIfExist(Long selectedTrackId, BoardEntity board) {
     if (selectedTrackId == null) {
       board.setSelectedTrack(null);
       return;
@@ -103,7 +109,7 @@ public class BoardService {
     board.setSelectedTrack(track);
   }
 
-  public void setGroupIfExist(Long selectedGroupId, BoardEntity board) {
+  private void setGroupIfExist(Long selectedGroupId, BoardEntity board) {
     if (selectedGroupId == null) {
       board.setSelectedGroup(null);
       return;
@@ -114,6 +120,7 @@ public class BoardService {
 
   }
 
+  @Transactional(readOnly = true)
   private List<Track> getTracksForBoard(Long boardId) {
     Long userId = SecurityUtils.getCurrentUserId();
     log.debug("Getting tracks for board {} and user {}", boardId, userId);

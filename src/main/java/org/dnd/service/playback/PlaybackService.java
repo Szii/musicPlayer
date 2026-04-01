@@ -31,6 +31,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.*;
@@ -92,12 +93,21 @@ public class PlaybackService {
     scheduler.shutdownNow();
   }
 
+  // ── Board playback ────────────────────────────────────────────────────────
+
+  @Transactional(readOnly = true)
   public PlaybackState getState(long boardId) {
     requireOwnedBoard(boardId);
     StreamSession s = sessions.get(boardId);
     return s != null ? s.snapshot() : stoppedBoardState(boardId);
   }
 
+  /**
+   * All DB work (board lookup, track access check, window load) happens inside
+   * this transaction. The transaction commits before loadAndPlay starts the
+   * Lavaplayer pipeline, so no DB connection is held during audio processing.
+   */
+  @Transactional(readOnly = true)
   public PlaybackState playBoard(long boardId, PlayRequest request) {
     BoardEntity board = requireOwnedBoard(boardId);
 
@@ -115,16 +125,28 @@ public class PlaybackService {
       windowEndS = window.getPositionTo();
     }
 
+    // Detach all values we need before the transaction ends.
+    long trackId = track.getId();
+    String trackLink = track.getTrackLink();
+    int trackDuration = track.getDuration();
+
+    // Build a detached lightweight record — no JPA proxy escapes this method.
+    TrackSnapshot trackSnapshot = new TrackSnapshot(trackId, trackLink, trackDuration);
+    final Long finalWindowStartS = windowStartS;
+    final Long finalWindowEndS = windowEndS;
+
+    // Session management and Lavaplayer work — no DB access.
     StreamSession existing = sessions.remove(boardId);
     if (existing != null) existing.stop();
 
     StreamSession s = new StreamSession(boardId, false);
     sessions.put(boardId, s);
-    s.setWindow(windowStartS, windowEndS);
-    s.loadAndPlay(track);
+    s.setWindow(finalWindowStartS, finalWindowEndS);
+    s.loadAndPlay(trackSnapshot);
     return s.snapshot();
   }
 
+  @Transactional(readOnly = true)
   public PlaybackState stop(long boardId) {
     requireOwnedBoard(boardId);
     StreamSession s = sessions.remove(boardId);
@@ -134,6 +156,7 @@ public class PlaybackService {
   }
 
   @Deprecated
+  @Transactional(readOnly = true)
   public PlaybackState pause(long boardId) {
     requireOwnedBoard(boardId);
     StreamSession s = sessions.get(boardId);
@@ -141,6 +164,7 @@ public class PlaybackService {
   }
 
   @Deprecated
+  @Transactional(readOnly = true)
   public PlaybackState resume(long boardId) {
     requireOwnedBoard(boardId);
     StreamSession s = sessions.get(boardId);
@@ -148,17 +172,21 @@ public class PlaybackService {
   }
 
   @Deprecated
+  @Transactional(readOnly = true)
   public PlaybackState seek(long boardId, SeekRequest req) {
     requireOwnedBoard(boardId);
     StreamSession s = sessions.get(boardId);
     return s != null ? s.snapshot() : stoppedBoardState(boardId);
   }
 
+  /**
+   * DB validation runs in its own short transaction via the helper.
+   * The transaction is committed (connection released) before buildStreamResponse()
+   * opens the long-lived piped stream. The HTTP thread holds no DB connection
+   * during the minutes-long audio delivery.
+   */
   public ResponseEntity<Resource> streamMp3ForUser(long boardId, long userId) {
-    requireOwnedBoardByUserId(boardId, userId);
-    StreamSession s = sessions.get(boardId);
-    if (s == null || !s.canServeStream()) throw conflict("Board is not playing");
-
+    StreamSession s = validateAndGetBoardSession(boardId, userId);
     try {
       return s.buildStreamResponse();
     } catch (IOException e) {
@@ -167,6 +195,17 @@ public class PlaybackService {
     }
   }
 
+  @Transactional(readOnly = true)
+  protected StreamSession validateAndGetBoardSession(long boardId, long userId) {
+    requireOwnedBoardByUserId(boardId, userId);
+    StreamSession s = sessions.get(boardId);
+    if (s == null || !s.canServeStream()) throw conflict("Board is not playing");
+    return s;
+  }
+
+  // ── Track playback ────────────────────────────────────────────────────────
+
+  @Transactional(readOnly = true)
   public PlaybackState playTrack(long trackId, PlayRequest request) {
     TrackEntity track = requireOwnedTrack(trackId);
     Long userId = SecurityUtils.getCurrentUserId();
@@ -182,6 +221,11 @@ public class PlaybackService {
       windowEndS = window.getPositionTo();
     }
 
+    // Detach primitive values before transaction ends.
+    TrackSnapshot trackSnapshot = new TrackSnapshot(track.getId(), track.getTrackLink(), track.getDuration());
+    final Long finalWindowStartS = windowStartS;
+    final Long finalWindowEndS = windowEndS;
+
     StreamSession existing = trackSessions.get(key);
 
     if (existing != null && existing.isReusableForReplay() && windowId == null) {
@@ -196,20 +240,17 @@ public class PlaybackService {
 
     StreamSession s = new StreamSession(trackId, true);
     trackSessions.put(key, s);
-    s.setWindow(windowStartS, windowEndS);
-    s.loadAndPlay(track);
+    s.setWindow(finalWindowStartS, finalWindowEndS);
+    s.loadAndPlay(trackSnapshot);
     return s.snapshot();
   }
 
+  /**
+   * Same pattern as streamMp3ForUser: DB work in a short transaction,
+   * stream delivery outside any transaction.
+   */
   public ResponseEntity<Resource> streamMp3ForTrack(long trackId, long userId) {
-    TrackEntity track = trackRepository.findById(trackId)
-            .orElseThrow(() -> notFound("Track not found"));
-    if (!track.getOwner().getId().equals(userId)) throw forbidden("Track not owned by user");
-
-    String key = trackSessionKey(userId, trackId);
-    StreamSession s = trackSessions.get(key);
-    if (s == null || !s.canServeStream()) throw conflict("Track is not playing");
-
+    StreamSession s = validateAndGetTrackSession(trackId, userId);
     try {
       return s.buildStreamResponse();
     } catch (IOException e) {
@@ -218,6 +259,19 @@ public class PlaybackService {
     }
   }
 
+  @Transactional(readOnly = true)
+  protected StreamSession validateAndGetTrackSession(long trackId, long userId) {
+    TrackEntity track = trackRepository.findById(trackId)
+            .orElseThrow(() -> notFound("Track not found"));
+    if (!track.getOwner().getId().equals(userId)) throw forbidden("Track not owned by user");
+
+    String key = trackSessionKey(userId, trackId);
+    StreamSession s = trackSessions.get(key);
+    if (s == null || !s.canServeStream()) throw conflict("Track is not playing");
+    return s;
+  }
+
+  @Transactional(readOnly = true)
   public StreamInfoResponse getTrackStreamInfo(Long trackId) {
     TrackEntity track = requireOwnedTrack(trackId);
     Long userId = SecurityUtils.getCurrentUserId();
@@ -239,21 +293,28 @@ public class PlaybackService {
     return info;
   }
 
+  @Transactional(readOnly = true)
   public WaveformResponse getTrackWaveform(Long trackId) {
     TrackEntity track = requireOwnedTrack(trackId);
     Long userId = SecurityUtils.getCurrentUserId();
     String key = trackSessionKey(userId, trackId);
 
+    // Detach before transaction ends.
+    TrackSnapshot trackSnapshot = new TrackSnapshot(track.getId(), track.getTrackLink(), track.getDuration());
+
     StreamSession s = trackSessions.get(key);
     if (s == null) {
       s = new StreamSession(trackId, true);
       trackSessions.put(key, s);
-      s.loadAndPlay(track);
+      s.loadAndPlay(trackSnapshot);
     }
 
+    // awaitWaveformWarmup blocks but needs no DB — safe outside transaction.
     s.awaitWaveformWarmup(2, TimeUnit.SECONDS);
     return s.getWaveformResponse();
   }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private static String trackSessionKey(Long userId, long trackId) {
     return userId + ":" + trackId;
@@ -307,8 +368,7 @@ public class PlaybackService {
   private boolean validateTrackAccessForCurrentUser(TrackEntity track, boolean isSharedTrackValid) {
     UserEntity user = userRepository.findById(SecurityUtils.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException(
-                    String.format("User with id %d not found", SecurityUtils.getCurrentUserId()))
-            );
+                    String.format("User with id %d not found", SecurityUtils.getCurrentUserId())));
 
     if (isSharedTrackValid) {
       return track.getOwner().getId().equals(SecurityUtils.getCurrentUserId()) ||
@@ -317,6 +377,17 @@ public class PlaybackService {
       return track.getOwner().getId().equals(SecurityUtils.getCurrentUserId());
     }
   }
+
+  // ── TrackSnapshot — primitive values detached from JPA session ────────────
+
+  /**
+   * Carries only the values needed by Lavaplayer. No JPA proxy, no lazy
+   * collections — safe to use after the @Transactional method returns.
+   */
+  private record TrackSnapshot(long id, String trackLink, int duration) {
+  }
+
+  // ── StreamSession ─────────────────────────────────────────────────────────
 
   private final class StreamSession {
 
@@ -329,7 +400,7 @@ public class PlaybackService {
     private volatile Long currentTrackId;
     private volatile Long windowStartS;
     private volatile Long windowEndS;
-    private volatile long durationMs;
+    volatile long durationMs;
 
     private volatile long streamVersion;
     private volatile boolean trackFinished;
@@ -346,8 +417,7 @@ public class PlaybackService {
     private volatile ScheduledFuture<?> expiryFuture;
 
     private StreamSession(long sessionId, boolean trackMode) {
-
-      pcmBuffer = new PcmBroadcastBuffer(trackMode);
+      this.pcmBuffer = new PcmBroadcastBuffer(trackMode);
       this.sessionId = sessionId;
       this.trackMode = trackMode;
     }
@@ -420,14 +490,14 @@ public class PlaybackService {
       return ps;
     }
 
-    void loadAndPlay(TrackEntity trackEntity) {
+    void loadAndPlay(TrackSnapshot track) {
       stopInternal();
 
       AudioPlayer newPlayer = playerManager.createPlayer();
       this.player = newPlayer;
 
       status = PlaybackStatus.PLAYING;
-      currentTrackId = trackEntity.getId();
+      currentTrackId = track.id();
       durationMs = 0L;
       streamVersion++;
       trackFinished = false;
@@ -441,15 +511,15 @@ public class PlaybackService {
 
       newPlayer.addListener(new AudioEventAdapter() {
         @Override
-        public void onTrackStart(AudioPlayer p, AudioTrack track) {
+        public void onTrackStart(AudioPlayer p, AudioTrack t) {
           status = PlaybackStatus.PLAYING;
-          durationMs = Math.max(1L, track.getDuration());
+          durationMs = Math.max(1L, t.getDuration());
           waveform.setDurationMs(durationMs);
-          log.debug("[{}={}] track start: {} ({}ms)", label, sessionId, track.getInfo().title, track.getDuration());
+          log.debug("[{}={}] track start: {} ({}ms)", label, sessionId, t.getInfo().title, t.getDuration());
         }
 
         @Override
-        public void onTrackEnd(AudioPlayer p, AudioTrack track, AudioTrackEndReason reason) {
+        public void onTrackEnd(AudioPlayer p, AudioTrack t, AudioTrackEndReason reason) {
           log.debug("[{}={}] track end: {}", label, sessionId, reason);
           if (reason == AudioTrackEndReason.REPLACED) return;
           trackFinished = true;
@@ -457,14 +527,14 @@ public class PlaybackService {
         }
 
         @Override
-        public void onTrackStuck(AudioPlayer p, AudioTrack track, long thresholdMs) {
+        public void onTrackStuck(AudioPlayer p, AudioTrack t, long thresholdMs) {
           log.warn("[{}={}] track stuck ({}ms)", label, sessionId, thresholdMs);
           status = PlaybackStatus.ERROR;
           removeThisSession();
         }
 
         @Override
-        public void onTrackException(AudioPlayer p, AudioTrack track, FriendlyException ex) {
+        public void onTrackException(AudioPlayer p, AudioTrack t, FriendlyException ex) {
           log.error("[{}={}] track exception: {}", label, sessionId, ex.getMessage(), ex);
           status = PlaybackStatus.ERROR;
           removeThisSession();
@@ -473,13 +543,13 @@ public class PlaybackService {
 
       CountDownLatch latch = new CountDownLatch(1);
 
-      playerManager.loadItem(trackEntity.getTrackLink(), new AudioLoadResultHandler() {
+      playerManager.loadItem(track.trackLink(), new AudioLoadResultHandler() {
         @Override
-        public void trackLoaded(AudioTrack track) {
-          applyWindowStart(track);
-          durationMs = Math.max(1L, track.getDuration());
+        public void trackLoaded(AudioTrack t) {
+          applyWindowStart(t, track.duration());
+          durationMs = Math.max(1L, t.getDuration());
           waveform.setDurationMs(durationMs);
-          newPlayer.playTrack(track);
+          newPlayer.playTrack(t);
           latch.countDown();
         }
 
@@ -487,7 +557,7 @@ public class PlaybackService {
         public void playlistLoaded(AudioPlaylist playlist) {
           AudioTrack first = playlist.getTracks().isEmpty() ? null : playlist.getTracks().getFirst();
           if (first != null) {
-            applyWindowStart(first);
+            applyWindowStart(first, track.duration());
             durationMs = Math.max(1L, first.getDuration());
             waveform.setDurationMs(durationMs);
             newPlayer.playTrack(first);
@@ -614,9 +684,7 @@ public class PlaybackService {
                 break;
               }
 
-              if (status == PlaybackStatus.ERROR) {
-                break;
-              }
+              if (status == PlaybackStatus.ERROR) break;
             }
             in.flush();
           } else {
@@ -626,9 +694,7 @@ public class PlaybackService {
           Thread.currentThread().interrupt();
         } catch (Exception ignored) {
         } finally {
-          if (!normalExit) {
-            cleanup.run();
-          }
+          if (!normalExit) cleanup.run();
           pcmBuffer.unregisterListener(listener);
         }
       });
@@ -651,10 +717,10 @@ public class PlaybackService {
               .body(new InputStreamResource(closable));
     }
 
-    private void applyWindowStart(AudioTrack track) {
+    private void applyWindowStart(AudioTrack track, int trackDurationS) {
       if (windowStartS == null || windowStartS <= 0) return;
       long startMs = windowStartS * 1000L;
-      long dur = track.getDuration();
+      long dur = track.getDuration() > 0 ? track.getDuration() : (long) trackDurationS * 1000;
       if (dur > 0) startMs = Math.min(startMs, Math.max(0, dur - 1000));
       track.setPosition(startMs);
     }
@@ -678,7 +744,6 @@ public class PlaybackService {
               AudioFrame leftover;
               while ((leftover = p.provide()) != null) {
                 if (streamVersion != myVersion) break;
-
                 byte[] pcm = leftover.getData().clone();
                 pcmBuffer.append(pcm);
                 waveformWarmup.countDown();
@@ -707,8 +772,9 @@ public class PlaybackService {
             waveformWarmup.countDown();
           }
         } finally {
-          log.warn("[session={}] pcm loop finally drainedToNaturalEnd={}, fullyDecoded={}, trackMode={}",
-                  sessionId, drainedToNaturalEnd, fullyDecoded, trackMode);
+          log.debug("[session={}] pcm loop exit — drainedToNaturalEnd={}, fullyDecoded={}",
+                  sessionId, drainedToNaturalEnd, fullyDecoded);
+
           if (drainedToNaturalEnd) {
             fullyDecoded = true;
             pcmBuffer.markComplete();
@@ -739,7 +805,7 @@ public class PlaybackService {
     }
 
     private void removeThisSession() {
-      log.warn("[session={}] removeThisSession called", sessionId);
+      log.debug("[session={}] removeThisSession", sessionId);
       stopInternal();
       if (trackMode) {
         trackSessions.values().remove(this);
@@ -748,6 +814,8 @@ public class PlaybackService {
       }
     }
   }
+
+  // ── Static utilities ──────────────────────────────────────────────────────
 
   private static Process startFfmpeg() throws IOException {
     ProcessBuilder pb = new ProcessBuilder(

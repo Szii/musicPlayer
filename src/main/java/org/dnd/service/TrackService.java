@@ -1,6 +1,5 @@
 package org.dnd.service;
 
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Track;
@@ -15,6 +14,7 @@ import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +50,7 @@ public class TrackService {
     trackRepository.delete(track);
   }
 
+  @Transactional
   public Track addTrack(TrackRequest trackRequest) {
     log.debug("Adding track {}", trackRequest);
     Long userId = SecurityUtils.getCurrentUserId();
@@ -60,6 +61,7 @@ public class TrackService {
 
     return mapper.toDto(trackRepository.save(track), userId);
   }
+
 
   private void setTrackMetadata(TrackEntity track, TrackRequest trackRequest) {
     TrackMetadata meta = trackMetadataService.resolveMetadata(trackRequest.getTrackLink());
@@ -88,6 +90,7 @@ public class TrackService {
     return mapper.toDto(entity, userId);
   }
 
+  @Transactional(readOnly = true)
   public List<Track> getAllTracksForUser() {
     Long userId = SecurityUtils.getCurrentUserId();
     log.debug("Getting tracks for user with id {}", userId);
