@@ -9,6 +9,7 @@
       {
         "publishCmd": "docker build -t ${env.DOCKER_NAME}/${env.DOCKER_REPO_BE}:${nextRelease.version} -t ${env.DOCKER_NAME}/${env.DOCKER_REPO_BE}:latest . && docker push ${env.DOCKER_NAME}/${env.DOCKER_REPO_BE}:${nextRelease.version} && docker push ${env.DOCKER_NAME}/${env.DOCKER_REPO_BE}:latest"
       }
-    ]
+    ],
+    "@semantic-release/github"
   ]
 }
