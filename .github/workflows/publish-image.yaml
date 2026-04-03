@@ -104,7 +104,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_result.outputs.tag }}
-          files: openapi.yaml
+          files: backend-openapi.yaml
 
       - name: No release created
         if: steps.release_result.outputs.publish != 'true'
