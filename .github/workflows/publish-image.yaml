@@ -52,3 +52,19 @@ jobs:
           DOCKER_NAME: ${{ secrets.DOCKER_NAME }}
           DOCKER_REPO_BE: ${{ secrets.DOCKER_REPO_BE }}
         run: npx semantic-release
+
+      - name: Get Latest Tag
+        id: latest_tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          VERSION=${TAG#v}
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build and Push Docker Image
+        if: steps.latest_tag.outputs.version
+        run: |
+          docker build -t ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:${{ steps.latest_tag.outputs.version }} \
+                       -t ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:latest .
+          docker push ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:${{ steps.latest_tag.outputs.version }}
+          docker push ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:latest
