@@ -1,4 +1,5 @@
-FROM maven:3.9.9-eclipse-temurin-23 AS build
+# Build stage
+FROM maven:3.9.9-eclipse-temurin-23-alpine AS build
 
 WORKDIR /app
 
@@ -7,9 +8,12 @@ COPY src ./src
 
 RUN mvn clean package -DskipTests
 
-FROM eclipse-temurin:23-jre
+# Runtime stage
+FROM eclipse-temurin:23-jre-alpine
 
 WORKDIR /app
+
+RUN apk add --no-cache ffmpeg
 
 COPY --from=build /app/target/*.jar app.jar
 
