@@ -7,10 +7,7 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.TrackShareEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.repository.DatabaseBase;
-import org.dnd.repository.TrackRepository;
-import org.dnd.repository.TrackShareRepository;
-import org.dnd.repository.UserRepository;
+import org.dnd.repository.*;
 import org.dnd.service.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,17 +32,21 @@ class ShareControllerTest extends DatabaseBase {
 
   @Autowired
   private MockMvc mockMvc;
+
   @Autowired
   private ObjectMapper objectMapper;
 
   @Autowired
   private UserRepository userRepository;
+
   @Autowired
   private TrackRepository trackRepository;
+
   @Autowired
   private TrackShareRepository trackShareRepository;
+
   @Autowired
-  private TrackShareRepository shareRepository;
+  private TrackWindowRepository trackWindowRepository;
 
   @Autowired
   private JwtService jwtService;
@@ -57,6 +58,7 @@ class ShareControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
+    trackWindowRepository.deleteAllInBatch();
     trackShareRepository.deleteAllInBatch();
     trackRepository.deleteAllInBatch();
     userRepository.deleteAllInBatch();
@@ -87,8 +89,6 @@ class ShareControllerTest extends DatabaseBase {
   @Test
   void publishTrack_NotOwner_Forbidden() throws Exception {
     TrackEntity track = createTrackEntity("Other Track", otherUser);
-
-    System.out.println(track.getId());
 
     PublishTrackRequest request = new PublishTrackRequest();
     request.setDescription("Try to publish");
@@ -245,7 +245,6 @@ class ShareControllerTest extends DatabaseBase {
     return savedTrack.getTrackShare();
   }
 
-
   private String getTokenForUser(UserEntity user) {
     UserAuthDTO dto = new UserAuthDTO();
     dto.setId(user.getId());
@@ -253,4 +252,3 @@ class ShareControllerTest extends DatabaseBase {
     return jwtService.generateToken(dto);
   }
 }
-

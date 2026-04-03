@@ -1,12 +1,12 @@
 package org.dnd.service;
 
-import com.github.dockerjava.api.exception.BadRequestException;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackWindow;
 import org.dnd.api.model.TrackWindowRequest;
+import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.mappers.TrackMapper;
@@ -71,7 +71,7 @@ public class TrackWindowService {
   }
 
   @Transactional
-  public Track createTrackWindow(Long trackId, TrackWindowRequest trackWindowRequest) {
+  public Track createTrackWindow(Long trackId, TrackWindowRequest trackWindowRequest) throws BadRequestException {
     Long userId = SecurityUtils.getCurrentUserId();
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
