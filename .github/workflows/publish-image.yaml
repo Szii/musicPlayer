@@ -22,19 +22,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - name: Set up Node LTS
+        uses: actions/setup-node@v6
         with:
           node-version: "lts/*"
+          package-manager-cache: false
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKER_NAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+      - name: Capture current latest tag
+        id: before
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
       - name: Install semantic-release tooling
         run: |
@@ -42,31 +40,72 @@ jobs:
             semantic-release \
             @semantic-release/commit-analyzer \
             @semantic-release/release-notes-generator \
-            @semantic-release/exec \
-            @semantic-release/github \
             conventional-changelog-conventionalcommits
 
       - name: Run semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOCKER_NAME: ${{ secrets.DOCKER_NAME }}
-          DOCKER_REPO_BE: ${{ secrets.DOCKER_REPO_BE }}
-        run: npx semantic-release
+        run: npx semantic-release@25
 
-      - name: Get Latest Tag
-        id: latest_tag
+      - name: Capture latest tag after release
+        id: after
         run: |
-          TAG=$(git describe --tags --abbrev=0)
-          VERSION=${TAG#v}
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
           echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
 
-      - name: Build and Push Docker Image
-        if: steps.latest_tag.outputs.version
-        uses: docker/build-push-action@v5
+      - name: Decide whether a new release was created
+        id: release_result
+        run: |
+          if [ -n "${{ steps.after.outputs.tag }}" ] && [ "${{ steps.after.outputs.tag }}" != "${{ steps.before.outputs.tag }}" ]; then
+            echo "publish=true" >> $GITHUB_OUTPUT
+            echo "tag=${{ steps.after.outputs.tag }}" >> $GITHUB_OUTPUT
+            echo "version=${{ steps.after.outputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Java 23
+        if: steps.release_result.outputs.publish == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '23'
+          cache: maven
+
+      - name: Set up Docker Buildx
+        if: steps.release_result.outputs.publish == 'true'
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        if: steps.release_result.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_NAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build and push Docker image
+        if: steps.release_result.outputs.publish == 'true'
+        uses: docker/build-push-action@v7
         with:
           context: .
+          file: ./Dockerfile
           push: true
           tags: |
-            ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:${{ steps.latest_tag.outputs.version }}
+            ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:${{ steps.release_result.outputs.version }}
             ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:latest
+
+      - name: Generate OpenAPI spec
+        if: steps.release_result.outputs.publish == 'true'
+        run: mvn --batch-mode --no-transfer-progress verify -DskipTests
+
+      - name: Create or update GitHub Release and upload OpenAPI asset
+        if: steps.release_result.outputs.publish == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_result.outputs.tag }}
+          files: target/openapi.yaml
+
+      - name: No release created
+        if: steps.release_result.outputs.publish != 'true'
+        run: echo "No semantic-release version was created from these commits."
