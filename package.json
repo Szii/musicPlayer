@@ -1,6 +1,5 @@
 {
   "name": "music-player",
-  "version": "1.0.0",
   "description": "Music Player Backend API",
   "private": true,
   "scripts": {
