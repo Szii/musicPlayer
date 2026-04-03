@@ -93,7 +93,6 @@ public class PlaybackService {
     scheduler.shutdownNow();
   }
 
-  // ── Board playback ────────────────────────────────────────────────────────
 
   @Transactional(readOnly = true)
   public PlaybackState getState(long boardId) {
@@ -103,9 +102,8 @@ public class PlaybackService {
   }
 
   /**
-   * All DB work (board lookup, track access check, window load) happens inside
-   * this transaction. The transaction commits before loadAndPlay starts the
-   * Lavaplayer pipeline, so no DB connection is held during audio processing.
+   * Validate against DB and then unleash the strem separately after all validations
+   * are complete to not starve the hikari pool with long running streaming operations
    */
   @Transactional(readOnly = true)
   public PlaybackState playBoard(long boardId, PlayRequest request) {
@@ -125,17 +123,16 @@ public class PlaybackService {
       windowEndS = window.getPositionTo();
     }
 
-    // Detach all values we need before the transaction ends.
+
     long trackId = track.getId();
     String trackLink = track.getTrackLink();
     int trackDuration = track.getDuration();
 
-    // Build a detached lightweight record — no JPA proxy escapes this method.
+
     TrackSnapshot trackSnapshot = new TrackSnapshot(trackId, trackLink, trackDuration);
     final Long finalWindowStartS = windowStartS;
     final Long finalWindowEndS = windowEndS;
 
-    // Session management and Lavaplayer work — no DB access.
     StreamSession existing = sessions.remove(boardId);
     if (existing != null) existing.stop();
 
@@ -180,10 +177,8 @@ public class PlaybackService {
   }
 
   /**
-   * DB validation runs in its own short transaction via the helper.
-   * The transaction is committed (connection released) before buildStreamResponse()
-   * opens the long-lived piped stream. The HTTP thread holds no DB connection
-   * during the minutes-long audio delivery.
+   * DB validations needs to run first in separate transactional block to not
+   * starve the hikari pool
    */
   public ResponseEntity<Resource> streamMp3ForUser(long boardId, long userId) {
     StreamSession s = validateAndGetBoardSession(boardId, userId);
@@ -203,8 +198,6 @@ public class PlaybackService {
     return s;
   }
 
-  // ── Track playback ────────────────────────────────────────────────────────
-
   @Transactional(readOnly = true)
   public PlaybackState playTrack(long trackId, PlayRequest request) {
     TrackEntity track = requireOwnedTrack(trackId);
@@ -221,7 +214,6 @@ public class PlaybackService {
       windowEndS = window.getPositionTo();
     }
 
-    // Detach primitive values before transaction ends.
     TrackSnapshot trackSnapshot = new TrackSnapshot(track.getId(), track.getTrackLink(), track.getDuration());
     final Long finalWindowStartS = windowStartS;
     final Long finalWindowEndS = windowEndS;
@@ -246,8 +238,8 @@ public class PlaybackService {
   }
 
   /**
-   * Same pattern as streamMp3ForUser: DB work in a short transaction,
-   * stream delivery outside any transaction.
+   * DB validations needs to run first in separate transactional block to not
+   * starve the hikari pool
    */
   public ResponseEntity<Resource> streamMp3ForTrack(long trackId, long userId) {
     StreamSession s = validateAndGetTrackSession(trackId, userId);
@@ -299,7 +291,6 @@ public class PlaybackService {
     Long userId = SecurityUtils.getCurrentUserId();
     String key = trackSessionKey(userId, trackId);
 
-    // Detach before transaction ends.
     TrackSnapshot trackSnapshot = new TrackSnapshot(track.getId(), track.getTrackLink(), track.getDuration());
 
     StreamSession s = trackSessions.get(key);
@@ -309,12 +300,9 @@ public class PlaybackService {
       s.loadAndPlay(trackSnapshot);
     }
 
-    // awaitWaveformWarmup blocks but needs no DB — safe outside transaction.
     s.awaitWaveformWarmup(2, TimeUnit.SECONDS);
     return s.getWaveformResponse();
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   private static String trackSessionKey(Long userId, long trackId) {
     return userId + ":" + trackId;
@@ -378,16 +366,8 @@ public class PlaybackService {
     }
   }
 
-  // ── TrackSnapshot — primitive values detached from JPA session ────────────
-
-  /**
-   * Carries only the values needed by Lavaplayer. No JPA proxy, no lazy
-   * collections — safe to use after the @Transactional method returns.
-   */
   private record TrackSnapshot(long id, String trackLink, int duration) {
   }
-
-  // ── StreamSession ─────────────────────────────────────────────────────────
 
   private final class StreamSession {
 
@@ -814,8 +794,6 @@ public class PlaybackService {
       }
     }
   }
-
-  // ── Static utilities ──────────────────────────────────────────────────────
 
   private static Process startFfmpeg() throws IOException {
     ProcessBuilder pb = new ProcessBuilder(
