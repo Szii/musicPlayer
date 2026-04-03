@@ -95,16 +95,16 @@ jobs:
             ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:${{ steps.release_result.outputs.version }}
             ${{ secrets.DOCKER_NAME }}/${{ secrets.DOCKER_REPO_BE }}:latest
 
-      - name: Generate OpenAPI spec
+      - name: Prepare OpenAPI asset
         if: steps.release_result.outputs.publish == 'true'
-        run: mvn --batch-mode --no-transfer-progress verify -DskipTests
+        run: cp src/main/resources/openapi.yaml backend-openapi.yaml
 
       - name: Create or update GitHub Release and upload OpenAPI asset
         if: steps.release_result.outputs.publish == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_result.outputs.tag }}
-          files: target/openapi.yaml
+          files: openapi.yaml
 
       - name: No release created
         if: steps.release_result.outputs.publish != 'true'
