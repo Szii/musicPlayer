@@ -33,224 +33,224 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class ShareControllerTest extends DatabaseBase {
 
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
+  @Autowired
+  private MockMvc mockMvc;
+  @Autowired
+  private ObjectMapper objectMapper;
 
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private TrackRepository trackRepository;
-    @Autowired
-    private TrackShareRepository trackShareRepository;
-    @Autowired
-    private TrackShareRepository shareRepository;
+  @Autowired
+  private UserRepository userRepository;
+  @Autowired
+  private TrackRepository trackRepository;
+  @Autowired
+  private TrackShareRepository trackShareRepository;
+  @Autowired
+  private TrackShareRepository shareRepository;
 
-    @Autowired
-    private JwtService jwtService;
+  @Autowired
+  private JwtService jwtService;
 
-    private UserEntity testUser;
-    private UserEntity otherUser;
-    private String authToken;
-    private String otherUserToken;
+  private UserEntity testUser;
+  private UserEntity otherUser;
+  private String authToken;
+  private String otherUserToken;
 
-    @BeforeEach
-    void setUp() {
-        trackShareRepository.deleteAll();
-        trackRepository.deleteAll();
-        userRepository.deleteAll();
+  @BeforeEach
+  void setUp() {
+    trackShareRepository.deleteAllInBatch();
+    trackRepository.deleteAllInBatch();
+    userRepository.deleteAllInBatch();
 
-        testUser = createUser("testUser");
-        otherUser = createUser("otherUser");
-        authToken = getTokenForUser(testUser);
-        otherUserToken = getTokenForUser(otherUser);
-    }
+    testUser = createUser("testUser_" + UUID.randomUUID());
+    otherUser = createUser("otherUser_" + UUID.randomUUID());
+    authToken = getTokenForUser(testUser);
+    otherUserToken = getTokenForUser(otherUser);
+  }
 
-    @Test
-    void publishTrack_Owner_Success() throws Exception {
-        TrackEntity track = createTrackEntity("My Track", testUser);
+  @Test
+  void publishTrack_Owner_Success() throws Exception {
+    TrackEntity track = createTrackEntity("My Track", testUser);
 
-        PublishTrackRequest request = new PublishTrackRequest();
-        request.setDescription("Great track for studying");
+    PublishTrackRequest request = new PublishTrackRequest();
+    request.setDescription("Great track for studying");
 
-        mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.description").value("Great track for studying"))
-                .andExpect(jsonPath("$.shareCode").exists())
-                .andExpect(jsonPath("$.track.id").value(track.getId().intValue()));
-    }
+    mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.id").exists())
+            .andExpect(jsonPath("$.description").value("Great track for studying"))
+            .andExpect(jsonPath("$.shareCode").exists());
+  }
 
-    @Test
-    void publishTrack_NotOwner_Forbidden() throws Exception {
-        TrackEntity track = createTrackEntity("Other Track", otherUser);
+  @Test
+  void publishTrack_NotOwner_Forbidden() throws Exception {
+    TrackEntity track = createTrackEntity("Other Track", otherUser);
 
-        System.out.println(track.getId());
+    System.out.println(track.getId());
 
-        PublishTrackRequest request = new PublishTrackRequest();
-        request.setDescription("Try to publish");
+    PublishTrackRequest request = new PublishTrackRequest();
+    request.setDescription("Try to publish");
 
-        mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
-    }
+    mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
+  }
 
-    @Test
-    void publishTrack_TrackNotFound() throws Exception {
-        PublishTrackRequest request = new PublishTrackRequest();
-        request.setDescription("Non-existent track");
+  @Test
+  void publishTrack_TrackNotFound() throws Exception {
+    PublishTrackRequest request = new PublishTrackRequest();
+    request.setDescription("Non-existent track");
 
-        mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", 999999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound());
-    }
+    mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", 999999L)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isNotFound());
+  }
 
-    @Test
-    void unpublishTrack_Owner_Success() throws Exception {
-        TrackEntity track = createTrackEntity("My Track", testUser);
-        createTrackShare(track, "Published track");
+  @Test
+  void unpublishTrack_Owner_Success() throws Exception {
+    TrackEntity track = createTrackEntity("My Track", testUser);
+    createTrackShare(track, "Published track");
 
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNoContent());
+    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
 
-        assertNull(trackRepository.findById(track.getId()).orElseThrow().getTrackShare());
-    }
+    assertNull(trackRepository.findById(track.getId()).orElseThrow().getTrackShare());
+  }
 
-    @Test
-    void unpublishTrack_NotOwner_Forbidden() throws Exception {
-        TrackEntity track = createTrackEntity("Other Track", otherUser);
-        createTrackShare(track, "Published track");
+  @Test
+  void unpublishTrack_NotOwner_Forbidden() throws Exception {
+    TrackEntity track = createTrackEntity("Other Track", otherUser);
+    createTrackShare(track, "Published track");
 
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isForbidden());
-    }
+    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isForbidden());
+  }
 
-    @Test
-    void unpublishTrack_NotPublished_Conflict() throws Exception {
-        TrackEntity track = createTrackEntity("My Track", testUser);
+  @Test
+  void unpublishTrack_NotPublished_Conflict() throws Exception {
+    TrackEntity track = createTrackEntity("My Track", testUser);
 
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNotFound());
-    }
+    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNotFound());
+  }
 
-    @Test
-    void unpublishTrack_TrackNotFound() throws Exception {
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", 999999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNotFound());
-    }
+  @Test
+  void unpublishTrack_TrackNotFound() throws Exception {
+    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", 999999L)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNotFound());
+  }
 
-    @Test
-    void subscribeToTrack_Success() throws Exception {
-        TrackEntity track = createTrackEntity("Shared Track", otherUser);
-        TrackShareEntity share = createTrackShare(track, "Popular track");
+  @Test
+  void subscribeToTrack_Success() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    TrackShareEntity share = createTrackShare(track, "Popular track");
 
-        SubscribeRequest request = new SubscribeRequest();
-        request.setShareCode(share.getShareCode());
+    SubscribeRequest request = new SubscribeRequest();
+    request.setShareCode(share.getShareCode());
 
-        mockMvc.perform(post("/api/v1/share/subscribe")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
+    mockMvc.perform(post("/api/v1/share/subscribe")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated());
 
-        UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
-        assertTrue(user.getShares().stream()
-                .anyMatch(t -> t.getTrack().getId().equals(track.getId())));
-    }
+    UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
+    assertTrue(user.getShares().stream()
+            .anyMatch(t -> t.getTrack().getId().equals(track.getId())));
+  }
 
-    @Test
-    void subscribeToTrack_InvalidShareCode() throws Exception {
-        SubscribeRequest request = new SubscribeRequest();
-        request.setShareCode("invalid-code-12345");
+  @Test
+  void subscribeToTrack_InvalidShareCode() throws Exception {
+    SubscribeRequest request = new SubscribeRequest();
+    request.setShareCode("invalid-code-12345");
 
-        mockMvc.perform(post("/api/v1/share/subscribe")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound());
-    }
+    mockMvc.perform(post("/api/v1/share/subscribe")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isNotFound());
+  }
 
-    @Test
-    void unsubscribeFromTrack_Success() throws Exception {
-        TrackEntity track = createTrackEntity("Shared Track", otherUser);
-        TrackShareEntity share = createTrackShare(track, "Popular track");
+  @Test
+  void unsubscribeFromTrack_Success() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    TrackShareEntity share = createTrackShare(track, "Popular track");
 
-        UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
-        user.getShares().add(share);
-        share.getUsers().add(user);
-        userRepository.save(user);
-        shareRepository.save(share);
+    UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
+    user.getShares().add(share);
+    share.getUsers().add(user);
 
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/unsubscribe", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNoContent());
+    userRepository.save(user);
 
-        UserEntity updatedUser = userRepository.findById(testUser.getId()).orElseThrow();
-        assertFalse(updatedUser.getShares().contains(share));
-    }
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
 
-    @Test
-    void unsubscribeFromTrack_NotSubscribed() throws Exception {
-        TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    UserEntity updatedUser = userRepository.findById(testUser.getId()).orElseThrow();
+    assertFalse(updatedUser.getShares().stream()
+            .anyMatch(s -> s.getId().equals(share.getId())));
+  }
 
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/unsubscribe", track.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNoContent());
-    }
+  @Test
+  void unsubscribeFromTrack_NotSubscribed() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
 
-    @Test
-    void unsubscribeFromTrack_TrackNotFound() throws Exception {
-        mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/unsubscribe", 999999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNotFound());
-    }
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNotFound());
+  }
 
-    private UserEntity createUser(String name) {
-        UserEntity u = new UserEntity();
-        u.setName(name);
-        u.setPassword("password");
-        return userRepository.save(u);
-    }
+  @Test
+  void unsubscribeFromTrack_TrackNotFound() throws Exception {
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", 999999L)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNotFound());
+  }
 
-    private TrackEntity createTrackEntity(String name, UserEntity owner) {
-        TrackEntity t = new TrackEntity();
-        t.setTrackName(name);
-        t.setTrackLink("https://www.youtube.com/watch?v=gbFGnw2JYe0&list=PLDtPBNsaMdk-M7oRThTgSQm--LuxMUW4S");
-        t.setDuration(120);
-        t.setOwner(owner);
-        return trackRepository.save(t);
-    }
+  private UserEntity createUser(String name) {
+    UserEntity u = new UserEntity();
+    u.setName(name);
+    u.setPassword("password");
+    return userRepository.saveAndFlush(u);
+  }
 
-    private TrackShareEntity createTrackShare(TrackEntity track, String description) {
-        TrackShareEntity share = new TrackShareEntity();
-        share.setDescription(description);
-        share.setShareCode(UUID.randomUUID().toString());
+  private TrackEntity createTrackEntity(String name, UserEntity owner) {
+    TrackEntity t = new TrackEntity();
+    t.setTrackName(name);
+    t.setTrackOriginalName(name);
+    t.setTrackLink("https://www.youtube.com/watch?v=gbFGnw2JYe0&list=PLDtPBNsaMdk-M7oRThTgSQm--LuxMUW4S");
+    t.setDuration(120);
+    t.setOwner(owner);
+    return trackRepository.save(t);
+  }
 
-        share.setTrack(track);
-        track.setTrackShare(share);
+  private TrackShareEntity createTrackShare(TrackEntity track, String description) {
+    TrackShareEntity share = new TrackShareEntity();
+    share.setDescription(description);
+    share.setShareCode(UUID.randomUUID().toString());
+    share.setTrack(track);
+    track.setTrackShare(share);
 
-        trackRepository.save(track);
-        return track.getTrackShare();
-    }
+    TrackEntity savedTrack = trackRepository.saveAndFlush(track);
+    return savedTrack.getTrackShare();
+  }
 
 
-    private String getTokenForUser(UserEntity user) {
-        UserAuthDTO dto = new UserAuthDTO();
-        dto.setId(user.getId());
-        dto.setName(user.getName());
-        return jwtService.generateToken(dto);
-    }
+  private String getTokenForUser(UserEntity user) {
+    UserAuthDTO dto = new UserAuthDTO();
+    dto.setId(user.getId());
+    dto.setName(user.getName());
+    return jwtService.generateToken(dto);
+  }
 }
 

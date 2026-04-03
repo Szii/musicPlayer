@@ -30,327 +30,328 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class BoardControllerTest extends DatabaseBase {
-    @Autowired
-    private MockMvc mockMvc;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired
-    private BoardRepository boardRepository;
-    @Autowired
-    private JwtService jwtService;
-    @Autowired
-    private TrackRepository trackRepository;
-    @Autowired
-    private GroupRepository groupRepository;
+  @Autowired
+  private MockMvc mockMvc;
+  @Autowired
+  private ObjectMapper objectMapper;
+  @Autowired
+  private UserRepository userRepository;
+  @Autowired
+  private BoardRepository boardRepository;
+  @Autowired
+  private JwtService jwtService;
+  @Autowired
+  private TrackRepository trackRepository;
+  @Autowired
+  private GroupRepository groupRepository;
 
-    private UserEntity testUser;
-    private String authToken;
+  private UserEntity testUser;
+  private String authToken;
 
-    @BeforeEach
-    void setUp() {
-        boardRepository.deleteAll();
-        userRepository.deleteAll();
+  @BeforeEach
+  void setUp() {
+    boardRepository.deleteAll();
+    userRepository.deleteAll();
 
-        testUser = new UserEntity();
-        testUser.setName("testUser");
-        testUser.setPassword("password");
-        testUser = userRepository.save(testUser);
+    testUser = new UserEntity();
+    testUser.setName("testUser");
+    testUser.setPassword("password");
+    testUser = userRepository.save(testUser);
 
-        UserAuthDTO userAuth = new UserAuthDTO();
-        userAuth.setId(testUser.getId());
-        userAuth.setName(testUser.getName());
-        authToken = jwtService.generateToken(userAuth);
-    }
+    UserAuthDTO userAuth = new UserAuthDTO();
+    userAuth.setId(testUser.getId());
+    userAuth.setName(testUser.getName());
+    authToken = jwtService.generateToken(userAuth);
+  }
 
-    @Test
-    void getUserBoards_Success() throws Exception {
-        BoardEntity board = new BoardEntity();
-        board.setOwner(testUser);
-        board.setName("Test name");
-        board.setVolume(50);
-        board.setRepeat(false);
-        board.setOverplay(false);
-        boardRepository.save(board);
+  @Test
+  void getUserBoards_Success() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setOwner(testUser);
+    board.setName("Test name");
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    boardRepository.save(board);
 
-        mockMvc.perform(get("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].volume").value(50))
-                .andExpect(jsonPath("$[0].name").value("Test name"))
-                .andExpect(jsonPath("$[0].repeat").value(false))
-                .andExpect(jsonPath("$[0].overplay").value(false));
-    }
+    mockMvc.perform(get("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].volume").value(50))
+            .andExpect(jsonPath("$[0].name").value("Test name"))
+            .andExpect(jsonPath("$[0].repeat").value(false))
+            .andExpect(jsonPath("$[0].overplay").value(false));
+  }
 
-    @Test
-    void createUserBoard_Success() throws Exception {
-        BoardCreateRequest request = new BoardCreateRequest()
-                .volume(75)
-                .repeat(true)
-                .overplay(false)
-                .name("Test Board");
+  @Test
+  void createUserBoard_Success() throws Exception {
+    BoardCreateRequest request = new BoardCreateRequest()
+            .volume(75)
+            .repeat(true)
+            .overplay(false)
+            .name("Test Board");
 
-        mockMvc.perform(post("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Test Board"))
-                .andExpect(jsonPath("$.volume").value(75))
-                .andExpect(jsonPath("$.repeat").value(true))
-                .andExpect(jsonPath("$.overplay").value(false));
+    mockMvc.perform(post("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Test Board"))
+            .andExpect(jsonPath("$.volume").value(75))
+            .andExpect(jsonPath("$.repeat").value(true))
+            .andExpect(jsonPath("$.overplay").value(false));
 
-        assertFalse(boardRepository.findByOwner_Id(testUser.getId()).isEmpty());
-    }
+    assertFalse(boardRepository.findByOwner_Id(testUser.getId()).isEmpty());
+  }
 
-    @Test
-    void updateUserBoard_Success() throws Exception {
-        BoardEntity board = new BoardEntity();
-        board.setName("Original Board");
-        board.setOwner(testUser);
-        board.setVolume(50);
-        board.setRepeat(false);
-        board.setOverplay(false);
-        board = boardRepository.save(board);
+  @Test
+  void updateUserBoard_Success() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board = boardRepository.save(board);
 
-        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
-                .volume(100)
-                .repeat(true)
-                .overplay(true);
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .repeat(true)
+            .overplay(true);
 
-        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Original Board"))
-                .andExpect(jsonPath("$.volume").value(100))
-                .andExpect(jsonPath("$.repeat").value(true))
-                .andExpect(jsonPath("$.overplay").value(true));
-    }
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Original Board"))
+            .andExpect(jsonPath("$.volume").value(100))
+            .andExpect(jsonPath("$.repeat").value(true))
+            .andExpect(jsonPath("$.overplay").value(true));
+  }
 
-    @Test
-    void deleteUserBoard_Success() throws Exception {
-        BoardEntity board = new BoardEntity();
-        board.setName("Board to Delete");
-        board.setOwner(testUser);
-        board.setVolume(50);
-        board = boardRepository.save(board);
+  @Test
+  void deleteUserBoard_Success() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Board to Delete");
+    board.setOwner(testUser);
+    board.setVolume(50);
+    board = boardRepository.save(board);
 
-        mockMvc.perform(delete("/api/v1/boards/{boardId}", board.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNoContent());
+    mockMvc.perform(delete("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
 
-        assertFalse(boardRepository.existsById(board.getId()));
-    }
+    assertFalse(boardRepository.existsById(board.getId()));
+  }
 
-    @Test
-    void getUserBoards_EmptyList() throws Exception {
-        mockMvc.perform(get("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNoContent());
-    }
+  @Test
+  void getUserBoards_EmptyList() throws Exception {
+    mockMvc.perform(get("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
+  }
 
-    @Test
-    void getUserBoards_NoAuthentication() throws Exception {
-        mockMvc.perform(get("/api/v1/boards"))
-                .andExpect(status().isUnauthorized());
-    }
+  @Test
+  void getUserBoards_NoAuthentication() throws Exception {
+    mockMvc.perform(get("/api/v1/boards"))
+            .andExpect(status().isUnauthorized());
+  }
 
-    @Test
-    void getUserBoards_InvalidToken() throws Exception {
-        mockMvc.perform(get("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
-                .andExpect(status().isForbidden());
-    }
+  @Test
+  void getUserBoards_InvalidToken() throws Exception {
+    mockMvc.perform(get("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
+            .andExpect(status().isForbidden());
+  }
 
-    @Test
-    void getUserBoards_WrongUser() throws Exception {
-        UserEntity otherUser = new UserEntity();
-        otherUser.setName("otherUser");
-        otherUser.setPassword("password");
-        otherUser = userRepository.save(otherUser);
+  @Test
+  void getUserBoards_WrongUser() throws Exception {
+    UserEntity otherUser = new UserEntity();
+    otherUser.setName("otherUser");
+    otherUser.setPassword("password");
+    otherUser = userRepository.save(otherUser);
 
-        BoardEntity board = new BoardEntity();
-        board.setName("Other User's Board");
-        board.setOwner(otherUser);
-        board.setVolume(50);
-        boardRepository.save(board);
-
-
-        mockMvc.perform(get("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + "wrongUserToken"))
-                .andExpect(status().isForbidden());
-    }
+    BoardEntity board = new BoardEntity();
+    board.setName("Other User's Board");
+    board.setOwner(otherUser);
+    board.setVolume(50);
+    boardRepository.save(board);
 
 
-    @Test
-    void updateUserBoard_NotFound() throws Exception {
-        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
-                .volume(100)
-                .repeat(true);
-
-        mockMvc.perform(put("/api/v1/boards/{boardId}", 999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void getUserBoards_NoBoards() throws Exception {
-        mockMvc.perform(get("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNoContent());
-    }
-
-    @Test
-    void deleteUserBoard_NotFound() throws Exception {
-        mockMvc.perform(delete("/api/v1/boards/{boardId}", 999L)
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void createUserBoard_InvalidRequest() throws Exception {
-        BoardCreateRequest request = new BoardCreateRequest()
-                .volume(-10) // Invalid volume
-                .repeat(true)
-                .overplay(false)
-                .name("Invalid Board");
-
-        mockMvc.perform(post("/api/v1/boards")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void updateUserBoard_InvalidRequest() throws Exception {
-        BoardEntity board = new BoardEntity();
-        board.setName("Original Board");
-        board.setOwner(testUser);
-        board.setVolume(50);
-        board.setRepeat(false);
-        board.setOverplay(false);
-        board = boardRepository.save(board);
-
-        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
-                .volume(150); // Invalid volume
-
-        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    void getTracksForBoard_SuccessForSelectedGroup() throws Exception {
-        BoardEntity board = new BoardEntity();
-        board.setOwner(testUser);
-        board.setName("Test Board");
-        board.setVolume(50);
-        board.setRepeat(false);
-        board.setOverplay(false);
+    mockMvc.perform(get("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + "wrongUserToken"))
+            .andExpect(status().isForbidden());
+  }
 
 
-        TrackEntity trackInGroup = new TrackEntity();
-        trackInGroup.setTrackName("Track In Group");
-        trackInGroup.setTrackLink("https://example.com/test.mp3");
-        trackInGroup.setDuration(180);
-        trackInGroup.setTrackOriginalName("original name");
-        trackInGroup.setOwner(testUser);
+  @Test
+  void updateUserBoard_NotFound() throws Exception {
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .repeat(true);
 
-        TrackEntity trackWhichIsNotInGroup = new TrackEntity();
-        trackWhichIsNotInGroup.setTrackName("Track not In Group");
-        trackWhichIsNotInGroup.setTrackLink("https://example.com/test.mp3");
-        trackWhichIsNotInGroup.setDuration(180);
-        trackWhichIsNotInGroup.setTrackOriginalName("original name");
-        trackWhichIsNotInGroup.setOwner(testUser);
+    mockMvc.perform(put("/api/v1/boards/{boardId}", 999L)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isNotFound());
+  }
 
-        trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
+  @Test
+  void getUserBoards_NoBoards() throws Exception {
+    mockMvc.perform(get("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
+  }
 
-        GroupEntity group = new GroupEntity();
-        group.setListName("Test Group");
-        group.setOwner(testUser);
-        group.setTracks(Set.of(trackInGroup));
-        group = groupRepository.save(group);
-        board.setSelectedGroup(group);
+  @Test
+  void deleteUserBoard_NotFound() throws Exception {
+    mockMvc.perform(delete("/api/v1/boards/{boardId}", 999L)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNotFound());
+  }
 
-        boardRepository.save(board);
+  @Test
+  void createUserBoard_InvalidRequest() throws Exception {
+    BoardCreateRequest request = new BoardCreateRequest()
+            .volume(-10) // Invalid volume
+            .repeat(true)
+            .overplay(false)
+            .name("Invalid Board");
 
-        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
-                .volume(100)
-                .repeat(true)
-                .overplay(true);
+    mockMvc.perform(post("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+  }
 
-        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.availableTracks.length()").value(1))
-                .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()));
+  @Test
+  void updateUserBoard_InvalidRequest() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board = boardRepository.save(board);
 
-    }
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(150); // Invalid volume
 
-    @Test
-    void getTracksForBoard_SuccessWhenGroupIsNotSelected() throws Exception {
-        BoardEntity board = new BoardEntity();
-        board.setOwner(testUser);
-        board.setName("Test Board");
-        board.setVolume(50);
-        board.setRepeat(false);
-        board.setOverplay(false);
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isBadRequest());
+  }
 
-
-        TrackEntity trackInGroup = new TrackEntity();
-        trackInGroup.setTrackName("Track In Group");
-        trackInGroup.setTrackLink("https://example1.com/test.mp3");
-        trackInGroup.setDuration(180);
-        trackInGroup.setTrackOriginalName("original name in group");
-        trackInGroup.setOwner(testUser);
-
-        TrackEntity trackWhichIsNotInGroup = new TrackEntity();
-        trackWhichIsNotInGroup.setTrackName("Track not In Group");
-        trackWhichIsNotInGroup.setTrackLink("https://example2.com/test.mp3");
-        trackWhichIsNotInGroup.setDuration(50);
-        trackWhichIsNotInGroup.setTrackOriginalName("original name not in group");
-        trackWhichIsNotInGroup.setOwner(testUser);
-
-        trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
-
-        GroupEntity group = new GroupEntity();
-        group.setListName("Test Group");
-        group.setOwner(testUser);
-        group.setTracks(Set.of(trackInGroup));
-        board.setSelectedGroup(null);
-        groupRepository.save(group);
-        boardRepository.save(board);
-
-        BoardUpdateRequest updateRequest = new BoardUpdateRequest()
-                .volume(100)
-                .repeat(true)
-                .overplay(true);
-
-        mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(updateRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.availableTracks.length()").value(2))
-                .andExpect(jsonPath("$.availableTracks[*].id").value(
-                        Matchers.containsInAnyOrder(
-                                trackInGroup.getId().intValue(),
-                                trackWhichIsNotInGroup.getId().intValue()
-                        )
-                ));
+  @Test
+  void getTracksForBoard_SuccessForSelectedGroup() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setOwner(testUser);
+    board.setName("Test Board");
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
 
 
-    }
+    TrackEntity trackInGroup = new TrackEntity();
+    trackInGroup.setTrackName("Track In Group");
+    trackInGroup.setTrackLink("https://example.com/test.mp3");
+    trackInGroup.setDuration(180);
+    trackInGroup.setTrackOriginalName("original name");
+    trackInGroup.setOwner(testUser);
+
+    TrackEntity trackWhichIsNotInGroup = new TrackEntity();
+    trackWhichIsNotInGroup.setTrackName("Track not In Group");
+    trackWhichIsNotInGroup.setTrackLink("https://example.com/test.mp3");
+    trackWhichIsNotInGroup.setDuration(180);
+    trackWhichIsNotInGroup.setTrackOriginalName("original name");
+    trackWhichIsNotInGroup.setOwner(testUser);
+
+    trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
+
+    GroupEntity group = new GroupEntity();
+    group.setListName("Test Group");
+    group.setOwner(testUser);
+    group.setTracks(Set.of(trackInGroup));
+    group = groupRepository.save(group);
+    board.setSelectedGroup(group);
+
+    boardRepository.save(board);
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .selectedGroupId(group.getId())
+            .repeat(true)
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.availableTracks.length()").value(1))
+            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()));
+
+  }
+
+  @Test
+  void getTracksForBoard_SuccessWhenGroupIsNotSelected() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setOwner(testUser);
+    board.setName("Test Board");
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+
+
+    TrackEntity trackInGroup = new TrackEntity();
+    trackInGroup.setTrackName("Track In Group");
+    trackInGroup.setTrackLink("https://example1.com/test.mp3");
+    trackInGroup.setDuration(180);
+    trackInGroup.setTrackOriginalName("original name in group");
+    trackInGroup.setOwner(testUser);
+
+    TrackEntity trackWhichIsNotInGroup = new TrackEntity();
+    trackWhichIsNotInGroup.setTrackName("Track not In Group");
+    trackWhichIsNotInGroup.setTrackLink("https://example2.com/test.mp3");
+    trackWhichIsNotInGroup.setDuration(50);
+    trackWhichIsNotInGroup.setTrackOriginalName("original name not in group");
+    trackWhichIsNotInGroup.setOwner(testUser);
+
+    trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
+
+    GroupEntity group = new GroupEntity();
+    group.setListName("Test Group");
+    group.setOwner(testUser);
+    group.setTracks(Set.of(trackInGroup));
+    board.setSelectedGroup(null);
+    groupRepository.save(group);
+    boardRepository.save(board);
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .repeat(true)
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.availableTracks.length()").value(2))
+            .andExpect(jsonPath("$.availableTracks[*].id").value(
+                    Matchers.containsInAnyOrder(
+                            trackInGroup.getId().intValue(),
+                            trackWhichIsNotInGroup.getId().intValue()
+                    )
+            ));
+
+
+  }
 
 
 }
