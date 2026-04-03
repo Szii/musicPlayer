@@ -6,7 +6,7 @@ on:
       - master
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: release-master
@@ -14,12 +14,7 @@ concurrency:
 
 jobs:
   release:
-    name: Release and publish image
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
 
     steps:
       - name: Checkout
@@ -47,7 +42,6 @@ jobs:
             semantic-release \
             @semantic-release/commit-analyzer \
             @semantic-release/release-notes-generator \
-            @semantic-release/github \
             @semantic-release/exec \
             conventional-changelog-conventionalcommits
 
