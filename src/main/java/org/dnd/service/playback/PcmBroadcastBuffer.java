@@ -36,10 +36,8 @@ public class PcmBroadcastBuffer {
     byte[] copy = pcm.clone();
 
     if (storeHistory) {
-      // Track sessions: keep everything
       history.addLast(copy);
     } else {
-      // Board sessions: rolling buffer — evict oldest when full
       history.addLast(copy);
       while (history.size() > ROLLING_BUFFER_MAX_FRAMES) {
         history.removeFirst();
@@ -51,11 +49,6 @@ public class PcmBroadcastBuffer {
     }
   }
 
-  /**
-   * Returns a snapshot of current history.
-   * For board sessions this is the last ~3 seconds (rolling window).
-   * For track sessions this is the full decoded history.
-   */
   public synchronized List<byte[]> snapshot() {
     return new ArrayList<>(history);
   }
