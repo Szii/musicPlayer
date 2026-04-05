@@ -8,10 +8,10 @@ import java.util.List;
 
 public class WaveformAccumulator {
 
-  private final boolean[] touchedBuckets;
-
   private final int buckets;
   private final float[] peakByBucket;
+  private final boolean[] touchedBuckets;
+
   private volatile long durationMs;
 
   public WaveformAccumulator(int buckets) {
@@ -21,11 +21,13 @@ public class WaveformAccumulator {
   }
 
   public void setDurationMs(long durationMs) {
-    this.durationMs = Math.max(1, durationMs);
+    this.durationMs = Math.max(1L, durationMs);
   }
 
-  public void accept(byte[] pcmFrame, long trackPositionMs) {
-    if (pcmFrame == null || pcmFrame.length < 2 || durationMs <= 0) return;
+  public synchronized void accept(byte[] pcmFrame, long trackPositionMs) {
+    if (pcmFrame == null || pcmFrame.length < 2 || durationMs <= 0) {
+      return;
+    }
 
     float max = 0f;
 
@@ -33,6 +35,7 @@ public class WaveformAccumulator {
       int hi = pcmFrame[i] & 0xFF;
       int lo = pcmFrame[i + 1] & 0xFF;
       short sample = (short) ((hi << 8) | lo);
+
       float normalized = Math.abs(sample) / 32768f;
       if (normalized > max) {
         max = normalized;
@@ -41,7 +44,7 @@ public class WaveformAccumulator {
 
     int bucket = (int) Math.min(
             buckets - 1,
-            Math.max(0, (trackPositionMs * buckets) / durationMs)
+            Math.max(0L, (trackPositionMs * buckets) / durationMs)
     );
 
     touchedBuckets[bucket] = true;
@@ -51,35 +54,42 @@ public class WaveformAccumulator {
     }
   }
 
-  public boolean hasAnyData() {
-    for (float v : peakByBucket) {
-      if (v > 0f) return true;
-    }
-    return false;
-
-  }
-
-  public WaveformResponse toResponse(long trackId, boolean complete) {
+  public synchronized WaveformResponse toResponse(long trackId, boolean complete) {
     WaveformResponse response = new WaveformResponse();
     response.setTrackId(trackId);
     response.setDurationS(durationMs / 1000L);
     response.setBuckets(buckets);
 
     List<BigDecimal> peaks = new ArrayList<>(buckets);
-    for (float v : peakByBucket) {
-      peaks.add(BigDecimal.valueOf(v));
+    for (float value : peakByBucket) {
+      peaks.add(BigDecimal.valueOf(value));
     }
-    response.setPeaks(peaks);
 
+    response.setPeaks(peaks);
     response.setComplete(complete);
-    response.setProcessedBuckets(getProcessedBuckets());
+    response.setProcessedBuckets(getProcessedBucketsInternal());
     return response;
   }
 
-  public int getProcessedBuckets() {
+  public synchronized boolean hasAnyData() {
+    for (float value : peakByBucket) {
+      if (value > 0f) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public synchronized int getProcessedBuckets() {
+    return getProcessedBucketsInternal();
+  }
+
+  private int getProcessedBucketsInternal() {
     int count = 0;
     for (boolean touched : touchedBuckets) {
-      if (touched) count++;
+      if (touched) {
+        count++;
+      }
     }
     return count;
   }
