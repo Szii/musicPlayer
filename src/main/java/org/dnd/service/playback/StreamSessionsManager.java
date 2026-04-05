@@ -146,7 +146,7 @@ public class StreamSessionsManager {
     }
 
     try {
-      created.loadAndAnalyze(trackLink, duration);
+      created.loadAndAnalyze(trackId, trackLink, duration);
       return created;
     } catch (RuntimeException ex) {
       waveformSessions.remove(key, created);
@@ -162,8 +162,9 @@ public class StreamSessionsManager {
             playerManager,
             jwtService,
             decodeWorkers,
+            streamIoWorkers,
             scheduler,
-            () -> boardSessions.remove(boardId)
+            session -> boardSessions.remove(boardId, session)
     );
   }
 
@@ -174,8 +175,9 @@ public class StreamSessionsManager {
             playerManager,
             jwtService,
             decodeWorkers,
+            streamIoWorkers,
             scheduler,
-            () -> trackSessions.remove(key)
+            session -> trackSessions.remove(key, session)
     );
   }
 
@@ -185,7 +187,7 @@ public class StreamSessionsManager {
             playerManager,
             decodeWorkers,
             scheduler,
-            () -> waveformSessions.remove(key)
+            session -> waveformSessions.remove(key, session)
     );
   }
 

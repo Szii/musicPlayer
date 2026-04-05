@@ -28,7 +28,6 @@ abstract class AbstractAudioDecodeSession {
   protected final AudioPlayerManager playerManager;
   protected final ExecutorService decodeWorkers;
   protected final ScheduledExecutorService scheduler;
-  private final Runnable removalCallback;
 
   protected volatile AudioPlayer player;
   protected volatile long durationMs;
@@ -39,13 +38,11 @@ abstract class AbstractAudioDecodeSession {
   protected AbstractAudioDecodeSession(long sessionId,
                                        AudioPlayerManager playerManager,
                                        ExecutorService decodeWorkers,
-                                       ScheduledExecutorService scheduler,
-                                       Runnable removalCallback) {
+                                       ScheduledExecutorService scheduler) {
     this.sessionId = sessionId;
     this.playerManager = playerManager;
     this.decodeWorkers = decodeWorkers;
     this.scheduler = scheduler;
-    this.removalCallback = removalCallback;
   }
 
   long getDurationMs() {
@@ -301,7 +298,7 @@ abstract class AbstractAudioDecodeSession {
 
   protected final void removeThisSession() {
     stopInternal();
-    removalCallback.run();
+    removeFromManager();
   }
 
   protected final boolean isCurrentPlayback(AudioPlayer candidate, long playbackVersion) {
@@ -327,6 +324,8 @@ abstract class AbstractAudioDecodeSession {
   protected abstract void onPlaybackCompleted(AudioPlayer playbackPlayer, long playbackVersion);
 
   protected abstract void clearSubclassState();
+
+  protected abstract void removeFromManager();
 
   private static void applyWindowStart(AudioTrack track, int trackDurationS, Long windowStartS) {
     if (windowStartS == null || windowStartS <= 0) {

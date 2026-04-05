@@ -103,14 +103,14 @@ class StreamSessionsManagerTest {
 
     StreamSessionsManager spyManager = spy(manager);
     doReturn(waveformSession).when(spyManager).newWaveformSession(eq(2L), anyString());
-    doNothing().when(waveformSession).loadAndAnalyze(anyString(), anyInt());
+    doNothing().when(waveformSession).loadAndAnalyze(anyLong(), anyString(), anyInt());
 
     WaveformSession created = spyManager.getOrCreateWaveformSession(1L, 2L, "link", 100);
     WaveformSession reused = spyManager.getOrCreateWaveformSession(1L, 2L, "link", 100);
 
     assertSame(waveformSession, created);
     assertSame(waveformSession, reused);
-    verify(waveformSession, times(1)).loadAndAnalyze("link", 100);
+    verify(waveformSession, times(1)).loadAndAnalyze(anyLong(), "link", 100);
   }
 
   @Test
@@ -209,7 +209,7 @@ class StreamSessionsManagerTest {
 
     StreamSessionsManager spyManager = spy(manager);
     doReturn(waveformSession).when(spyManager).newWaveformSession(eq(2L), anyString());
-    doThrow(new RuntimeException("fail")).when(waveformSession).loadAndAnalyze(anyString(), anyInt());
+    doThrow(new RuntimeException("fail")).when(waveformSession).loadAndAnalyze(anyLong(), anyString(), anyInt());
     doNothing().when(waveformSession).stop();
 
     RuntimeException ex = assertThrows(

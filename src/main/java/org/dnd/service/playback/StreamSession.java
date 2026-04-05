@@ -21,6 +21,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 public final class StreamSession extends AbstractAudioDecodeSession {
 
@@ -33,7 +34,8 @@ public final class StreamSession extends AbstractAudioDecodeSession {
 
   private final boolean trackMode;
   private final JwtService jwtService;
-  private final ExecutorService workers;
+  private final ExecutorService streamIoWorkers;
+  private final Consumer<StreamSession> removalCallback;
   private final PcmBroadcastBuffer pcmBuffer = new PcmBroadcastBuffer();
   private final AtomicReference<ActiveStream> activeStreamRef = new AtomicReference<>();
 
@@ -48,13 +50,15 @@ public final class StreamSession extends AbstractAudioDecodeSession {
                 boolean trackMode,
                 AudioPlayerManager playerManager,
                 JwtService jwtService,
-                ExecutorService workers,
+                ExecutorService decodeWorkers,
+                ExecutorService streamIoWorkers,
                 ScheduledExecutorService scheduler,
-                Runnable removalCallback) {
-    super(sessionId, playerManager, workers, scheduler, removalCallback);
+                Consumer<StreamSession> removalCallback) {
+    super(sessionId, playerManager, decodeWorkers, scheduler);
     this.trackMode = trackMode;
     this.jwtService = jwtService;
-    this.workers = workers;
+    this.streamIoWorkers = streamIoWorkers;
+    this.removalCallback = removalCallback;
   }
 
   boolean canServeStream() {
@@ -98,11 +102,7 @@ public final class StreamSession extends AbstractAudioDecodeSession {
     return state;
   }
 
-  void loadAndPlay(long trackId,
-                   String trackLink,
-                   int trackDuration,
-                   Long windowStartS,
-                   Long windowEndS) {
+  void loadAndPlay(long trackId, String trackLink, int trackDuration, Long windowStartS, Long windowEndS) {
     stopInternal();
 
     this.windowStartS = windowStartS;
@@ -155,9 +155,7 @@ public final class StreamSession extends AbstractAudioDecodeSession {
       previousActive.close();
     }
 
-    String prefix = trackMode ? "t" : "b";
-
-    startAsync("mp3-pump-" + prefix + sessionId, () -> {
+    startAsync(() -> {
       try (InputStream ffOut = ffmpeg.getInputStream();
            OutputStream out = new BufferedOutputStream(pos, STREAM_IO_BUFFER_BYTES)) {
         ffOut.transferTo(out);
@@ -168,7 +166,7 @@ public final class StreamSession extends AbstractAudioDecodeSession {
       }
     });
 
-    startAsync("pcm-feeder-" + prefix + sessionId, () -> {
+    startAsync(() -> {
       boolean normalExit = false;
 
       try (OutputStream in = new BufferedOutputStream(ffmpeg.getOutputStream(), STREAM_IO_BUFFER_BYTES)) {
@@ -264,12 +262,18 @@ public final class StreamSession extends AbstractAudioDecodeSession {
     windowEndS = null;
     cachedStreamToken = null;
     cachedTokenUserId = -1;
-    pcmBuffer.clear();
 
     ActiveStream active = activeStreamRef.getAndSet(null);
     if (active != null) {
       active.close();
     }
+
+    pcmBuffer.clear();
+  }
+
+  @Override
+  protected void removeFromManager() {
+    removalCallback.accept(this);
   }
 
   private Process startFfmpeg() throws IOException {
@@ -284,17 +288,8 @@ public final class StreamSession extends AbstractAudioDecodeSession {
     return processBuilder.start();
   }
 
-  private void startAsync(String threadName, Runnable task) {
-    workers.submit(() -> {
-      Thread current = Thread.currentThread();
-      String oldName = current.getName();
-      try {
-        current.setName(threadName);
-        task.run();
-      } finally {
-        current.setName(oldName);
-      }
-    });
+  private void startAsync(Runnable task) {
+    streamIoWorkers.submit(task);
   }
 
   private static void destroyQuietly(Process process) {

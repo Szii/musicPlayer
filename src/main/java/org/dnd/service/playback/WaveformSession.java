@@ -8,6 +8,7 @@ import org.dnd.api.model.WaveformResponse;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Consumer;
 
 @Slf4j
 public final class WaveformSession extends AbstractAudioDecodeSession {
@@ -17,8 +18,8 @@ public final class WaveformSession extends AbstractAudioDecodeSession {
   private static final int PCM_BYTES_PER_SAMPLE = 2;
   private static final long WAVEFORM_CACHE_TTL_S = 60;
   private static final int WAVEFORM_BUCKETS = 512;
-  private volatile boolean analyzing;
 
+  private final Consumer<WaveformSession> removalCallback;
 
   private volatile WaveformAccumulator waveform = new WaveformAccumulator(WAVEFORM_BUCKETS);
   private volatile boolean complete;
@@ -28,20 +29,16 @@ public final class WaveformSession extends AbstractAudioDecodeSession {
                   AudioPlayerManager playerManager,
                   ExecutorService decodeWorkers,
                   ScheduledExecutorService scheduler,
-                  Runnable removalCallback) {
-    super(trackId, playerManager, decodeWorkers, scheduler, removalCallback);
+                  Consumer<WaveformSession> removalCallback) {
+    super(trackId, playerManager, decodeWorkers, scheduler);
+    this.removalCallback = removalCallback;
   }
 
   WaveformResponse getWaveformResponse() {
     return waveform.toResponse(sessionId, complete);
   }
 
-  void loadAndAnalyze(String trackLink, int trackDuration) {
-    if (analyzing) {
-      return;
-    }
-    analyzing = true;
-
+  void loadAndAnalyze(long requestedTrackId, String trackLink, int trackDuration) {
     stopInternal();
 
     this.waveform = new WaveformAccumulator(WAVEFORM_BUCKETS);
@@ -94,6 +91,11 @@ public final class WaveformSession extends AbstractAudioDecodeSession {
   protected void clearSubclassState() {
     complete = false;
     lastWaveformPositionMs = 0L;
+  }
+
+  @Override
+  protected void removeFromManager() {
+    removalCallback.accept(this);
   }
 
   private static long estimateFrameDurationMs(byte[] pcm) {
