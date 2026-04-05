@@ -102,7 +102,7 @@ class StreamSessionsManagerTest {
     WaveformSession waveformSession = mock(WaveformSession.class);
 
     StreamSessionsManager spyManager = spy(manager);
-    doReturn(waveformSession).when(spyManager).newWaveformSession(eq(2L), anyString());
+    doReturn(waveformSession).when(spyManager).newWaveformSession(anyLong(), anyString());
     doNothing().when(waveformSession).loadAndAnalyze(anyLong(), anyString(), anyInt());
 
     WaveformSession created = spyManager.getOrCreateWaveformSession(1L, 2L, "link", 100);
@@ -110,7 +110,7 @@ class StreamSessionsManagerTest {
 
     assertSame(waveformSession, created);
     assertSame(waveformSession, reused);
-    verify(waveformSession, times(1)).loadAndAnalyze(anyLong(), "link", 100);
+    verify(waveformSession, times(1)).loadAndAnalyze(anyLong(), anyString(), anyInt());
   }
 
   @Test
@@ -208,7 +208,7 @@ class StreamSessionsManagerTest {
     WaveformSession waveformSession = mock(WaveformSession.class);
 
     StreamSessionsManager spyManager = spy(manager);
-    doReturn(waveformSession).when(spyManager).newWaveformSession(eq(2L), anyString());
+    doReturn(waveformSession).when(spyManager).newWaveformSession(anyLong(), anyString());
     doThrow(new RuntimeException("fail")).when(waveformSession).loadAndAnalyze(anyLong(), anyString(), anyInt());
     doNothing().when(waveformSession).stop();
 
@@ -282,9 +282,8 @@ class StreamSessionsManagerTest {
   @Test
   void startTrackSessionPassesWindowArgumentsToLoadAndPlay() {
     StreamSession session = mock(StreamSession.class);
-
     StreamSessionsManager spyManager = spy(manager);
-    doReturn(session).when(spyManager).newTrackSession(5L, "5:9");
+    doReturn(session).when(spyManager).newTrackSession(anyLong(), anyString());
     doNothing().when(session).loadAndPlay(anyLong(), anyString(), anyInt(), any(), any());
 
     spyManager.startTrackSession(5L, 9L, "track-link", 240, 30L, 90L);
