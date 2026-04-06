@@ -3,49 +3,45 @@ package org.dnd.service.playback;
 import lombok.Getter;
 
 import java.util.*;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
 
 public class PcmBroadcastBuffer {
 
   /**
-   * Board sessions (storeHistory=false):
-   * Keep a small rolling buffer — enough for a new HTTP connection to get a
-   * quick start without missing the very beginning of a window, but bounded
-   * so long tracks don't accumulate unbounded memory.
-   * ~3 seconds at 192 kbps ≈ 150 PCM frames (each ~3840 bytes at 20ms/frame).
-   * <p>
-   * Track sessions (storeHistory=true):
-   * Keep the full history so the window editor can replay/seek anywhere.
+   * Short rolling history for newly attached streams.
+   * Does not affect live correctness.
    */
-  private final boolean storeHistory;
-  private static final int ROLLING_BUFFER_MAX_FRAMES = 150; // ~3 seconds
+  private static final int ROLLING_BUFFER_MAX_FRAMES = 500;   // ~10s at ~20ms/frame
+
+  /**
+   * Bounded live queue per listener.
+   * When full, producer blocks instead of dropping audio.
+   */
+  private static final int LISTENER_QUEUE_MAX_FRAMES = 500;   // ~10s of PCM backlog
 
   private final Deque<byte[]> history = new ArrayDeque<>();
-  private final Set<BlockingQueue<byte[]>> listeners = ConcurrentHashMap.newKeySet();
+  private final Set<BlockingDeque<byte[]>> listeners = ConcurrentHashMap.newKeySet();
 
   @Getter
   private volatile boolean complete = false;
 
-  public PcmBroadcastBuffer(boolean storeHistory) {
-    this.storeHistory = storeHistory;
-  }
-
-  public synchronized void append(byte[] pcm) {
+  public void append(byte[] pcm) throws InterruptedException {
     byte[] copy = pcm.clone();
+    List<BlockingDeque<byte[]>> listenerSnapshot;
 
-    if (storeHistory) {
-      history.addLast(copy);
-    } else {
+    synchronized (this) {
       history.addLast(copy);
       while (history.size() > ROLLING_BUFFER_MAX_FRAMES) {
         history.removeFirst();
       }
+
+      listenerSnapshot = new ArrayList<>(listeners);
     }
 
-    for (BlockingQueue<byte[]> q : listeners) {
-      q.offer(copy);
+    for (BlockingDeque<byte[]> queue : listenerSnapshot) {
+      queue.putLast(copy);
     }
   }
 
@@ -53,23 +49,24 @@ public class PcmBroadcastBuffer {
     return new ArrayList<>(history);
   }
 
-  public synchronized boolean hasHistory() {
-    return !history.isEmpty();
+  public BlockingDeque<byte[]> registerListener() {
+    BlockingDeque<byte[]> queue = new LinkedBlockingDeque<>(LISTENER_QUEUE_MAX_FRAMES);
+    listeners.add(queue);
+    return queue;
   }
 
-  public BlockingQueue<byte[]> registerListener() {
-    BlockingQueue<byte[]> q = new LinkedBlockingQueue<>();
-    listeners.add(q);
-    return q;
-  }
-
-  public void unregisterListener(BlockingQueue<byte[]> q) {
-    listeners.remove(q);
+  public void unregisterListener(BlockingDeque<byte[]> queue) {
+    listeners.remove(queue);
+    queue.clear();
   }
 
   public synchronized void clear() {
     history.clear();
     complete = false;
+
+    for (BlockingDeque<byte[]> queue : listeners) {
+      queue.clear();
+    }
     listeners.clear();
   }
 
