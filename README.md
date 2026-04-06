@@ -18,7 +18,8 @@ To run the project locally, follow these steps:
 2. ```docker compose up --build```
     - This command will build the Docker images for application and database and start the containers for the
       application.
-3. For the remote development, change the jwt secret in the properties file and add the necessary environment variables
+3. For remote development separate Postgres container is needed. Change the jwt secret in the properties file and add
+   the necessary environment variables
    for the database connection.
 
 
