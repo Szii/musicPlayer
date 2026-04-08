@@ -1,5 +1,6 @@
 package org.dnd.controller;
 
+import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.dnd.api.ShareApi;
@@ -20,31 +21,51 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 public class ShareController implements ShareApi {
 
-    private final ShareService shareService;
+  private final ShareService shareService;
 
-    @Override
-    public ResponseEntity<TrackShareResponse> publishTrack(Long trackId, PublishTrackRequest request) {
-        TrackShareResponse trackShare = shareService.publish(trackId, request.getDescription());
-        return ResponseEntity.status(HttpStatus.CREATED).body(trackShare);
-    }
+  @Override
+  @RateLimiting(
+          name = "create-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
+  public ResponseEntity<TrackShareResponse> publishTrack(Long trackId, PublishTrackRequest request) {
+    TrackShareResponse trackShare = shareService.publish(trackId, request.getDescription());
+    return ResponseEntity.status(HttpStatus.CREATED).body(trackShare);
+  }
 
-    @Override
-    public ResponseEntity<Void> unpublishTrack(Long trackId) {
-        shareService.unpublish(trackId);
-        return ResponseEntity.noContent().build();
-    }
+  @Override
+  @RateLimiting(
+          name = "default-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> unpublishTrack(Long trackId) {
+    shareService.unpublish(trackId);
+    return ResponseEntity.noContent().build();
+  }
 
-    @Override
-    public ResponseEntity<Void> subscribeToTrack(
-            SubscribeRequest request) {
-        shareService.subscribe(request.getShareCode());
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
+  @Override
+  @RateLimiting(
+          name = "default-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> subscribeToTrack(
+          SubscribeRequest request) {
+    shareService.subscribe(request.getShareCode());
+    return ResponseEntity.status(HttpStatus.CREATED).build();
+  }
 
-    @Override
-    public ResponseEntity<Void> unsubscribeFromTrack(
-            Long trackId) {
-        shareService.unsubscribe(trackId);
-        return ResponseEntity.noContent().build();
-    }
+  @Override
+  @RateLimiting(
+          name = "default-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> unsubscribeFromTrack(
+          Long trackId) {
+    shareService.unsubscribe(trackId);
+    return ResponseEntity.noContent().build();
+  }
 }

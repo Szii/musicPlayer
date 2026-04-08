@@ -94,7 +94,6 @@ public class BoardService {
 
     Board boardDto = boardMapper.toDto(boardRepository.save(board));
     boardDto.setAvailableTracks(getTracksForBoard(boardId));
-    System.out.println("Available tracks " + boardDto.getAvailableTracks().size());
     return boardDto;
   }
 
@@ -133,11 +132,8 @@ public class BoardService {
       tracks = trackRepository.findAllAccessibleByUserId(userId);
     }
 
-    List<Track> result = tracks.stream()
+    return tracks.stream()
             .map(trackEntity -> trackMapper.toDto(trackEntity, userId))
             .toList();
-
-    System.out.println("Mapped tracks: " + result.size());
-    return result;
   }
 }
