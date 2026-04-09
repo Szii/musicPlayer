@@ -58,10 +58,10 @@ class ShareControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    trackWindowRepository.deleteAllInBatch();
-    trackShareRepository.deleteAllInBatch();
-    trackRepository.deleteAllInBatch();
-    userRepository.deleteAllInBatch();
+    trackWindowRepository.deleteAll();
+    trackShareRepository.deleteAll();
+    trackRepository.deleteAll();
+    userRepository.deleteAll();
 
     testUser = createUser("testUser_" + UUID.randomUUID());
     otherUser = createUser("otherUser_" + UUID.randomUUID());
