@@ -1,5 +1,6 @@
 package org.dnd.controller;
 
+import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.UsersApi;
@@ -20,21 +21,32 @@ import org.springframework.web.bind.annotation.RestController;
 @Validated
 @RequiredArgsConstructor
 public class UserController implements UsersApi {
-    private final UserService userService;
+  private final UserService userService;
 
-    @Override
-    public ResponseEntity<AuthResponse> registerUser(UserRegisterRequest userRegisterRequest) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(userService.registerUser(userRegisterRequest));
-    }
+  @Override
+  @RateLimiting(name = "register-strict",
+          cacheKey = "@rateLimitKeyResolver.registerKey(#userRegisterRequest)",
+          ratePerMethod = true)
+  public ResponseEntity<AuthResponse> registerUser(UserRegisterRequest userRegisterRequest) {
+    return ResponseEntity.status(HttpStatus.CREATED)
+            .body(userService.registerUser(userRegisterRequest));
+  }
 
-    @Override
-    public ResponseEntity<AuthResponse> loginUser(UserLoginRequest userLoginRequest) {
-        return ResponseEntity.ok(userService.loginUser(userLoginRequest));
-    }
+  @Override
+  @RateLimiting(name = "login-strict",
+          cacheKey = "@rateLimitKeyResolver.loginKey(#userLoginRequest)",
+          ratePerMethod = true)
+  public ResponseEntity<AuthResponse> loginUser(UserLoginRequest userLoginRequest) {
+    return ResponseEntity.ok(userService.loginUser(userLoginRequest));
+  }
 
-    @Override
-    public ResponseEntity<User> getCurrentUser() {
-        return ResponseEntity.ok(userService.getCurrentUser());
-    }
+  @Override
+  @RateLimiting(
+          name = "default-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
+  public ResponseEntity<User> getCurrentUser() {
+    return ResponseEntity.ok(userService.getCurrentUser());
+  }
 }

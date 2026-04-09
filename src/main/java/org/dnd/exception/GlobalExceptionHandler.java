@@ -1,5 +1,7 @@
 package org.dnd.exception;
 
+import com.giffing.bucket4j.spring.boot.starter.context.RateLimitException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -31,5 +33,18 @@ public class GlobalExceptionHandler {
   public ResponseEntity<String> handleBadRequest(BadRequestException e) {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
   }
+
+  @ExceptionHandler(RateLimitException.class)
+  public ResponseEntity<String> handleRateLimit(RateLimitException e) {
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(e.getMessage());
+  }
+
+  @ExceptionHandler(LoginThrottledException.class)
+  public ResponseEntity<String> handleLoginThrottled(LoginThrottledException e) {
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
+            .body(e.getMessage());
+  }
+
 }
 
