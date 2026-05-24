@@ -9,7 +9,9 @@ import org.dnd.board.BoardEntity;
 import org.dnd.exception.NotFoundException;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,9 +42,17 @@ class SessionServiceTest {
   @Mock
   private UserRepository userRepository;
 
+  @Mock
+  private UserRankEvaluatorService userRankEvaluatorService;
+
   @InjectMocks
   private SessionService sessionService;
 
+  @BeforeEach
+  void setUp() {
+    lenient().when(userRankEvaluatorService.canCreateSession(any())).thenReturn(true);
+  }
+  
   @Test
   void getSession_whenNotFound_throwsNotFoundException() {
     Long userId = 1L;
