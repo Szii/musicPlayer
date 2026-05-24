@@ -42,26 +42,16 @@ class PlaybackServiceTest extends DatabaseBase {
   @Autowired
   private SessionRepository sessionRepository;
 
-  private SessionEntity testSession;
-
-
   private BoardEntity board;
-  private TrackEntity track;
-  private UserEntity user;
 
   @BeforeEach
   void setUp() {
-    userRepository.deleteAll();
-    boardRepository.deleteAll();
-    trackRepository.deleteAll();
-    trackWindowRepository.deleteAll();
-
-    user = new UserEntity();
+    UserEntity user = new UserEntity();
     user.setName("testUser");
     user.setPassword("password");
     user = userRepository.save(user);
 
-    track = new TrackEntity();
+    TrackEntity track = new TrackEntity();
     track.setTrackName("Test Track");
     track.setTrackLink("link");
     track.setDuration(100);
@@ -69,7 +59,7 @@ class PlaybackServiceTest extends DatabaseBase {
     track.setTrackOriginalName("original name");
     track = trackRepository.save(track);
 
-    testSession = new SessionEntity();
+    SessionEntity testSession = new SessionEntity();
     testSession.setName("Test Session");
     testSession.setOwner(user);
     testSession = sessionRepository.save(testSession);

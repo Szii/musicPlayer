@@ -61,9 +61,6 @@ class PlaybackControllerTest extends DatabaseBase {
   @Autowired
   private SessionRepository sessionRepository;
 
-  private SessionEntity testSession;
-
-  private UserEntity testUser;
   private String authToken;
   private BoardEntity board;
 
@@ -71,16 +68,12 @@ class PlaybackControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    boardRepository.deleteAll();
-    trackRepository.deleteAll();
-    userRepository.deleteAll();
-
-    testUser = new UserEntity();
+    UserEntity testUser = new UserEntity();
     testUser.setName("testUser");
     testUser.setPassword("password");
     testUser = userRepository.save(testUser);
 
-    testSession = new SessionEntity();
+    SessionEntity testSession = new SessionEntity();
     testSession.setName("Test Session");
     testSession.setOwner(testUser);
     testSession = sessionRepository.save(testSession);

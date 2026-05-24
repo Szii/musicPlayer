@@ -54,12 +54,6 @@ class TrackControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    trackWindowRepository.deleteAll();
-    boardRepository.deleteAll();
-    trackRepository.deleteAll();
-    groupRepository.deleteAll();
-    userRepository.deleteAll();
-
     testUser = createUser("testUser");
     authToken = getTokenForUser(testUser);
   }

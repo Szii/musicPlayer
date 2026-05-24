@@ -50,11 +50,6 @@ class GroupControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    boardRepository.deleteAll();
-    trackRepository.deleteAll();
-    groupRepository.deleteAll();
-    userRepository.deleteAll();
-
     testUser = new UserEntity();
     testUser.setName("testUser");
     testUser.setPassword("password");
