@@ -420,6 +420,11 @@ components:
         selectedGroupId:
           type: integer
           format: int64
+        sessionId:
+          type: integer
+          format: int64
+          nullable: false
+          description: Id of the session this board belongs to
         volume:
           type: integer
           description: Playback volume (0-100)
