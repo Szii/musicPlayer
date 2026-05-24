@@ -21,6 +21,8 @@ tags:
     description: Playback control operations for a specific board
   - name: Share
     description: Share operations for sharing and subscribing to tracks
+  - name: Sessions
+    description: Operations related to listening sessions
 
 components:
   parameters:
@@ -59,6 +61,16 @@ components:
       in: path
       required: true
       description: ID of the board
+      schema:
+        type: integer
+        format: int64
+        example: 1
+
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      description: ID of the session
       schema:
         type: integer
         format: int64
@@ -387,6 +399,11 @@ components:
           type: boolean
           description: Play whole group instead of single track
           example: false
+        sessionId:
+          type: integer
+          format: int64
+          nullable: false
+          description: Id of the session this board belongs to
 
     BoardCreateRequest:
       type: object
@@ -500,6 +517,59 @@ components:
           nullable: true
           description: Optional end position in seconds (null = play until track ends)
           example: 90
+
+    SessionRequest:
+      type: object
+      description: Request to create a new session. If id is present. Update existing one instead
+      required:
+        - sessionName
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+          description: Id of the session
+          example: 1
+        sessionName:
+            type: string
+            description: Name of the session
+            example: "My Listening Session"
+        sessionDescription:
+            type: string
+            description: Description of the session
+            example: "A session for my favorite tracks"
+
+    SessionsResponse:
+      type: object
+      description: Response with list of sessions
+      properties:
+        sessions:
+          type: array
+          description: List of sessions
+          items:
+            $ref: '#/components/schemas/SessionResponse'
+
+    SessionResponse:
+      type: object
+      description: Response with session details
+      properties:
+        sessionId:
+          type: integer
+          format: int64
+          description: Id of the session
+          example: 1
+        sessionName:
+          type: string
+          description: Name of the session
+          example: "My Listening Session"
+        sessionDescription:
+          type: string
+          description: Description of the session
+          example: "A session for my favorite tracks"
+        boards:
+         type: array
+         description: List of boards in the session
+         items:
+           $ref: '#/components/schemas/Board'
 
     WaveformResponse:
       type: object
@@ -1522,3 +1592,63 @@ paths:
           description: Successfully unsubscribed from track
         '404':
           description: Track not found
+
+  /session:
+    get:
+      tags:
+        - Sessions
+      summary: Get all user sessions
+      operationId: getSessions
+      responses:
+        '200':
+          description: Successfully retrieved all sessions for user
+          content:
+              application/json:
+                  schema:
+                    $ref: '#/components/schemas/SessionsResponse'
+        '204':
+          description: No sessions found for user
+    post:
+      tags:
+        - Sessions
+      summary: Creates new or updates existing session
+      operationId: upsertSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '201':
+          description: Session created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsResponse'
+        '200':
+          description: Session updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsResponse'
+        '404':
+            description: Session not found for update
+
+  /session/{sessionId}:
+    delete:
+      tags:
+        - Sessions
+      summary: Deletes a session and all its associated boards
+      operationId: deleteSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '204':
+          description: Successfully removed sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionsResponse'
+        '404':
+          description: Session not found
