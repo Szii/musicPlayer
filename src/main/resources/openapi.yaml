@@ -108,7 +108,7 @@ components:
         name:
           type: string
           description: Unique username
-          example: "bruno"
+          example: "user"
 
     UserInfoLite:
       type: object
@@ -122,7 +122,136 @@ components:
         name:
           type: string
           description: Unique username
-          example: "bruno"
+          example: "user"
+        limits:
+          $ref: '#/components/schemas/UserLimits'
+
+    UserLimits:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        level:
+          $ref: '#/components/schemas/UserRankLevel'
+        boards:
+          $ref: '#/components/schemas/UserBoardsLimits'
+        groups:
+          $ref: '#/components/schemas/UserGroupsLimits'
+        tracks:
+          $ref: '#/components/schemas/UserTracksLimits'
+        subscribes:
+          $ref: '#/components/schemas/UserSharesLimit'
+        sessions:
+          $ref: '#/components/schemas/UserSessionsLimit'
+        windows:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserWindowsLimit'
+
+    UserGroupsLimits:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        maxGroups:
+          type: integer
+          description: Maximum number of groups the user can create
+          example: 20
+        actualGroups:
+          type: integer
+          description: Actual number of groups the user has created
+          example: 5
+        groupLimitReached:
+          type: boolean
+          description: Whether the user has reached the group creation limit
+          example: false
+
+    UserBoardsLimits:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        maxBoards:
+          type: integer
+          description: Maximum number of boards the user can create
+          example: 20
+        actualBoards:
+          type: integer
+          description: Actual number of boards the user has created
+          example: 5
+        boardLimitReached:
+          type: boolean
+          description: Whether the user has reached the board creation limit
+          example: false
+
+    UserTracksLimits:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        maxTracks:
+          type: integer
+          description: Maximum number of tracks the user can create
+          example: 100
+        actualTracks:
+          type: integer
+          description: Actual number of tracks the user has created
+          example: 10
+        trackLimitReached:
+          type: boolean
+          description: Whether the user has reached the track creation limit
+          example: false
+
+    UserSharesLimit:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        maxSubscribes:
+          type: integer
+          description: Maximum number of tracks the user can subscribe to
+          example: 50
+        actualSubscribes:
+          type: integer
+          description: Actual number of tracks the user is subscribed to
+          example: 10
+        subscribeLimitReached:
+          type: boolean
+          description: Whether the user has reached the subscribe limit
+          example: false
+
+    UserSessionsLimit:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        maxSessions:
+          type: integer
+          description: Maximum number of tracks the user can create
+          example: 100
+        actualSessions:
+          type: integer
+          description: Actual number of sessions the user has created
+          example: 5
+        sessionLimitReached:
+          type: boolean
+          description: Whether the user has reached the session creation limit
+          example: false
+
+    UserWindowsLimit:
+      type: object
+      description: User-specific limits and quotas
+      properties:
+        trackId:
+          type: integer
+          description: Id of the track
+          example: 1
+        maxTrackWindows:
+          type: integer
+          description: Maximum number of windows per track
+          example: 5
+        actualTrackWindows:
+          type: integer
+          description: Actual number of windows for the track
+          example: 2
+        trackWindowsLimitReached:
+          type: boolean
+          description: Whether the user has reached the track windows limit for the track
+          example: false
 
     UserRegisterRequest:
       type: object
@@ -667,6 +796,13 @@ components:
         - PAUSED
         - BUFFERING
         - ERROR
+
+    UserRankLevel:
+      type: string
+      description: Current playback state of the board
+      enum:
+        - NORMAL
+        - UNRESTRICTED
 
     PlaybackState:
       type: object
