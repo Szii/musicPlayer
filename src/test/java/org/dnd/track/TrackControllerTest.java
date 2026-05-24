@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.api.model.UserAuthDTO;
+import org.dnd.board.BoardRepository;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
@@ -42,6 +43,8 @@ class TrackControllerTest extends DatabaseBase {
   private GroupRepository groupRepository;
   @Autowired
   private TrackWindowRepository trackWindowRepository;
+  @Autowired
+  private BoardRepository boardRepository;
 
   @Autowired
   private JwtService jwtService;
@@ -52,6 +55,7 @@ class TrackControllerTest extends DatabaseBase {
   @BeforeEach
   void setUp() {
     trackWindowRepository.deleteAll();
+    boardRepository.deleteAll();
     trackRepository.deleteAll();
     groupRepository.deleteAll();
     userRepository.deleteAll();
