@@ -11,7 +11,6 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -27,7 +26,6 @@ public class SessionService {
   private final BoardEnricher boardEnricher;
   private final UserRepository userRepository;
 
-  @Transactional(readOnly = true)
   public SessionsResponse getSessions() {
     Long userId = SecurityUtils.getCurrentUserId();
 
@@ -84,7 +82,6 @@ public class SessionService {
     return getSessions();
   }
 
-  @Transactional(readOnly = true)
   public SessionResponse getSession(Long sessionId) {
     Long userId = SecurityUtils.getCurrentUserId();
 

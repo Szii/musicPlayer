@@ -1602,7 +1602,7 @@ paths:
         '404':
           description: Track not found
 
-  /session:
+  /sessions:
     get:
       tags:
         - Sessions
@@ -1644,7 +1644,7 @@ paths:
         '404':
             description: Session not found for update
 
-  /session/{sessionId}:
+  /sessions/{sessionId}:
     delete:
       tags:
         - Sessions
