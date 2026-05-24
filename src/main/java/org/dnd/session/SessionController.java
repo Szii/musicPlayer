@@ -1,5 +1,6 @@
 package org.dnd.session;
 
+import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.SessionsApi;
@@ -17,11 +18,21 @@ public class SessionController implements SessionsApi {
   private final SessionService sessionService;
 
   @Override
+  @RateLimiting(
+          name = "default-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
   public ResponseEntity<SessionsResponse> deleteSession(Long sessionId) {
     return ResponseEntity.ok(sessionService.deleteSession(sessionId));
   }
 
   @Override
+  @RateLimiting(
+          name = "default-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
   public ResponseEntity<SessionsResponse> getSessions() {
     SessionsResponse sessions = sessionService.getSessions();
     if (sessions.getSessions().isEmpty()) {
@@ -31,6 +42,11 @@ public class SessionController implements SessionsApi {
   }
 
   @Override
+  @RateLimiting(
+          name = "create-api",
+          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          ratePerMethod = true
+  )
   public ResponseEntity<SessionsResponse> upsertSession(SessionRequest sessionRequest) {
     if (sessionRequest.getSessionId() == null) {
       return ResponseEntity.ok(sessionService.createSession(sessionRequest));
