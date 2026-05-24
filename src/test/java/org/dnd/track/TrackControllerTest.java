@@ -54,12 +54,6 @@ class TrackControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    trackWindowRepository.deleteAll();
-    boardRepository.deleteAll();
-    trackRepository.deleteAll();
-    groupRepository.deleteAll();
-    userRepository.deleteAll();
-
     testUser = createUser("testUser");
     authToken = getTokenForUser(testUser);
   }
@@ -243,6 +237,8 @@ class TrackControllerTest extends DatabaseBase {
             .positionTo(45)
             .fadeIn(false)
             .fadeOut(true);
+
+    System.out.println("track windows size" + trackWindowRepository.findByTrack_Id(track.getId()).size());
 
     mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), point.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)

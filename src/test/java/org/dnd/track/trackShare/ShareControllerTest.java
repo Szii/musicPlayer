@@ -56,19 +56,12 @@ class ShareControllerTest extends DatabaseBase {
   private UserEntity testUser;
   private UserEntity otherUser;
   private String authToken;
-  private String otherUserToken;
 
   @BeforeEach
   void setUp() {
-    trackWindowRepository.deleteAll();
-    trackShareRepository.deleteAll();
-    trackRepository.deleteAll();
-    userRepository.deleteAll();
-
     testUser = createUser("testUser_" + UUID.randomUUID());
     otherUser = createUser("otherUser_" + UUID.randomUUID());
     authToken = getTokenForUser(testUser);
-    otherUserToken = getTokenForUser(otherUser);
   }
 
   @Test

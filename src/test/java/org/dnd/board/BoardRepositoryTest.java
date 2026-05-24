@@ -1,7 +1,8 @@
 package org.dnd.board;
 
-import jakarta.transaction.Transactional;
 import org.dnd.DatabaseBase;
+import org.dnd.session.SessionEntity;
+import org.dnd.session.SessionRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -23,20 +24,29 @@ class BoardRepositoryTest extends DatabaseBase {
   @Autowired
   private BoardRepository boardRepository;
 
+  @Autowired
+  private SessionRepository sessionRepository;
+
 
   @Test
-  @Transactional
   void saveAndFindBoardsByOwner() {
     UserEntity owner = new UserEntity();
     owner.setName("boardOwner");
     owner.setPassword("pw");
     owner = userRepository.save(owner);
 
+
+    SessionEntity session = new SessionEntity();
+    session.setOwner(owner);
+    session.setName("Session 1");
+    sessionRepository.save(session);
+
     BoardEntity board1 = new BoardEntity();
     board1.setOwner(owner);
     board1.setVolume(50);
     board1.setRepeat(false);
     board1.setName("Board 1");
+    board1.setSession(session);
     board1.setOverplay(false);
 
     BoardEntity board2 = new BoardEntity();
@@ -44,6 +54,7 @@ class BoardRepositoryTest extends DatabaseBase {
     board2.setName("Board 2");
     board2.setVolume(80);
     board2.setRepeat(true);
+    board2.setSession(session);
     board2.setOverplay(true);
 
     boardRepository.save(board1);

@@ -9,11 +9,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class SecurityUtils {
 
-    public static Long getCurrentUserId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof UserAuthDTO) {
-            return ((UserAuthDTO) authentication.getPrincipal()).getId();
-        }
-        throw new ForbiddenException("Not authenticated");
+  //TODO refactor to be injectable
+  public static Long getCurrentUserId() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication != null && authentication.getPrincipal() instanceof UserAuthDTO) {
+      return ((UserAuthDTO) authentication.getPrincipal()).getId();
     }
+    throw new ForbiddenException("Not authenticated");
+  }
 }

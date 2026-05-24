@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.group.GroupEntity;
+import org.dnd.session.SessionEntity;
 import org.dnd.track.TrackEntity;
 import org.dnd.user.UserEntity;
 
@@ -37,6 +38,10 @@ public class BoardEntity {
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "owner_id", nullable = false)
   private UserEntity owner;
+
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "session_id", nullable = false)
+  private SessionEntity session;
 
   @Column(nullable = false)
   private boolean repeat = false;

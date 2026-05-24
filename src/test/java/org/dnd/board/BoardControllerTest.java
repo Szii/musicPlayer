@@ -8,6 +8,8 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
+import org.dnd.session.SessionEntity;
+import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
@@ -46,19 +48,26 @@ class BoardControllerTest extends DatabaseBase {
   private TrackRepository trackRepository;
   @Autowired
   private GroupRepository groupRepository;
+  @Autowired
+  private SessionRepository sessionRepository;
+
+  private SessionEntity testSession;
 
   private UserEntity testUser;
   private String authToken;
 
   @BeforeEach
   void setUp() {
-    boardRepository.deleteAll();
-    userRepository.deleteAll();
-
     testUser = new UserEntity();
     testUser.setName("testUser");
     testUser.setPassword("password");
     testUser = userRepository.save(testUser);
+
+    testSession = new SessionEntity();
+    testSession.setName("Test Session");
+    testSession.setDescription("Test session description");
+    testSession.setOwner(testUser);
+    testSession = sessionRepository.save(testSession);
 
     UserAuthDTO userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
@@ -74,6 +83,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setVolume(50);
     board.setRepeat(false);
     board.setOverplay(false);
+    board.setSession(testSession);
     boardRepository.save(board);
 
     mockMvc.perform(get("/api/v1/boards")
@@ -91,6 +101,7 @@ class BoardControllerTest extends DatabaseBase {
             .volume(75)
             .repeat(true)
             .overplay(false)
+            .sessionId(testSession.getId())
             .name("Test Board");
 
     mockMvc.perform(post("/api/v1/boards")
@@ -98,10 +109,13 @@ class BoardControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("Test Board"))
-            .andExpect(jsonPath("$.volume").value(75))
-            .andExpect(jsonPath("$.repeat").value(true))
-            .andExpect(jsonPath("$.overplay").value(false));
+            .andExpect(jsonPath("$.sessionId").value(testSession.getId()))
+            .andExpect(jsonPath("$.boards").isArray())
+            .andExpect(jsonPath("$.boards.length()").value(1))
+            .andExpect(jsonPath("$.boards[0].name").value("Test Board"))
+            .andExpect(jsonPath("$.boards[0].volume").value(75))
+            .andExpect(jsonPath("$.boards[0].repeat").value(true))
+            .andExpect(jsonPath("$.boards[0].overplay").value(false));
 
     assertFalse(boardRepository.findByOwner_Id(testUser.getId()).isEmpty());
   }
@@ -114,6 +128,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setVolume(50);
     board.setRepeat(false);
     board.setOverplay(false);
+    board.setSession(testSession);
     board = boardRepository.save(board);
 
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
@@ -138,11 +153,13 @@ class BoardControllerTest extends DatabaseBase {
     board.setName("Board to Delete");
     board.setOwner(testUser);
     board.setVolume(50);
+    board.setSession(testSession);
     board = boardRepository.save(board);
 
     mockMvc.perform(delete("/api/v1/boards/{boardId}", board.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-            .andExpect(status().isNoContent());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards").isEmpty());
 
     assertFalse(boardRepository.existsById(board.getId()));
   }
@@ -178,6 +195,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setName("Other User's Board");
     board.setOwner(otherUser);
     board.setVolume(50);
+    board.setSession(testSession);
     boardRepository.save(board);
 
 
@@ -237,6 +255,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setVolume(50);
     board.setRepeat(false);
     board.setOverplay(false);
+    board.setSession(testSession);
     board = boardRepository.save(board);
 
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
@@ -256,6 +275,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setName("Test Board");
     board.setVolume(50);
     board.setRepeat(false);
+    board.setSession(testSession);
     board.setOverplay(false);
 
 
@@ -307,6 +327,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setName("Test Board");
     board.setVolume(50);
     board.setRepeat(false);
+    board.setSession(testSession);
     board.setOverplay(false);
 
 
