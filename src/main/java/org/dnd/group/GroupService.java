@@ -1,4 +1,4 @@
-package org.dnd.service;
+package org.dnd.group;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,11 +7,8 @@ import org.dnd.api.model.GroupRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
-import org.dnd.mappers.GroupMapper;
-import org.dnd.model.GroupEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.repository.GroupRepository;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;
 import org.dnd.utils.SecurityUtils;

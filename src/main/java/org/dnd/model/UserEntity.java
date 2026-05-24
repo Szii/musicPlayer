@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.board.BoardEntity;
+import org.dnd.group.GroupEntity;
 
 import java.util.HashSet;
 import java.util.Set;

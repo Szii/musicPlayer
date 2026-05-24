@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.dnd.group.GroupEntity;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -18,36 +19,36 @@ import java.util.Set;
 @AllArgsConstructor
 public class TrackEntity {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(name = "track_name", nullable = false)
-    private String trackName;
+  @Column(name = "track_name", nullable = false)
+  private String trackName;
 
-    @Column(name = "track_original_name", nullable = false)
-    private String trackOriginalName;
+  @Column(name = "track_original_name", nullable = false)
+  private String trackOriginalName;
 
-    @Column(name = "track_link", nullable = false)
-    private String trackLink;
+  @Column(name = "track_link", nullable = false)
+  private String trackLink;
 
-    @Column(nullable = false)
-    private int duration;
+  @Column(nullable = false)
+  private int duration;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private UserEntity owner;
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "owner_id", nullable = false)
+  private UserEntity owner;
 
-    @ManyToMany(mappedBy = "tracks")
-    private Set<GroupEntity> groups = new HashSet<>();
+  @ManyToMany(mappedBy = "tracks")
+  private Set<GroupEntity> groups = new HashSet<>();
 
-    @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("name ASC")
-    private Set<TrackWindowEntity> trackWindows = new HashSet<>();
+  @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("name ASC")
+  private Set<TrackWindowEntity> trackWindows = new HashSet<>();
 
-    @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "track_share_id", unique = true)
-    private TrackShareEntity trackShare;
+  @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
+  @JoinColumn(name = "track_share_id", unique = true)
+  private TrackShareEntity trackShare;
 }
 
 

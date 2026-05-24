@@ -3,7 +3,7 @@ package org.dnd.board;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
-import org.dnd.mappers.GroupMapper;
+import org.dnd.group.GroupMapper;
 import org.dnd.mappers.TrackMapper;
 import org.dnd.mappers.UserMapper;
 import org.mapstruct.*;

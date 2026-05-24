@@ -1,4 +1,4 @@
-package org.dnd.controller;
+package org.dnd.group;
 
 import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.dnd.api.MusicGroupsApi;
 import org.dnd.api.model.Group;
 import org.dnd.api.model.GroupRequest;
-import org.dnd.service.GroupService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;

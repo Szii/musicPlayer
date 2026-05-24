@@ -1,7 +1,8 @@
-package org.dnd.mappers;
+package org.dnd.group;
 
 import org.dnd.api.model.Group;
-import org.dnd.model.GroupEntity;
+import org.dnd.mappers.TrackMapper;
+import org.dnd.mappers.UserMapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -15,13 +16,13 @@ import java.util.List;
 )
 public interface GroupMapper {
 
-    @Mapping(target = "owner", ignore = true)
-    GroupEntity toEntity(Group dto);
+  @Mapping(target = "owner", ignore = true)
+  GroupEntity toEntity(Group dto);
 
-    Group toDto(GroupEntity entity);
+  Group toDto(GroupEntity entity);
 
-    List<GroupEntity> toEntities(List<Group> dtos);
+  List<GroupEntity> toEntities(List<Group> dtos);
 
-    List<Group> toDtos(List<GroupEntity> entities);
+  List<Group> toDtos(List<GroupEntity> entities);
 
 }

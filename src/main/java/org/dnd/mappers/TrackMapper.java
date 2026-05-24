@@ -26,7 +26,7 @@ public interface TrackMapper {
 
   @Mapping(
           target = "groupIds",
-          expression = "java(entity.getGroups() == null ? java.util.List.of() : entity.getGroups().stream().map(org.dnd.model.GroupEntity::getId).toList())"
+          expression = "java(entity.getGroups() == null ? java.util.List.of() : entity.getGroups().stream().map(org.dnd.group.GroupEntity::getId).toList())"
   )
   @Mapping(
           target = "owned",
