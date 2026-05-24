@@ -1,8 +1,7 @@
-package org.dnd.repository;
+package org.dnd.user;
 
 import jakarta.transaction.Transactional;
-import org.dnd.user.UserEntity;
-import org.dnd.user.UserRepository;
+import org.dnd.DatabaseBase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

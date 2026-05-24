@@ -1,17 +1,13 @@
-package org.dnd.controller;
+package org.dnd.track;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dnd.DatabaseBase;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.repository.DatabaseBase;
 import org.dnd.security.JwtService;
-import org.dnd.track.TrackEntity;
-import org.dnd.track.TrackRepository;
-import org.dnd.track.TrackWindowEntity;
-import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;

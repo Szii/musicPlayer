@@ -1,14 +1,12 @@
-package org.dnd.controller;
+package org.dnd.board;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dnd.DatabaseBase;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.UserAuthDTO;
-import org.dnd.board.BoardEntity;
-import org.dnd.board.BoardRepository;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.repository.DatabaseBase;
 import org.dnd.security.JwtService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;

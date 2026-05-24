@@ -1,14 +1,13 @@
-package org.dnd.controller;
+package org.dnd.playback;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dnd.DatabaseBase;
 import org.dnd.api.model.PlayRequest;
 import org.dnd.api.model.PlaybackState;
 import org.dnd.api.model.PlaybackStatus;
 import org.dnd.api.model.SeekRequest;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
-import org.dnd.playback.PlaybackService;
-import org.dnd.repository.DatabaseBase;
 import org.dnd.security.JwtService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;

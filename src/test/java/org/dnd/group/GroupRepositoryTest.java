@@ -1,8 +1,7 @@
-package org.dnd.repository;
+package org.dnd.group;
 
 import jakarta.transaction.Transactional;
-import org.dnd.group.GroupEntity;
-import org.dnd.group.GroupRepository;
+import org.dnd.DatabaseBase;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;

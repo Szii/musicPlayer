@@ -1,12 +1,11 @@
-package org.dnd.controller;
+package org.dnd.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.dnd.DatabaseBase;
 import org.dnd.api.model.AuthResponse;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
-import org.dnd.repository.DatabaseBase;
-import org.dnd.service.JwtService;
-import org.dnd.user.UserRepository;
+import org.dnd.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

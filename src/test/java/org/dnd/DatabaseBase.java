@@ -1,4 +1,4 @@
-package org.dnd.repository;
+package org.dnd;
 
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,10 +10,10 @@ import org.testcontainers.containers.PostgreSQLContainer;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class DatabaseBase {
 
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:16-alpine")
-                    .withDatabaseName("musicplayer")
-                    .withUsername("musicuser")
-                    .withPassword("musicpass");
+  @ServiceConnection
+  static PostgreSQLContainer<?> postgres =
+          new PostgreSQLContainer<>("postgres:16-alpine")
+                  .withDatabaseName("musicplayer")
+                  .withUsername("musicuser")
+                  .withPassword("musicpass");
 }
