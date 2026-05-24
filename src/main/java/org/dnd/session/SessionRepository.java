@@ -8,5 +8,7 @@ import java.util.Optional;
 public interface SessionRepository extends JpaRepository<SessionEntity, Long> {
   List<SessionEntity> findByOwner_Id(Long userId);
 
+  long countByOwner_Id(Long userId);
+
   Optional<SessionEntity> findByIdAndOwner_Id(Long sessionId, Long userId);
 }

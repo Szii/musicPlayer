@@ -11,6 +11,7 @@ import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -208,6 +209,45 @@ class TrackControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void createTrackWindow_isForbidden_whenWindowLimitReached() throws Exception {
+    TrackEntity track = createTrackEntity("My Track", testUser, null);
+
+    for (int i = 0; i < UserRankLimits.normal().maxWindows(); i++) {
+      createTrackWindow(track, "Window " + i, 10L * i, 10L * (i + 1), false, false);
+    }
+
+    TrackWindowRequest req = new TrackWindowRequest()
+            .name("One Too Many")
+            .positionFrom(50)
+            .positionTo(60)
+            .fadeIn(false)
+            .fadeOut(false);
+
+    mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void createTrack_IsForbidden_WhenTrackLimitReached() throws Exception {
+    for (int i = 0; i < UserRankLimits.normal().maxTracks(); i++) {
+      createTrackEntity("Track " + i, testUser, null);
+    }
+
+    TrackRequest req = new TrackRequest()
+            .trackName("One Too Many")
+            .trackLink("https://example.com/too.mp3");
+
+    mockMvc.perform(post("/api/v1/tracks")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isForbidden());
   }
 
   @Test

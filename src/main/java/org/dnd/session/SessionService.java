@@ -6,9 +6,11 @@ import org.dnd.api.model.SessionResponse;
 import org.dnd.api.model.SessionsResponse;
 import org.dnd.board.BoardEnricher;
 import org.dnd.board.BoardEntity;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,7 @@ public class SessionService {
   private final SessionRepository sessionRepository;
   private final BoardEnricher boardEnricher;
   private final UserRepository userRepository;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
   public SessionsResponse getSessions() {
     Long userId = SecurityUtils.getCurrentUserId();
@@ -56,6 +59,10 @@ public class SessionService {
 
     UserEntity user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
+
+    if (!userRankEvaluatorService.canCreateSession(user)) {
+      throw new ForbiddenException("Session limit reached");
+    }
 
     sessionEntity.setOwner(user);
     sessionEntity.setName(sessionRequest.getSessionName());

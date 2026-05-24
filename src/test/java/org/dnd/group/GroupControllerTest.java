@@ -10,6 +10,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -133,6 +134,25 @@ class GroupControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void createGroup_isForbidden_whenGroupsLimitReached() throws Exception {
+    for (int i = 0; i < UserRankLimits.normal().maxGroups(); i++) {
+      GroupEntity group = new GroupEntity();
+      group.setListName("Group " + i);
+      group.setOwner(testUser);
+      groupRepository.save(group);
+    }
+
+    GroupRequest groupRequest = new GroupRequest()
+            .listName("New Group");
+
+    mockMvc.perform(post("/api/v1/groups")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(groupRequest)))
+            .andExpect(status().isForbidden());
   }
 
   @Test

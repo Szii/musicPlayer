@@ -11,6 +11,7 @@ import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -136,6 +137,32 @@ class ShareControllerTest extends DatabaseBase {
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
             .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void subscribeToTrack_isForbidden_whenShareLimitIsReached() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    TrackShareEntity share = createTrackShare(track, "Popular track");
+
+    for (int i = 0; i < UserRankLimits.normal().maxShares(); i++) {
+      TrackShareEntity tempShare = new TrackShareEntity();
+      tempShare.setDescription("Temp share " + i);
+      tempShare.setShareCode(UUID.randomUUID().toString());
+      tempShare.setTrack(track);
+      TrackShareEntity savedShare = trackShareRepository.save(tempShare);
+
+      testUser.getShares().add(savedShare);
+    }
+    userRepository.save(testUser);
+
+    SubscribeRequest request = new SubscribeRequest();
+    request.setShareCode(share.getShareCode());
+
+    mockMvc.perform(post("/api/v1/share/subscribe")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
   }
 
   @Test

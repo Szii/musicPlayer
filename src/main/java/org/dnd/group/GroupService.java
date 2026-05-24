@@ -11,6 +11,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class GroupService {
   private final GroupMapper groupMapper;
   private final TrackRepository trackRepository;
   private final BoardRepository boardRepository;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
   @Transactional(readOnly = true)
   public List<Group> getUserGroups() {
@@ -41,6 +43,10 @@ public class GroupService {
     log.debug("Creating group with name {}", request.getListName());
     UserEntity owner = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
+
+    if (!userRankEvaluatorService.canCreateGroup(owner)) {
+      throw new ForbiddenException("Group limit reached");
+    }
 
     GroupEntity group = new GroupEntity();
     group.setListName(request.getListName());
