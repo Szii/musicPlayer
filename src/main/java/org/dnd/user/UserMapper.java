@@ -15,7 +15,6 @@ import org.mapstruct.ReportingPolicy;
 public interface UserMapper {
   User toDto(UserEntity entity);
 
-
   @Mapping(target = "id", source = "entity.id")
   @Mapping(target = "name", source = "entity.name")
   UserAuthDTO toAuthDto(UserEntity entity);

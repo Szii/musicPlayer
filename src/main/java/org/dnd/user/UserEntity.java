@@ -1,10 +1,7 @@
 package org.dnd.user;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.dnd.board.BoardEntity;
 import org.dnd.group.GroupEntity;
 import org.dnd.track.TrackEntity;
@@ -13,6 +10,7 @@ import org.dnd.track.trackShare.TrackShareEntity;
 import java.util.HashSet;
 import java.util.Set;
 
+@Builder
 @Entity
 @Table(name = "users")
 @Getter
@@ -38,6 +36,11 @@ public class UserEntity {
 
   @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
   private Set<BoardEntity> boards = new HashSet<>();
+
+  @Column(nullable = false)
+  @Enumerated(EnumType.STRING)
+  @Builder.Default
+  private UserRank rank = UserRank.NORMAL;
 
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
