@@ -101,7 +101,9 @@ public class UserRankEvaluatorService {
             })
             .toList();
 
+
     return new UserLimits()
+            .level(UserRankLevel.valueOf(user.getRank().name()))
             .tracks(trackLimits)
             .groups(groupLimits)
             .boards(boardLimits)

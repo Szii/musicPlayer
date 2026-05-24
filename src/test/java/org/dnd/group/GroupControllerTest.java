@@ -136,6 +136,25 @@ class GroupControllerTest extends DatabaseBase {
   }
 
   @Test
+  void createGroup_isForbidden_whenGroupsLimitReached() throws Exception {
+    for (int i = 0; i < 5; i++) {
+      GroupEntity group = new GroupEntity();
+      group.setListName("Group " + i);
+      group.setOwner(testUser);
+      groupRepository.save(group);
+    }
+
+    GroupRequest groupRequest = new GroupRequest()
+            .listName("New Group");
+
+    mockMvc.perform(post("/api/v1/groups")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(groupRequest)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
   void deleteGroup_Success() throws Exception {
     GroupEntity group = new GroupEntity();
     group.setListName("To Delete");

@@ -219,6 +219,31 @@ class BoardControllerTest extends DatabaseBase {
   }
 
   @Test
+  void createUserBoard_isForbidden_WhenBoardLimitReached() throws Exception {
+    for (int i = 0; i < 5; i++) {
+      BoardEntity board = new BoardEntity();
+      board.setName("Board " + i);
+      board.setOwner(testUser);
+      board.setVolume(50);
+      board.setSession(testSession);
+      boardRepository.save(board);
+    }
+
+    BoardCreateRequest request = new BoardCreateRequest()
+            .volume(75)
+            .repeat(true)
+            .overplay(false)
+            .sessionId(testSession.getId())
+            .name("Excess Board");
+
+    mockMvc.perform(post("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
   void getUserBoards_NoBoards() throws Exception {
     mockMvc.perform(get("/api/v1/boards")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))

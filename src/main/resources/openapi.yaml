@@ -109,6 +109,8 @@ components:
           type: string
           description: Unique username
           example: "user"
+        limits:
+          $ref: '#/components/schemas/UserLimits'
 
     UserInfoLite:
       type: object
@@ -123,8 +125,6 @@ components:
           type: string
           description: Unique username
           example: "user"
-        limits:
-          $ref: '#/components/schemas/UserLimits'
 
     UserLimits:
       type: object

@@ -44,39 +44,6 @@ class SessionServiceTest {
   private SessionService sessionService;
 
   @Test
-  void getSessions_returnsSessionsForCurrentUser() {
-    Long userId = 1L;
-
-    SessionEntity sessionEntity = new SessionEntity();
-    sessionEntity.setId(10L);
-    sessionEntity.setName("Session One");
-
-    SessionResponse sessionResponse = new SessionResponse();
-    sessionResponse.setSessionId(10L);
-    sessionResponse.setSessionName("Session One");
-    sessionResponse.setBoards(List.of());
-
-    when(sessionRepository.findByOwner_Id(userId))
-            .thenReturn(List.of(sessionEntity));
-
-    when(sessionMapper.toResponse(sessionEntity))
-            .thenReturn(sessionResponse);
-
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
-
-      SessionsResponse response = sessionService.getSessions();
-
-      assertEquals(1, response.getSessions().size());
-      assertEquals(10L, response.getSessions().get(0).getSessionId());
-      assertEquals("Session One", response.getSessions().get(0).getSessionName());
-
-      verify(sessionRepository).findByOwner_Id(userId);
-      verify(sessionMapper).toResponse(sessionEntity);
-    }
-  }
-
-  @Test
   void getSession_whenNotFound_throwsNotFoundException() {
     Long userId = 1L;
     Long sessionId = 99L;

@@ -139,6 +139,32 @@ class ShareControllerTest extends DatabaseBase {
   }
 
   @Test
+  void subscribeToTrack_isForbidden_whenShareLimitIsReached() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    TrackShareEntity share = createTrackShare(track, "Popular track");
+
+    for (int i = 0; i < 10; i++) {
+      TrackShareEntity tempShare = new TrackShareEntity();
+      tempShare.setDescription("Temp share " + i);
+      tempShare.setShareCode(UUID.randomUUID().toString());
+      tempShare.setTrack(track);
+      TrackShareEntity savedShare = trackShareRepository.save(tempShare);
+
+      testUser.getShares().add(savedShare);
+    }
+    userRepository.save(testUser);
+
+    SubscribeRequest request = new SubscribeRequest();
+    request.setShareCode(share.getShareCode());
+
+    mockMvc.perform(post("/api/v1/share/subscribe")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
   void unpublishTrack_TrackNotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", 999999L)
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))

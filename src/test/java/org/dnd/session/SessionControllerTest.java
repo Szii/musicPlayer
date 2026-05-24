@@ -83,6 +83,26 @@ class SessionControllerTest extends DatabaseBase {
   }
 
   @Test
+  void createSession_ReturnsForbidden_WhenLimitIsReached() throws Exception {
+    createSession("Session One", "First session");
+    createSession("Session Two", "Second session");
+    createSession("Session Two", "Second session");
+    createSession("Session Two", "Second session");
+    createSession("Session Two", "Second session");
+    createSession("Session Two", "Second session");
+
+    SessionRequest request = new SessionRequest()
+            .sessionName("My Session")
+            .sessionDescription("My session description");
+
+    mockMvc.perform(post("/api/v1/sessions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
   void createSession_Success() throws Exception {
     SessionRequest request = new SessionRequest()
             .sessionName("My Session")
