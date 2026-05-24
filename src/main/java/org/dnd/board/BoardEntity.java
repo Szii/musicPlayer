@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.group.GroupEntity;
 import org.dnd.model.TrackEntity;
-import org.dnd.model.UserEntity;
+import org.dnd.user.UserEntity;
 
 @Entity
 @Table(name = "boards")

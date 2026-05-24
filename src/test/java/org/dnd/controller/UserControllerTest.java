@@ -5,8 +5,8 @@ import org.dnd.api.model.AuthResponse;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.repository.DatabaseBase;
-import org.dnd.repository.UserRepository;
 import org.dnd.service.JwtService;
+import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,124 +27,124 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 class UserControllerTest extends DatabaseBase {
-    @Autowired
-    private MockMvc mockMvc;
+  @Autowired
+  private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+  @Autowired
+  private ObjectMapper objectMapper;
 
-    @Autowired
-    private UserRepository userRepository;
+  @Autowired
+  private UserRepository userRepository;
 
-    @Autowired
-    private JwtService jwtService;
+  @Autowired
+  private JwtService jwtService;
 
 
-    @BeforeEach
-    void setUp() {
-        userRepository.deleteAll();
-    }
+  @BeforeEach
+  void setUp() {
+    userRepository.deleteAll();
+  }
 
-    @Test
-    void registerUser_Success() throws Exception {
-        UserRegisterRequest request = new UserRegisterRequest()
-                .name("testUser")
-                .password("password123");
+  @Test
+  void registerUser_Success() throws Exception {
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name("testUser")
+            .password("password123");
 
-        MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.user.name").value("testUser"))
-                .andExpect(jsonPath("$.token").exists())
-                .andReturn();
+    MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.user.name").value("testUser"))
+            .andExpect(jsonPath("$.token").exists())
+            .andReturn();
 
-        assertTrue(userRepository.findByName("testUser").isPresent());
-    }
+    assertTrue(userRepository.findByName("testUser").isPresent());
+  }
 
-    @Test
-    void registerUser_DuplicateUsername() throws Exception {
-        UserRegisterRequest request = new UserRegisterRequest()
-                .name("testUser")
-                .password("password123");
+  @Test
+  void registerUser_DuplicateUsername() throws Exception {
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name("testUser")
+            .password("password123");
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated());
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated());
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict());
-    }
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isConflict());
+  }
 
-    @Test
-    void loginUser_Success() throws Exception {
-        UserRegisterRequest registerRequest = new UserRegisterRequest()
-                .name("testUser")
-                .password("password123");
+  @Test
+  void loginUser_Success() throws Exception {
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name("testUser")
+            .password("password123");
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isCreated());
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
 
-        UserLoginRequest loginRequest = new UserLoginRequest()
-                .name("testUser")
-                .password("password123");
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name("testUser")
+            .password("password123");
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.user.name").value("testUser"))
-                .andExpect(jsonPath("$.token").exists());
-    }
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.name").value("testUser"))
+            .andExpect(jsonPath("$.token").exists());
+  }
 
-    @Test
-    void loginUser_InvalidCredentials() throws Exception {
-        UserRegisterRequest registerRequest = new UserRegisterRequest()
-                .name("testUser")
-                .password("password123");
+  @Test
+  void loginUser_InvalidCredentials() throws Exception {
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name("testUser")
+            .password("password123");
 
-        mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isCreated());
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
 
-        UserLoginRequest loginRequest = new UserLoginRequest()
-                .name("testUser")
-                .password("wrongPassword");
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name("testUser")
+            .password("wrongPassword");
 
-        mockMvc.perform(post("/api/v1/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isUnauthorized());
-    }
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isUnauthorized());
+  }
 
-    @Test
-    void getCurrentUser_Success() throws Exception {
-        UserRegisterRequest registerRequest = new UserRegisterRequest()
-                .name("testUser")
-                .password("password123");
+  @Test
+  void getCurrentUser_Success() throws Exception {
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name("testUser")
+            .password("password123");
 
-        MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(registerRequest)))
-                .andExpect(status().isCreated())
-                .andReturn();
+    MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated())
+            .andReturn();
 
-        String response = registerResult.getResponse().getContentAsString();
-        AuthResponse authResponse = objectMapper.readValue(response, AuthResponse.class);
-        String token = authResponse.getToken();
+    String response = registerResult.getResponse().getContentAsString();
+    AuthResponse authResponse = objectMapper.readValue(response, AuthResponse.class);
+    String token = authResponse.getToken();
 
-        mockMvc.perform(get("/api/v1/users/me")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("testUser"));
+    mockMvc.perform(get("/api/v1/users/me")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("testUser"));
 
-    }
+  }
 
 
 }

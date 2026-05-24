@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.dnd.user.UserEntity;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -16,20 +17,20 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class TrackShareEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column
-    private String description;
+  @Column
+  private String description;
 
-    @Column(nullable = false)
-    private String shareCode;
+  @Column(nullable = false)
+  private String shareCode;
 
-    @OneToOne(mappedBy = "trackShare")
-    private TrackEntity track;
+  @OneToOne(mappedBy = "trackShare")
+  private TrackEntity track;
 
-    @ManyToMany(mappedBy = "shares")
-    private Set<UserEntity> users = new HashSet<>();
+  @ManyToMany(mappedBy = "shares")
+  private Set<UserEntity> users = new HashSet<>();
 }
 

@@ -1,4 +1,4 @@
-package org.dnd.service;
+package org.dnd.user;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -8,9 +8,8 @@ import org.dnd.exception.ConflictException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.exception.UnauthorizedException;
 import org.dnd.mappers.UserMapper;
-import org.dnd.model.UserEntity;
-import org.dnd.repository.UserRepository;
 import org.dnd.security.LoginThrottleService;
+import org.dnd.service.JwtService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;

@@ -1,4 +1,4 @@
-package org.dnd.controller;
+package org.dnd.user;
 
 import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -8,7 +8,6 @@ import org.dnd.api.model.AuthResponse;
 import org.dnd.api.model.User;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
-import org.dnd.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;

@@ -1,4 +1,4 @@
-package org.dnd.model;
+package org.dnd.user;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.board.BoardEntity;
 import org.dnd.group.GroupEntity;
+import org.dnd.model.TrackEntity;
+import org.dnd.model.TrackShareEntity;
 
 import java.util.HashSet;
 import java.util.Set;

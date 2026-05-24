@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.model.TrackEntity;
-import org.dnd.model.UserEntity;
+import org.dnd.user.UserEntity;
 
 import java.util.HashSet;
 import java.util.Set;
