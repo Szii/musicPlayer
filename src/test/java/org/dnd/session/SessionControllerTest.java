@@ -7,6 +7,7 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,12 +85,10 @@ class SessionControllerTest extends DatabaseBase {
 
   @Test
   void createSession_ReturnsForbidden_WhenLimitIsReached() throws Exception {
-    createSession("Session One", "First session");
-    createSession("Session Two", "Second session");
-    createSession("Session Two", "Second session");
-    createSession("Session Two", "Second session");
-    createSession("Session Two", "Second session");
-    createSession("Session Two", "Second session");
+
+    for (int i = 0; i < UserRankLimits.normal().maxSessions(); i++) {
+      createSession("Session One", "First session");
+    }
 
     SessionRequest request = new SessionRequest()
             .sessionName("My Session")

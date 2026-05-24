@@ -11,6 +11,7 @@ import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -143,7 +144,7 @@ class ShareControllerTest extends DatabaseBase {
     TrackEntity track = createTrackEntity("Shared Track", otherUser);
     TrackShareEntity share = createTrackShare(track, "Popular track");
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < UserRankLimits.normal().maxShares(); i++) {
       TrackShareEntity tempShare = new TrackShareEntity();
       tempShare.setDescription("Temp share " + i);
       tempShare.setShareCode(UUID.randomUUID().toString());

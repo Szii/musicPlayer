@@ -11,6 +11,7 @@ import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -214,7 +215,7 @@ class TrackControllerTest extends DatabaseBase {
   void createTrackWindow_isForbidden_whenWindowLimitReached() throws Exception {
     TrackEntity track = createTrackEntity("My Track", testUser, null);
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < UserRankLimits.normal().maxWindows(); i++) {
       createTrackWindow(track, "Window " + i, 10L * i, 10L * (i + 1), false, false);
     }
 
@@ -234,7 +235,7 @@ class TrackControllerTest extends DatabaseBase {
 
   @Test
   void createTrack_IsForbidden_WhenTrackLimitReached() throws Exception {
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < UserRankLimits.normal().maxTracks(); i++) {
       createTrackEntity("Track " + i, testUser, null);
     }
 

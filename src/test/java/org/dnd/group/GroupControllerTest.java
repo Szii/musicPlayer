@@ -10,6 +10,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,7 +138,7 @@ class GroupControllerTest extends DatabaseBase {
 
   @Test
   void createGroup_isForbidden_whenGroupsLimitReached() throws Exception {
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < UserRankLimits.normal().maxGroups(); i++) {
       GroupEntity group = new GroupEntity();
       group.setListName("Group " + i);
       group.setOwner(testUser);

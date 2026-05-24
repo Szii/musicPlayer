@@ -14,6 +14,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -220,7 +221,7 @@ class BoardControllerTest extends DatabaseBase {
 
   @Test
   void createUserBoard_isForbidden_WhenBoardLimitReached() throws Exception {
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < UserRankLimits.normal().maxGroups(); i++) {
       BoardEntity board = new BoardEntity();
       board.setName("Board " + i);
       board.setOwner(testUser);
