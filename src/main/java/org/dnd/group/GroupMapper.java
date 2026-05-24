@@ -1,0 +1,28 @@
+package org.dnd.group;
+
+import org.dnd.api.model.Group;
+import org.dnd.track.TrackMapper;
+import org.dnd.user.UserMapper;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
+
+import java.util.List;
+
+@Mapper(
+        componentModel = "spring",
+        uses = {TrackMapper.class, UserMapper.class},
+        unmappedTargetPolicy = ReportingPolicy.IGNORE
+)
+public interface GroupMapper {
+
+  @Mapping(target = "owner", ignore = true)
+  GroupEntity toEntity(Group dto);
+
+  Group toDto(GroupEntity entity);
+
+  List<GroupEntity> toEntities(List<Group> dtos);
+
+  List<Group> toDtos(List<GroupEntity> entities);
+
+}

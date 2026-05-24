@@ -4,7 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
-import org.dnd.service.JwtService;
+import org.dnd.security.JwtService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -31,7 +31,7 @@ public class RateLimitKeyResolver {
   public String streamKey(String streamToken) {
     return jwtService.getUserIdFromToken(streamToken);
   }
-  
+
   public String clientIp() {
     HttpServletRequest request =
             ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())

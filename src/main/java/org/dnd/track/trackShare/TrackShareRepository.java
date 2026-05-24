@@ -1,0 +1,13 @@
+package org.dnd.track.trackShare;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface TrackShareRepository extends JpaRepository<TrackShareEntity, Long> {
+  Optional<TrackShareEntity> findByShareCode(String shareCode);
+
+  Boolean existsByShareCode(String shareCode);
+}
