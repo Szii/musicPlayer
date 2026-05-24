@@ -9,6 +9,8 @@ CREATE TABLE sessions (
         REFERENCES users(id)
 );
 
+CREATE INDEX idx_sessions_owner_id ON sessions(owner_id);
+
 ALTER TABLE boards
 ADD COLUMN session_id BIGINT;
 
@@ -33,4 +35,7 @@ ALTER COLUMN session_id SET NOT NULL;
 ALTER TABLE boards
 ADD CONSTRAINT fk_boards_session
     FOREIGN KEY (session_id)
-    REFERENCES sessions(id);
+    REFERENCES sessions(id)
+    ON DELETE CASCADE;
+
+CREATE INDEX idx_boards_session_id ON boards(session_id);
