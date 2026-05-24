@@ -1,8 +1,10 @@
 package org.dnd.repository;
 
 import jakarta.transaction.Transactional;
-import org.dnd.model.TrackEntity;
-import org.dnd.model.TrackWindowEntity;
+import org.dnd.track.TrackEntity;
+import org.dnd.track.TrackRepository;
+import org.dnd.track.TrackWindowEntity;
+import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;

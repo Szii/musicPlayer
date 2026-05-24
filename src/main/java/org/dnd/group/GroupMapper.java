@@ -1,8 +1,8 @@
 package org.dnd.group;
 
 import org.dnd.api.model.Group;
-import org.dnd.mappers.TrackMapper;
-import org.dnd.mappers.UserMapper;
+import org.dnd.track.TrackMapper;
+import org.dnd.user.UserMapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;

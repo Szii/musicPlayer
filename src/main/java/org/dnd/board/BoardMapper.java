@@ -4,8 +4,8 @@ import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.group.GroupMapper;
-import org.dnd.mappers.TrackMapper;
-import org.dnd.mappers.UserMapper;
+import org.dnd.track.TrackMapper;
+import org.dnd.user.UserMapper;
 import org.mapstruct.*;
 
 import java.util.List;

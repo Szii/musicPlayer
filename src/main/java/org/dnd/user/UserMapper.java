@@ -1,0 +1,32 @@
+package org.dnd.user;
+
+import org.dnd.api.model.User;
+import org.dnd.api.model.UserAuthDTO;
+import org.dnd.api.model.UserInfoLite;
+import org.dnd.api.model.UserRegisterRequest;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.ReportingPolicy;
+
+@Mapper(
+        componentModel = "spring",
+        unmappedTargetPolicy = ReportingPolicy.IGNORE
+)
+public interface UserMapper {
+  User toDto(UserEntity entity);
+
+
+  @Mapping(target = "id", source = "entity.id")
+  @Mapping(target = "name", source = "entity.name")
+  UserAuthDTO toAuthDto(UserEntity entity);
+
+
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "ownedTracks", ignore = true)
+  @Mapping(target = "ownedGroups", ignore = true)
+  @Mapping(target = "boards", ignore = true)
+  UserEntity fromRegisterRequest(UserRegisterRequest request);
+
+  UserInfoLite toLiteUserDto(UserEntity entity);
+
+}
