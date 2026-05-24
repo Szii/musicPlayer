@@ -2,13 +2,12 @@ package org.dnd.playback;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
-import org.dnd.api.model.PlayRequest;
-import org.dnd.api.model.PlaybackState;
-import org.dnd.api.model.PlaybackStatus;
-import org.dnd.api.model.SeekRequest;
+import org.dnd.api.model.*;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.security.JwtService;
+import org.dnd.session.SessionEntity;
+import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
@@ -59,6 +58,11 @@ class PlaybackControllerTest extends DatabaseBase {
   @MockitoBean
   private PlaybackService playbackService;
 
+  @Autowired
+  private SessionRepository sessionRepository;
+
+  private SessionEntity testSession;
+
   private UserEntity testUser;
   private String authToken;
   private BoardEntity board;
@@ -76,7 +80,13 @@ class PlaybackControllerTest extends DatabaseBase {
     testUser.setPassword("password");
     testUser = userRepository.save(testUser);
 
-    var userAuth = new org.dnd.api.model.UserAuthDTO();
+    testSession = new SessionEntity();
+    testSession.setName("Test Session");
+    testSession.setOwner(testUser);
+    testSession = sessionRepository.save(testSession);
+
+
+    var userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
     userAuth.setName(testUser.getName());
     authToken = jwtService.generateToken(userAuth);
@@ -95,6 +105,7 @@ class PlaybackControllerTest extends DatabaseBase {
     board.setRepeat(false);
     board.setOverplay(false);
     board.setSelectedTrack(track);
+    board.setSession(testSession);
     board = boardRepository.save(board);
   }
 

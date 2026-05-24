@@ -38,7 +38,6 @@ class UserControllerTest extends DatabaseBase {
   @Autowired
   private JwtService jwtService;
 
-
   @BeforeEach
   void setUp() {
     userRepository.deleteAll();

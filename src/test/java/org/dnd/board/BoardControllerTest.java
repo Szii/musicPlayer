@@ -58,10 +58,6 @@ class BoardControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    boardRepository.deleteAll();
-    sessionRepository.deleteAll();
-    userRepository.deleteAll();
-
     testUser = new UserEntity();
     testUser.setName("testUser");
     testUser.setPassword("password");
@@ -113,10 +109,13 @@ class BoardControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("Test Board"))
-            .andExpect(jsonPath("$.volume").value(75))
-            .andExpect(jsonPath("$.repeat").value(true))
-            .andExpect(jsonPath("$.overplay").value(false));
+            .andExpect(jsonPath("$.sessionId").value(testSession.getId()))
+            .andExpect(jsonPath("$.boards").isArray())
+            .andExpect(jsonPath("$.boards.length()").value(1))
+            .andExpect(jsonPath("$.boards[0].name").value("Test Board"))
+            .andExpect(jsonPath("$.boards[0].volume").value(75))
+            .andExpect(jsonPath("$.boards[0].repeat").value(true))
+            .andExpect(jsonPath("$.boards[0].overplay").value(false));
 
     assertFalse(boardRepository.findByOwner_Id(testUser.getId()).isEmpty());
   }
@@ -159,7 +158,8 @@ class BoardControllerTest extends DatabaseBase {
 
     mockMvc.perform(delete("/api/v1/boards/{boardId}", board.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
-            .andExpect(status().isNoContent());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards").isEmpty());
 
     assertFalse(boardRepository.existsById(board.getId()));
   }

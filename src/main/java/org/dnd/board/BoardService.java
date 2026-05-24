@@ -58,7 +58,7 @@ public class BoardService {
   }
 
   @Transactional
-  public Board createUserBoard(BoardCreateRequest request) {
+  public Long createUserBoard(BoardCreateRequest request) {
     Long userId = SecurityUtils.getCurrentUserId();
 
     log.debug("Creating board for user with id {}", userId);
@@ -83,17 +83,19 @@ public class BoardService {
 
     BoardEntity savedBoard = boardRepository.save(board);
 
-    return toEnrichedDto(savedBoard, userId);
+    return savedBoard.getId();
   }
 
   @Transactional
-  public void deleteUserBoard(Long boardId) {
+  public Long deleteUserBoard(Long boardId) {
     Long userId = SecurityUtils.getCurrentUserId();
     log.debug("Deleting board {} for user {}", boardId, userId);
-    if (!boardRepository.existsByIdAndOwner_Id(boardId, userId)) {
-      throw new NotFoundException(String.format("Board with id %d not found for user %d", boardId, userId));
-    }
-    boardRepository.deleteById(boardId);
+    BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
+            .orElseThrow(() -> new NotFoundException(
+                    String.format("Board with id %d not found for user %d", boardId, userId)
+            ));
+    boardRepository.delete(board);
+    return board.getSession().getId();
   }
 
   @Transactional

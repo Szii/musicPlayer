@@ -7,6 +7,8 @@ import org.dnd.api.model.PlaybackStatus;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
+import org.dnd.session.SessionEntity;
+import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowRepository;
@@ -37,6 +39,11 @@ class PlaybackServiceTest extends DatabaseBase {
   private UserRepository userRepository;
   @Autowired
   private TrackWindowRepository trackWindowRepository;
+  @Autowired
+  private SessionRepository sessionRepository;
+
+  private SessionEntity testSession;
+
 
   private BoardEntity board;
   private TrackEntity track;
@@ -62,6 +69,11 @@ class PlaybackServiceTest extends DatabaseBase {
     track.setTrackOriginalName("original name");
     track = trackRepository.save(track);
 
+    testSession = new SessionEntity();
+    testSession.setName("Test Session");
+    testSession.setOwner(user);
+    testSession = sessionRepository.save(testSession);
+
     board = new BoardEntity();
     board.setOwner(user);
     board.setName("Test Board");
@@ -69,6 +81,7 @@ class PlaybackServiceTest extends DatabaseBase {
     board.setRepeat(false);
     board.setOverplay(false);
     board.setSelectedTrack(track);
+    board.setSession(testSession);
     board = boardRepository.save(board);
 
     UserAuthDTO userAuth = new UserAuthDTO();

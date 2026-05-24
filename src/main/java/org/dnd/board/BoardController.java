@@ -7,6 +7,7 @@ import org.dnd.api.MusicBoardsApi;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
+import org.dnd.api.model.SessionResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,6 +22,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BoardController implements MusicBoardsApi {
   private final BoardService boardService;
+  private final BoardSessionApplicationService boardSessionApplicationService;
 
   @Override
   @RateLimiting(
@@ -42,8 +44,8 @@ public class BoardController implements MusicBoardsApi {
           cacheKey = "@rateLimitKeyResolver.currentUserKey()",
           ratePerMethod = true
   )
-  public ResponseEntity<Board> createUserBoard(BoardCreateRequest boardRequest) {
-    return ResponseEntity.ok(boardService.createUserBoard(boardRequest));
+  public ResponseEntity<SessionResponse> createUserBoard(BoardCreateRequest boardRequest) {
+    return ResponseEntity.ok(boardSessionApplicationService.createBoardAndReturnSession(boardRequest));
   }
 
   @Override
@@ -52,9 +54,8 @@ public class BoardController implements MusicBoardsApi {
           cacheKey = "@rateLimitKeyResolver.currentUserKey()",
           ratePerMethod = true
   )
-  public ResponseEntity<Void> deleteUserBoard(Long boardId) {
-    boardService.deleteUserBoard(boardId);
-    return ResponseEntity.noContent().build();
+  public ResponseEntity<SessionResponse> deleteUserBoard(Long boardId) {
+    return ResponseEntity.ok(boardSessionApplicationService.deleteBoardAndReturnSession(boardId));
   }
 
   @Override

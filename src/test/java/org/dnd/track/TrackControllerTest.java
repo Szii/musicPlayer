@@ -244,6 +244,8 @@ class TrackControllerTest extends DatabaseBase {
             .fadeIn(false)
             .fadeOut(true);
 
+    System.out.println("track windows size" + trackWindowRepository.findByTrack_Id(track.getId()).size());
+
     mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), point.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
