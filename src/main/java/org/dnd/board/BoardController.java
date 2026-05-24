@@ -1,4 +1,4 @@
-package org.dnd.controller;
+package org.dnd.board;
 
 import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -7,7 +7,6 @@ import org.dnd.api.MusicBoardsApi;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
-import org.dnd.service.BoardService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;

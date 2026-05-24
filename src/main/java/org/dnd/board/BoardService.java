@@ -1,4 +1,4 @@
-package org.dnd.service;
+package org.dnd.board;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,13 +8,10 @@ import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.Track;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
-import org.dnd.mappers.BoardMapper;
 import org.dnd.mappers.TrackMapper;
-import org.dnd.model.BoardEntity;
 import org.dnd.model.GroupEntity;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.repository.BoardRepository;
 import org.dnd.repository.GroupRepository;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.UserRepository;

@@ -2,10 +2,10 @@ package org.dnd.service.playback;
 
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.model.PlayRequest;
-import org.dnd.model.BoardEntity;
+import org.dnd.board.BoardEntity;
+import org.dnd.board.BoardRepository;
 import org.dnd.model.TrackEntity;
 import org.dnd.model.UserEntity;
-import org.dnd.repository.BoardRepository;
 import org.dnd.repository.TrackRepository;
 import org.dnd.repository.TrackWindowRepository;
 import org.dnd.repository.UserRepository;
