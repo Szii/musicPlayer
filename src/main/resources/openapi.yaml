@@ -1781,6 +1781,22 @@ paths:
             description: Session not found for update
 
   /sessions/{sessionId}:
+    get:
+      tags:
+        - Sessions
+      summary: Get a session by id
+      operationId: getSessionById
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Successfully retrieved session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session not found
     delete:
       tags:
         - Sessions
