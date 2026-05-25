@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.UserAuthDTO;
+import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
@@ -241,7 +242,8 @@ class BoardControllerTest extends DatabaseBase {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
   }
 
   @Test

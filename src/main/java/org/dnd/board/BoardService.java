@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
-import org.dnd.exception.ForbiddenException;
+import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
@@ -72,12 +72,12 @@ public class BoardService {
             ));
 
     if (!userRankEvaluatorService.canCreateBoard(owner)) {
-      throw new ForbiddenException("Board limit reached");
+      throw new LimitReachedException("Board limit reached");
     }
 
     BoardEntity board = boardMapper.toEntity(request);
     board.setOwner(owner);
-    
+
     SessionEntity session = sessionRepository.findByIdAndOwner_Id(request.getSessionId(), userId)
             .orElseThrow(() -> new NotFoundException(
                     String.format("Session with id %d not found for user %d", request.getSessionId(), userId)

@@ -6,6 +6,7 @@ import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
+import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
@@ -59,7 +60,7 @@ public class TrackService {
     UserEntity owner = userRepository.getReferenceById(userId);
 
     if (!userRankEvaluatorService.canCreateTrack(owner)) {
-      throw new ForbiddenException("Track limit reached");
+      throw new LimitReachedException("Track limit reached");
     }
 
     TrackEntity track = mapper.toEntity(trackRequest);
