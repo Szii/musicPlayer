@@ -77,7 +77,7 @@ public class BoardService {
 
     BoardEntity board = boardMapper.toEntity(request);
     board.setOwner(owner);
-
+    
     SessionEntity session = sessionRepository.findByIdAndOwner_Id(request.getSessionId(), userId)
             .orElseThrow(() -> new NotFoundException(
                     String.format("Session with id %d not found for user %d", request.getSessionId(), userId)
@@ -90,7 +90,7 @@ public class BoardService {
 
     BoardEntity savedBoard = boardRepository.save(board);
 
-    return savedBoard.getId();
+    return savedBoard.getSession().getId();
   }
 
   @Transactional

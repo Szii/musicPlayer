@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.SessionsApi;
 import org.dnd.api.model.SessionRequest;
+import org.dnd.api.model.SessionResponse;
 import org.dnd.api.model.SessionsResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -27,6 +28,11 @@ public class SessionController implements SessionsApi {
     return ResponseEntity.ok(sessionService.deleteSession(sessionId));
   }
 
+  @Override
+  public ResponseEntity<SessionResponse> getSessionById(Long sessionId) {
+    return ResponseEntity.ok(sessionService.getSession(sessionId));
+  }
+  
   @Override
   @RateLimiting(
           name = "default-api",
