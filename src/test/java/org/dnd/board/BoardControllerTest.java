@@ -14,6 +14,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -216,6 +217,31 @@ class BoardControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void createUserBoard_isForbidden_WhenBoardLimitReached() throws Exception {
+    for (int i = 0; i < UserRankLimits.normal().maxGroups(); i++) {
+      BoardEntity board = new BoardEntity();
+      board.setName("Board " + i);
+      board.setOwner(testUser);
+      board.setVolume(50);
+      board.setSession(testSession);
+      boardRepository.save(board);
+    }
+
+    BoardCreateRequest request = new BoardCreateRequest()
+            .volume(75)
+            .repeat(true)
+            .overplay(false)
+            .sessionId(testSession.getId())
+            .name("Excess Board");
+
+    mockMvc.perform(post("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
   }
 
   @Test

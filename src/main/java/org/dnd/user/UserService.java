@@ -9,6 +9,7 @@ import org.dnd.exception.NotFoundException;
 import org.dnd.exception.UnauthorizedException;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +24,7 @@ public class UserService {
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
   private final LoginThrottleService loginThrottleService;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
   @Transactional
   public AuthResponse registerUser(UserRegisterRequest request) {
@@ -69,9 +71,10 @@ public class UserService {
     UserEntity user = userRepository.findById(userAuth.getId())
             .orElseThrow(() -> new NotFoundException("User not found"));
 
-    return userMapper.toDto(user);
+    User userResponse = userMapper.toDto(user);
+    userResponse.setLimits(userRankEvaluatorService.getLimitsForUser(user));
+    return userResponse;
   }
-
 
   private AuthResponse createAuthResponse(UserEntity user) {
     AuthResponse response = new AuthResponse();

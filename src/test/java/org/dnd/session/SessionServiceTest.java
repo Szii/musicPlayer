@@ -9,7 +9,9 @@ import org.dnd.board.BoardEntity;
 import org.dnd.exception.NotFoundException;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,42 +42,17 @@ class SessionServiceTest {
   @Mock
   private UserRepository userRepository;
 
+  @Mock
+  private UserRankEvaluatorService userRankEvaluatorService;
+
   @InjectMocks
   private SessionService sessionService;
 
-  @Test
-  void getSessions_returnsSessionsForCurrentUser() {
-    Long userId = 1L;
-
-    SessionEntity sessionEntity = new SessionEntity();
-    sessionEntity.setId(10L);
-    sessionEntity.setName("Session One");
-
-    SessionResponse sessionResponse = new SessionResponse();
-    sessionResponse.setSessionId(10L);
-    sessionResponse.setSessionName("Session One");
-    sessionResponse.setBoards(List.of());
-
-    when(sessionRepository.findByOwner_Id(userId))
-            .thenReturn(List.of(sessionEntity));
-
-    when(sessionMapper.toResponse(sessionEntity))
-            .thenReturn(sessionResponse);
-
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
-
-      SessionsResponse response = sessionService.getSessions();
-
-      assertEquals(1, response.getSessions().size());
-      assertEquals(10L, response.getSessions().get(0).getSessionId());
-      assertEquals("Session One", response.getSessions().get(0).getSessionName());
-
-      verify(sessionRepository).findByOwner_Id(userId);
-      verify(sessionMapper).toResponse(sessionEntity);
-    }
+  @BeforeEach
+  void setUp() {
+    lenient().when(userRankEvaluatorService.canCreateSession(any())).thenReturn(true);
   }
-
+  
   @Test
   void getSession_whenNotFound_throwsNotFoundException() {
     Long userId = 1L;

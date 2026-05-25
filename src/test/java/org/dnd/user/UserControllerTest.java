@@ -140,8 +140,31 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(get("/api/v1/users/me")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("testUser"));
+            .andExpect(jsonPath("$.name").value("testUser"))
+            .andExpect(jsonPath("$.limits.level").value("NORMAL"))
 
+            .andExpect(jsonPath("$.limits.tracks.actualTracks").value(0))
+            .andExpect(jsonPath("$.limits.tracks.maxTracks").value(10))
+            .andExpect(jsonPath("$.limits.tracks.trackLimitReached").value(false))
+
+            .andExpect(jsonPath("$.limits.boards.actualBoards").value(0))
+            .andExpect(jsonPath("$.limits.boards.maxBoards").value(3))
+            .andExpect(jsonPath("$.limits.boards.boardLimitReached").value(false))
+
+            .andExpect(jsonPath("$.limits.groups.actualGroups").value(0))
+            .andExpect(jsonPath("$.limits.groups.maxGroups").value(5))
+            .andExpect(jsonPath("$.limits.groups.groupLimitReached").value(false))
+
+            .andExpect(jsonPath("$.limits.sessions.actualSessions").value(0))
+            .andExpect(jsonPath("$.limits.sessions.maxSessions").value(5))
+            .andExpect(jsonPath("$.limits.sessions.sessionLimitReached").value(false))
+
+            .andExpect(jsonPath("$.limits.subscribes.actualSubscribes").value(0))
+            .andExpect(jsonPath("$.limits.subscribes.maxSubscribes").value(10))
+            .andExpect(jsonPath("$.limits.subscribes.subscribeLimitReached").value(false))
+
+            .andExpect(jsonPath("$.limits.windows").isArray())
+            .andExpect(jsonPath("$.limits.windows").isEmpty());
   }
 
 

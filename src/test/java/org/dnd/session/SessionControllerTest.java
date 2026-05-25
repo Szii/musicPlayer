@@ -7,6 +7,7 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,6 +81,24 @@ class SessionControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.sessions[0].sessionDescription").value("First session"))
             .andExpect(jsonPath("$.sessions[1].sessionName").value("Session Two"))
             .andExpect(jsonPath("$.sessions[1].sessionDescription").value("Second session"));
+  }
+
+  @Test
+  void createSession_ReturnsForbidden_WhenLimitIsReached() throws Exception {
+
+    for (int i = 0; i < UserRankLimits.normal().maxSessions(); i++) {
+      createSession("Session One", "First session");
+    }
+
+    SessionRequest request = new SessionRequest()
+            .sessionName("My Session")
+            .sessionDescription("My session description");
+
+    mockMvc.perform(post("/api/v1/sessions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isForbidden());
   }
 
   @Test

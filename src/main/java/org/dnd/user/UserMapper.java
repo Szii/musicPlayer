@@ -13,8 +13,8 @@ import org.mapstruct.ReportingPolicy;
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface UserMapper {
+  @Mapping(target = "limits", ignore = true)
   User toDto(UserEntity entity);
-
 
   @Mapping(target = "id", source = "entity.id")
   @Mapping(target = "name", source = "entity.name")

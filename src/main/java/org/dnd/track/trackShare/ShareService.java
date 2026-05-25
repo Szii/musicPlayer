@@ -14,6 +14,7 @@ import org.dnd.track.TrackMapper;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class ShareService {
   private final GroupRepository groupRepository;
   private final TrackMapper trackMapper;
   private final ShareMapper shareMapper;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
 
   @Transactional
@@ -68,6 +70,10 @@ public class ShareService {
 
     UserEntity user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
+
+    if (!userRankEvaluatorService.canSubscribeToTrack(user)) {
+      throw new ForbiddenException("Subscription limit reached");
+    }
 
     user.getShares().add(trackShare);
     trackShare.getUsers().add(user);

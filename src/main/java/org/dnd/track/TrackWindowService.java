@@ -9,6 +9,7 @@ import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +21,7 @@ public class TrackWindowService {
   private final TrackWindowMapper trackWindowMapper;
   private final TrackWindowRepository trackWindowRepository;
   private final TrackMapper trackMapper;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
   @Transactional
   public Track deleteTrackWindow(Long trackId, Long windowId) {
@@ -72,6 +74,10 @@ public class TrackWindowService {
 
     if (!track.getOwner().getId().equals(userId)) {
       throw new ForbiddenException("You can only create track windows on your own tracks");
+    }
+
+    if (!userRankEvaluatorService.canCreateTrackWindowForTrack(track.getOwner(), track)) {
+      throw new ForbiddenException("Track window limit reached");
     }
 
     if (trackWindowRequest.getPositionFrom() < 0 || trackWindowRequest.getPositionTo() > track.getDuration()) {

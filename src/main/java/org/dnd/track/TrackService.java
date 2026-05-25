@@ -12,6 +12,7 @@ import org.dnd.group.GroupRepository;
 import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +31,7 @@ public class TrackService {
   private final TrackMapper mapper;
   private final BoardRepository boardRepository;
   private final GroupRepository groupRepository;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
   @Transactional
   public void deleteTrack(Long trackId) {
@@ -54,10 +56,15 @@ public class TrackService {
   public Track addTrack(TrackRequest trackRequest) {
     log.debug("Adding track {}", trackRequest);
     Long userId = SecurityUtils.getCurrentUserId();
+    UserEntity owner = userRepository.getReferenceById(userId);
+
+    if (!userRankEvaluatorService.canCreateTrack(owner)) {
+      throw new ForbiddenException("Track limit reached");
+    }
 
     TrackEntity track = mapper.toEntity(trackRequest);
     setTrackMetadata(track, trackRequest);
-    track.setOwner(userRepository.getReferenceById(userId));
+    track.setOwner(owner);
 
     return mapper.toDto(trackRepository.save(track), userId);
   }

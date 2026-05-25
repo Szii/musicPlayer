@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
@@ -14,6 +15,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
+import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +33,7 @@ public class BoardService {
   private final BoardMapper boardMapper;
   private final BoardEnricher boardEnricher;
   private final SessionRepository sessionRepository;
+  private final UserRankEvaluatorService userRankEvaluatorService;
 
   @Transactional(readOnly = true)
   public List<Board> getUserBoards() {
@@ -67,6 +70,10 @@ public class BoardService {
             .orElseThrow(() -> new NotFoundException(
                     String.format("User with id %d not found", userId)
             ));
+
+    if (!userRankEvaluatorService.canCreateBoard(owner)) {
+      throw new ForbiddenException("Board limit reached");
+    }
 
     BoardEntity board = boardMapper.toEntity(request);
     board.setOwner(owner);
