@@ -6,7 +6,7 @@ import org.dnd.api.model.SessionResponse;
 import org.dnd.api.model.SessionsResponse;
 import org.dnd.board.BoardEnricher;
 import org.dnd.board.BoardEntity;
-import org.dnd.exception.ForbiddenException;
+import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
@@ -65,7 +65,7 @@ public class SessionService {
             .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
 
     if (!userRankEvaluatorService.canCreateSession(user)) {
-      throw new ForbiddenException("Session limit reached");
+      throw new LimitReachedException("Session limit reached");
     }
 
     sessionEntity.setOwner(user);

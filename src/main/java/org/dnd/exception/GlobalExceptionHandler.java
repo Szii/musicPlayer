@@ -10,40 +10,81 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @ControllerAdvice
 public class GlobalExceptionHandler {
   @ExceptionHandler(ConflictException.class)
-  public ResponseEntity<String> handleConflictException(ConflictException e) {
-    return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+  public ResponseEntity<ErrorResponse> handleConflictException(ConflictException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
   }
 
   @ExceptionHandler(UnauthorizedException.class)
-  public ResponseEntity<String> handleUnauthorizedException(UnauthorizedException e) {
-    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+  public ResponseEntity<ErrorResponse> handleUnauthorizedException(UnauthorizedException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
   }
 
   @ExceptionHandler(NotFoundException.class)
-  public ResponseEntity<String> handleNotFoundException(NotFoundException e) {
-    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+  public ResponseEntity<ErrorResponse> handleNotFoundException(NotFoundException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
   }
 
   @ExceptionHandler(ForbiddenException.class)
-  public ResponseEntity<String> handleForbidden(ForbiddenException e) {
-    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+  public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(response);
   }
 
   @ExceptionHandler(BadRequestException.class)
-  public ResponseEntity<String> handleBadRequest(BadRequestException e) {
-    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+  public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
   }
 
   @ExceptionHandler(RateLimitException.class)
-  public ResponseEntity<String> handleRateLimit(RateLimitException e) {
-    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(e.getMessage());
+  public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitException e) {
+    ErrorResponse response = new ErrorResponse(
+            "TOO_MANY_REQUESTS",
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(response);
   }
 
   @ExceptionHandler(LoginThrottledException.class)
-  public ResponseEntity<String> handleLoginThrottled(LoginThrottledException e) {
+  public ResponseEntity<ErrorResponse> handleLoginThrottled(LoginThrottledException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
     return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
             .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds()))
-            .body(e.getMessage());
+            .body(response);
+  }
+
+  @ExceptionHandler(LimitReachedException.class)
+  public ResponseEntity<ErrorResponse> handleLoginThrottled(LimitReachedException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.FORBIDDEN)
+            .body(response);
   }
 
 }

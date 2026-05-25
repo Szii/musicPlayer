@@ -8,6 +8,7 @@ import org.dnd.api.model.TrackWindow;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ForbiddenException;
+import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
@@ -77,7 +78,7 @@ public class TrackWindowService {
     }
 
     if (!userRankEvaluatorService.canCreateTrackWindowForTrack(track.getOwner(), track)) {
-      throw new ForbiddenException("Track window limit reached");
+      throw new LimitReachedException("Track window limit reached");
     }
 
     if (trackWindowRequest.getPositionFrom() < 0 || trackWindowRequest.getPositionTo() > track.getDuration()) {

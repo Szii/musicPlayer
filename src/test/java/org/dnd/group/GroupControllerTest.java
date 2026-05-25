@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.GroupRequest;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.board.BoardRepository;
+import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
@@ -152,7 +153,9 @@ class GroupControllerTest extends DatabaseBase {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(groupRequest)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
+
   }
 
   @Test

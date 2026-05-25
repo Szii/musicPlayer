@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.api.model.SessionRequest;
 import org.dnd.api.model.UserAuthDTO;
+import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
@@ -98,7 +99,8 @@ class SessionControllerTest extends DatabaseBase {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
   }
 
   @Test

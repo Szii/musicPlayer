@@ -6,6 +6,7 @@ import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.board.BoardRepository;
+import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
@@ -230,7 +231,8 @@ class TrackControllerTest extends DatabaseBase {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
   }
 
   @Test
@@ -247,7 +249,8 @@ class TrackControllerTest extends DatabaseBase {
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
   }
 
   @Test

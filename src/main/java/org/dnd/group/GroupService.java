@@ -6,6 +6,7 @@ import org.dnd.api.model.Group;
 import org.dnd.api.model.GroupRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
+import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
@@ -45,7 +46,7 @@ public class GroupService {
             .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
 
     if (!userRankEvaluatorService.canCreateGroup(owner)) {
-      throw new ForbiddenException("Group limit reached");
+      throw new LimitReachedException("Group limit reached");
     }
 
     GroupEntity group = new GroupEntity();

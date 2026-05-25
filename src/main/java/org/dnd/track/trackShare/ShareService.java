@@ -6,6 +6,7 @@ import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackShareResponse;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
+import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
@@ -72,7 +73,7 @@ public class ShareService {
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
     if (!userRankEvaluatorService.canSubscribeToTrack(user)) {
-      throw new ForbiddenException("Subscription limit reached");
+      throw new LimitReachedException("Subscription limit reached");
     }
 
     user.getShares().add(trackShare);

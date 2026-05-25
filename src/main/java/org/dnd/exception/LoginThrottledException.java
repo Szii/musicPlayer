@@ -4,6 +4,7 @@ import lombok.Getter;
 
 @Getter
 public class LoginThrottledException extends RuntimeException {
+
   private final long retryAfterSeconds;
 
   public LoginThrottledException(String message, long retryAfterSeconds) {
@@ -11,4 +12,12 @@ public class LoginThrottledException extends RuntimeException {
     this.retryAfterSeconds = retryAfterSeconds;
   }
 
+  public String getCode() {
+    return ErrorCode.TOO_MANY_ATTEMPTS.getCode();
+  }
+
+  public long getRetryAfterSeconds() {
+    return retryAfterSeconds;
+  }
 }
+
