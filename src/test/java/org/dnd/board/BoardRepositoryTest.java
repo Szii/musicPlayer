@@ -4,6 +4,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,9 +31,7 @@ class BoardRepositoryTest extends DatabaseBase {
 
   @Test
   void saveAndFindBoardsByOwner() {
-    UserEntity owner = new UserEntity();
-    owner.setName("boardOwner");
-    owner.setPassword("pw");
+    UserEntity owner = UserHelper.createValidatedUser("boardOwner", "pw", "user@email.cz");
     owner = userRepository.save(owner);
 
 

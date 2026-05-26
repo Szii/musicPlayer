@@ -109,6 +109,10 @@ components:
           type: string
           description: Unique username
           example: "user"
+        email:
+          type: string
+          description: Unique email address of the user
+          example: "user@email.com"
         limits:
           $ref: '#/components/schemas/UserLimits'
 
@@ -125,6 +129,10 @@ components:
           type: string
           description: Unique username
           example: "user"
+        email:
+          type: string
+          description: Unique email address of the user
+          example: "user@email.com"
 
     UserLimits:
       type: object
@@ -259,11 +267,16 @@ components:
       required:
         - name
         - password
+        - email
       properties:
         name:
           type: string
           description: Desired username (must be unique)
-          example: "bruno"
+          example: "user"
+        email:
+          type: string
+          description: Unique email address of the user
+          example: "user@email.com"
         password:
           type: string
           format: password
@@ -292,12 +305,16 @@ components:
       required:
         - id
         - name
+        - email
       properties:
         id:
           type: integer
           format: int64
         name:
           type: string
+        email:
+          type: string
+          format: email
 
     AuthResponse:
       type: object

@@ -10,6 +10,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
@@ -240,9 +241,7 @@ class ShareControllerTest extends DatabaseBase {
   }
 
   private UserEntity createUser(String name) {
-    UserEntity u = new UserEntity();
-    u.setName(name);
-    u.setPassword("password");
+    UserEntity u = UserHelper.createValidatedUser(name, "password", name + "user@email.com");
     return userRepository.saveAndFlush(u);
   }
 
@@ -271,6 +270,7 @@ class ShareControllerTest extends DatabaseBase {
     UserAuthDTO dto = new UserAuthDTO();
     dto.setId(user.getId());
     dto.setName(user.getName());
+    dto.setEmail(user.getEmail());
     return jwtService.generateToken(dto);
   }
 }

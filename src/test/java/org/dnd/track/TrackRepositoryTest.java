@@ -6,6 +6,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,14 +33,10 @@ class TrackRepositoryTest extends DatabaseBase {
   @Test
   @Transactional
   void ownerAndViewerAccessibleTracks() {
-    UserEntity owner = new UserEntity();
-    owner.setName("owner");
-    owner.setPassword("pw");
+    UserEntity owner = UserHelper.createValidatedUser("owner", "pw", "email@email.com");
     owner = userRepository.save(owner);
 
-    UserEntity viewer = new UserEntity();
-    viewer.setName("viewer");
-    viewer.setPassword("pw");
+    UserEntity viewer = UserHelper.createValidatedUser("viewer", "pw", "email@email.com");
     viewer = userRepository.save(viewer);
 
     GroupEntity group = new GroupEntity();

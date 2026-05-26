@@ -7,6 +7,7 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +50,7 @@ class SessionControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    testUser = new UserEntity();
+    testUser = UserHelper.createValidatedUser("testUser", "password", "email@email.com");
     testUser.setName("testUser");
     testUser.setPassword("password");
     testUser = userRepository.save(testUser);
@@ -57,6 +58,7 @@ class SessionControllerTest extends DatabaseBase {
     UserAuthDTO userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
     userAuth.setName(testUser.getName());
+    userAuth.setEmail(testUser.getEmail());
 
     authToken = jwtService.generateToken(userAuth);
   }
@@ -179,9 +181,7 @@ class SessionControllerTest extends DatabaseBase {
 
   @Test
   void updateSession_WrongUser_NotFound() throws Exception {
-    UserEntity otherUser = new UserEntity();
-    otherUser.setName("otherUser");
-    otherUser.setPassword("password");
+    UserEntity otherUser = UserHelper.createValidatedUser("otherUser", "password", "email@email.cz");
     otherUser = userRepository.save(otherUser);
 
     SessionEntity otherUserSession = new SessionEntity();
@@ -204,7 +204,7 @@ class SessionControllerTest extends DatabaseBase {
 
   @Test
   void deleteSession_WrongUser_NotFound() throws Exception {
-    UserEntity otherUser = new UserEntity();
+    UserEntity otherUser = UserHelper.createValidatedUser("otherUser", "password", "email@email.cz");
     otherUser.setName("otherUser");
     otherUser.setPassword("password");
     otherUser = userRepository.save(otherUser);

@@ -3,6 +3,7 @@ package org.dnd.group;
 import jakarta.transaction.Transactional;
 import org.dnd.DatabaseBase;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,9 +28,7 @@ class GroupRepositoryTest extends DatabaseBase {
   @Test
   @Transactional
   void ownerSeesOwnGroups() {
-    UserEntity owner = new UserEntity();
-    owner.setName("owner");
-    owner.setPassword("pw");
+    UserEntity owner = UserHelper.createValidatedUser("owner", "pw", "email@email.com");
     owner = userRepository.save(owner);
 
     GroupEntity group1 = new GroupEntity();

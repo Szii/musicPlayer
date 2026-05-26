@@ -4,9 +4,10 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
-import org.dnd.exception.ConflictException;
+import org.dnd.exception.EmailAlreadyExistsException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.exception.UnauthorizedException;
+import org.dnd.exception.UserAlreadyExistsException;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
 import org.dnd.user.rank.UserRankEvaluatorService;
@@ -30,9 +31,14 @@ public class UserService {
   public AuthResponse registerUser(UserRegisterRequest request) {
     log.debug("Registering new user with name: {}", request.getName());
 
-    if (userRepository.findByName(request.getName()).isPresent()) {
-      log.debug("ser with name: {} already exists", request.getName());
-      throw new ConflictException("Username already exists");
+    if (userRepository.existsByName(request.getName())) {
+      log.debug("User with name: {} already exists", request.getName());
+      throw new UserAlreadyExistsException("Username already exists");
+    }
+
+    if (userRepository.existsByEmail(request.getEmail())) {
+      log.debug("User with email: {} already exists", request.getEmail());
+      throw new EmailAlreadyExistsException("Email already exists");
     }
 
     UserEntity user = userMapper.fromRegisterRequest(request);
@@ -82,7 +88,6 @@ public class UserService {
     response.setToken(generateToken(userMapper.toAuthDto(user)));
     return response;
   }
-
 
   private String generateToken(UserAuthDTO user) {
     return jwtService.generateToken(user);

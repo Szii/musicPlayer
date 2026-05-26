@@ -3,6 +3,7 @@ package org.dnd.track;
 import jakarta.transaction.Transactional;
 import org.dnd.DatabaseBase;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,9 +30,7 @@ class TrackWindowRepositoryTest extends DatabaseBase {
   @Test
   @Transactional
   void createUpdateAndDeleteTrackWindow() {
-    UserEntity owner = new UserEntity();
-    owner.setName("owner2");
-    owner.setPassword("pw");
+    UserEntity owner = UserHelper.createValidatedUser("owner", "pw", "user@email.com");
     owner = userRepository.save(owner);
 
     TrackEntity track = new TrackEntity();

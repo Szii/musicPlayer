@@ -14,6 +14,7 @@ import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankLimits;
 import org.hamcrest.Matchers;
@@ -60,9 +61,7 @@ class BoardControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    testUser = new UserEntity();
-    testUser.setName("testUser");
-    testUser.setPassword("password");
+    testUser = UserHelper.createValidatedUser("testUser", "password", "email@email.cz");
     testUser = userRepository.save(testUser);
 
     testSession = new SessionEntity();
@@ -74,6 +73,7 @@ class BoardControllerTest extends DatabaseBase {
     UserAuthDTO userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
     userAuth.setName(testUser.getName());
+    userAuth.setName(testUser.getEmail());
     authToken = jwtService.generateToken(userAuth);
   }
 
@@ -188,9 +188,7 @@ class BoardControllerTest extends DatabaseBase {
 
   @Test
   void getUserBoards_WrongUser() throws Exception {
-    UserEntity otherUser = new UserEntity();
-    otherUser.setName("otherUser");
-    otherUser.setPassword("password");
+    UserEntity otherUser = UserHelper.createValidatedUser("otherUser", "password", "otheruser@email.com");
     otherUser = userRepository.save(otherUser);
 
     BoardEntity board = new BoardEntity();

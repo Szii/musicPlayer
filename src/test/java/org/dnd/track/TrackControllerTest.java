@@ -11,6 +11,7 @@ import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
@@ -308,11 +309,8 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows", is(empty())));
   }
 
-
   private UserEntity createUser(String name) {
-    UserEntity u = new UserEntity();
-    u.setName(name);
-    u.setPassword("password");
+    UserEntity u = UserHelper.createValidatedUser(name, "password", "user@email.com");
     return userRepository.save(u);
   }
 
@@ -349,11 +347,11 @@ class TrackControllerTest extends DatabaseBase {
     return trackWindowRepository.save(p);
   }
 
-
   private String getTokenForUser(UserEntity user) {
     UserAuthDTO dto = new UserAuthDTO();
     dto.setId(user.getId());
     dto.setName(user.getName());
+    dto.setEmail(user.getEmail());
     return jwtService.generateToken(dto);
   }
 }

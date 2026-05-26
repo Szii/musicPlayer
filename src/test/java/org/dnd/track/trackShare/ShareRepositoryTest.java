@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -40,9 +41,7 @@ class ShareRepositoryTest extends DatabaseBase {
     trackRepository.deleteAll();
     userRepository.deleteAll();
 
-    testUser = new UserEntity();
-    testUser.setName("testUser_" + System.currentTimeMillis());
-    testUser.setPassword("password");
+    testUser = UserHelper.createValidatedUser("testUser_" + System.currentTimeMillis(), "password", "user@email.com");
     testUser = userRepository.save(testUser);
 
     testTrack = new TrackEntity();

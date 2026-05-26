@@ -20,7 +20,6 @@ public interface UserMapper {
   @Mapping(target = "name", source = "entity.name")
   UserAuthDTO toAuthDto(UserEntity entity);
 
-
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "ownedTracks", ignore = true)
   @Mapping(target = "ownedGroups", ignore = true)

@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.AuthResponse;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
+import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,6 +51,7 @@ class UserControllerTest extends DatabaseBase {
   void registerUser_Success() throws Exception {
     UserRegisterRequest request = new UserRegisterRequest()
             .name("testUser")
+            .email("user@email.cz")
             .password("password123");
 
     MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
@@ -57,13 +62,18 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.token").exists())
             .andReturn();
 
-    assertTrue(userRepository.findByName("testUser").isPresent());
+    Optional<UserEntity> user = userRepository.findByName(request.getName());
+
+    assertTrue(user.isPresent());
+    assertTrue(userRepository.existsByEmail(request.getEmail()));
+    assertFalse(user.get().isEmailVerified());
   }
 
   @Test
   void registerUser_DuplicateUsername() throws Exception {
     UserRegisterRequest request = new UserRegisterRequest()
             .name("testUser")
+            .email("user@email.cz")
             .password("password123");
 
     mockMvc.perform(post("/api/v1/auth/register")
@@ -74,13 +84,37 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isConflict());
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value(ErrorCode.USER_ALREADY_EXISTS.getCode()));
+    ;
+  }
+
+  @Test
+  void registerUser_DuplicateEmail() throws Exception {
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name("testUser")
+            .email("user@email.cz")
+            .password("password123");
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isCreated());
+
+    request.setName("anotherUser");
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.code").value(ErrorCode.EMAIL_ALREADY_EXISTS.getCode()));
   }
 
   @Test
   void loginUser_Success() throws Exception {
     UserRegisterRequest registerRequest = new UserRegisterRequest()
             .name("testUser")
+            .email("user@email.cz")
             .password("password123");
 
     mockMvc.perform(post("/api/v1/auth/register")
@@ -104,12 +138,14 @@ class UserControllerTest extends DatabaseBase {
   void loginUser_InvalidCredentials() throws Exception {
     UserRegisterRequest registerRequest = new UserRegisterRequest()
             .name("testUser")
+            .email("user@email.cz")
             .password("password123");
 
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(registerRequest)))
             .andExpect(status().isCreated());
+
 
     UserLoginRequest loginRequest = new UserLoginRequest()
             .name("testUser")
@@ -118,13 +154,17 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest)))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
+    ;
+    ;
   }
 
   @Test
   void getCurrentUser_Success() throws Exception {
     UserRegisterRequest registerRequest = new UserRegisterRequest()
             .name("testUser")
+            .email("email@email.com")
             .password("password123");
 
     MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
