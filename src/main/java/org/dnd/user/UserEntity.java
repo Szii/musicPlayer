@@ -49,6 +49,10 @@ public class UserEntity {
   @Builder.Default
   private boolean emailVerified = false;
 
+  @Column
+  @Builder.Default
+  private String verificationToken = null;
+
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
           name = "user_shares",

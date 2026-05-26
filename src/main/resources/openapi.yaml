@@ -66,6 +66,15 @@ components:
         format: int64
         example: 1
 
+    VerificationToken:
+      name: verificationToken
+      in: path
+      required: true
+      description: Token for verifying user registration
+      schema:
+        type: string
+        example: "abc123"
+
     SessionId:
       name: sessionId
       in: path
@@ -924,6 +933,22 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
           description: Invalid username or password
+
+  /auth/verify/{verificationToken}:
+    post:
+      tags:
+        - Users
+      summary: Verify register user against the token
+      operationId: verifyUserToken
+      parameters:
+        - $ref: '#/components/parameters/VerificationToken'
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid username or password
+        '404':
+          description: User not found
 
   /users/me:
     get:

@@ -44,6 +44,10 @@ public class RateLimitKeyResolver {
     return request.getRemoteAddr();
   }
 
+  public String verifyEmailKey(String verificationToken) {
+    return "verify-email:" + clientIp();
+  }
+
   private String normalize(String value) {
     return value == null ? "anonymous" : value.trim().toLowerCase();
   }

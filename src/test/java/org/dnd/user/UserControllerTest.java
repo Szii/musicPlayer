@@ -19,8 +19,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -112,19 +111,28 @@ class UserControllerTest extends DatabaseBase {
 
   @Test
   void loginUser_Success() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+
     UserRegisterRequest registerRequest = new UserRegisterRequest()
-            .name("testUser")
-            .email("user@email.cz")
-            .password("password123");
+            .name(username)
+            .email(email)
+            .password(password);
 
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(registerRequest)))
             .andExpect(status().isCreated());
 
+    userRepository.findByName(username).ifPresent(user -> {
+      user.setEmailVerified(true);
+      userRepository.save(user);
+    });
+
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name("testUser")
-            .password("password123");
+            .name(username)
+            .password(password);
 
     mockMvc.perform(post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -133,6 +141,75 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.user.name").value("testUser"))
             .andExpect(jsonPath("$.token").exists());
   }
+
+  @Test
+  void loginUser_emailNotVerified() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name(username)
+            .email(email)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
+
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name(username)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void verifyEmail_registerToLoginFlowSuccess() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name(username)
+            .email(email)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
+
+    UserEntity registeredUser = userRepository.findByName(username).orElseThrow();
+    String token = registeredUser.getVerificationToken();
+
+    assertFalse(registeredUser.isEmailVerified());
+    assertNotNull(token);
+    
+    mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", token))
+            .andExpect(status().isOk());
+
+    UserEntity verifiedUser = userRepository.findByName(username).orElseThrow();
+
+    assertTrue(verifiedUser.isEmailVerified());
+    assertNull(verifiedUser.getVerificationToken());
+
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name(username)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.user.name").value("testUser"))
+            .andExpect(jsonPath("$.token").exists());
+  }
+
 
   @Test
   void loginUser_InvalidCredentials() throws Exception {
@@ -156,8 +233,30 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(loginRequest)))
             .andExpect(status().isUnauthorized())
             .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
-    ;
-    ;
+  }
+
+  @Test
+  void loginUser_NotVerifiedEmail() throws Exception {
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name("testUser")
+            .email("user@email.cz")
+            .password("password123");
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
+
+
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name("testUser")
+            .password("wrongPassword");
+
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
   }
 
   @Test

@@ -32,6 +32,17 @@ public class UserController implements UsersApi {
   }
 
   @Override
+  @RateLimiting(
+          name = "verify-email-strict",
+          cacheKey = "@rateLimitKeyResolver.verifyEmailKey(#verificationToken)",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> verifyUserToken(String verificationToken) {
+    userService.verifyEmail(verificationToken);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
   @RateLimiting(name = "login-strict",
           cacheKey = "@rateLimitKeyResolver.loginKey(#userLoginRequest)",
           ratePerMethod = true)

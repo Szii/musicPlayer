@@ -10,6 +10,7 @@ import org.dnd.exception.UnauthorizedException;
 import org.dnd.exception.UserAlreadyExistsException;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
+import org.dnd.security.RegistrationTokenService;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -26,6 +27,7 @@ public class UserService {
   private final JwtService jwtService;
   private final LoginThrottleService loginThrottleService;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final RegistrationTokenService registrationTokenService;
 
   @Transactional
   public AuthResponse registerUser(UserRegisterRequest request) {
@@ -43,9 +45,18 @@ public class UserService {
 
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
+    user.setVerificationToken(generateEmailVerificationToken());
     user = userRepository.save(user);
 
     return createAuthResponse(user);
+  }
+
+  public void verifyEmail(String token) {
+    UserEntity user = userRepository.findByVerificationToken(token)
+            .orElseThrow(() -> new NotFoundException("Invalid verification token"));
+    user.setEmailVerified(true);
+    user.setVerificationToken(null);
+    userRepository.save(user);
   }
 
   public AuthResponse loginUser(UserLoginRequest request) {
@@ -59,6 +70,11 @@ public class UserService {
               loginThrottleService.recordFailure(username);
               return new UnauthorizedException("Invalid username or password");
             });
+
+    if (!user.isEmailVerified()) {
+      loginThrottleService.recordFailure(username);
+      throw new UnauthorizedException("Invalid username or password");
+    }
 
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       loginThrottleService.recordFailure(username);
@@ -91,6 +107,10 @@ public class UserService {
 
   private String generateToken(UserAuthDTO user) {
     return jwtService.generateToken(user);
+  }
+
+  private String generateEmailVerificationToken() {
+    return registrationTokenService.generateToken();
   }
 
 }
