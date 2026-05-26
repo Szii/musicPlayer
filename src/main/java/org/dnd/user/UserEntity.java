@@ -42,6 +42,13 @@ public class UserEntity {
   @Builder.Default
   private UserRank rank = UserRank.NORMAL;
 
+  @Column(nullable = false)
+  private String email;
+
+  @Column(nullable = false)
+  @Builder.Default
+  private boolean emailVerified = false;
+
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
           name = "user_shares",
