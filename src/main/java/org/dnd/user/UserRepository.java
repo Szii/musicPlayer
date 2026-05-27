@@ -8,8 +8,10 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
   Optional<UserEntity> findByName(String name);
 
-  Optional<UserEntity> findByNameOrEmail(String name, String email);
+  Optional<UserEntity> findByEmail(String email);
 
+  Optional<UserEntity> findByNameOrEmail(String name, String email);
+  
   boolean existsByEmailAndEmailVerifiedTrue(String email);
 
   Optional<UserEntity> findByVerificationToken(String token);

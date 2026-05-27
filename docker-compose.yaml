@@ -28,8 +28,18 @@ services:
       DB_URL: jdbc:postgresql://db:5432/musicplayer
       DB_USER: musicuser
       DB_PASSWORD: musicpass
+
       JWT_SECRET: cOUtd+iZ5rwAF7aOoB3FGFz8y+rvCTEdJbKqek8EjSw=
       JWT_EXPIRATION: 86400000
+
+      MAIL_HOST: smtp.seznam.cz
+      MAIL_PORT: 465
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_FROM: ${MAIL_USERNAME}
+
+      FRONTEND_URL: http://localhost:3000
+      FRONTEND_PATH: /verify-email
     ports:
       - "8080:8080"
 

@@ -18,6 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -50,9 +52,10 @@ public class UserService {
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setVerificationToken(generateEmailVerificationToken());
-    user = userRepository.save(user);
 
     emailService.sendVerificationEmail(user.getName(), user.getEmail(), user.getVerificationToken());
+
+    user = userRepository.save(user);
 
     return createAuthResponse(user);
   }
@@ -63,6 +66,30 @@ public class UserService {
     user.setEmailVerified(true);
     user.setVerificationToken(null);
     userRepository.save(user);
+  }
+
+  @Transactional
+  public void resendVerificationEmail(String email) {
+    String normalizedEmail = email.trim().toLowerCase();
+
+    Optional<UserEntity> optionalUser = userRepository.findByEmail(normalizedEmail);
+
+    if (optionalUser.isEmpty() || optionalUser.get().isEmailVerified()) {
+      return;
+    }
+
+    UserEntity user = optionalUser.get();
+
+    String verificationToken = registrationTokenService.generateToken();
+
+    user.setVerificationToken(verificationToken);
+    userRepository.save(user);
+
+    emailService.sendVerificationEmail(
+            user.getName(),
+            user.getEmail(),
+            verificationToken
+    );
   }
 
   public AuthResponse loginUser(UserLoginRequest request) {
