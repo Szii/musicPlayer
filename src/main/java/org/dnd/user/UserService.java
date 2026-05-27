@@ -50,9 +50,10 @@ public class UserService {
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setVerificationToken(generateEmailVerificationToken());
-    user = userRepository.save(user);
 
     emailService.sendVerificationEmail(user.getName(), user.getEmail(), user.getVerificationToken());
+
+    user = userRepository.save(user);
 
     return createAuthResponse(user);
   }
