@@ -923,7 +923,7 @@ paths:
         '400':
           description: Invalid input
         '409':
-          description: Username already exists
+          description: Username or email already exists
 
   /auth/login:
     post:
@@ -946,7 +946,7 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
           description: Invalid username or password
-        '401':
+        '403':
           description: Email is not verified
 
   /auth/verify/{verificationToken}:
