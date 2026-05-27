@@ -13,6 +13,7 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,9 +47,7 @@ class PlaybackServiceTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    UserEntity user = new UserEntity();
-    user.setName("testUser");
-    user.setPassword("password");
+    UserEntity user = UserHelper.createValidatedUser("testUser", "password", "email@email.com");
     user = userRepository.save(user);
 
     TrackEntity track = new TrackEntity();

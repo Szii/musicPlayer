@@ -21,9 +21,7 @@ class UserRepositoryTest extends DatabaseBase {
   @Test
   @Transactional
   void saveAndFindByName() {
-    UserEntity user = new UserEntity();
-    user.setName("testuser");
-    user.setPassword("secret");
+    UserEntity user = UserHelper.createValidatedUser("testuser", "secret", "email@email.com");
     userRepository.save(user);
 
     Optional<UserEntity> found = userRepository.findByName("testuser");

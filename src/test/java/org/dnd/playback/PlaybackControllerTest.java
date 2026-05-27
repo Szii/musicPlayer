@@ -11,6 +11,7 @@ import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -68,9 +69,10 @@ class PlaybackControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    UserEntity testUser = new UserEntity();
-    testUser.setName("testUser");
-    testUser.setPassword("password");
+    UserEntity testUser = UserHelper.createValidatedUser(
+            "testUser",
+            "password",
+            "email@email.com");
     testUser = userRepository.save(testUser);
 
     SessionEntity testSession = new SessionEntity();
@@ -82,6 +84,8 @@ class PlaybackControllerTest extends DatabaseBase {
     var userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
     userAuth.setName(testUser.getName());
+    userAuth.setEmail(testUser.getEmail());
+
     authToken = jwtService.generateToken(userAuth);
 
     TrackEntity track = new TrackEntity();

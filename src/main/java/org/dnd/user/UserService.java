@@ -4,11 +4,14 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
-import org.dnd.exception.ConflictException;
+import org.dnd.email.EmailService;
+import org.dnd.exception.EmailAlreadyExistsException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.exception.UnauthorizedException;
+import org.dnd.exception.UserAlreadyExistsException;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
+import org.dnd.security.RegistrationTokenService;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,21 +28,41 @@ public class UserService {
   private final JwtService jwtService;
   private final LoginThrottleService loginThrottleService;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final RegistrationTokenService registrationTokenService;
+  private final EmailService emailService;
 
   @Transactional
   public AuthResponse registerUser(UserRegisterRequest request) {
     log.debug("Registering new user with name: {}", request.getName());
 
-    if (userRepository.findByName(request.getName()).isPresent()) {
-      log.debug("ser with name: {} already exists", request.getName());
-      throw new ConflictException("Username already exists");
+    if (userRepository.existsByName(request.getName())) {
+      log.debug("User with name: {} already exists", request.getName());
+      throw new UserAlreadyExistsException("Username already exists");
     }
+
+    if (userRepository.existsByEmail(request.getEmail())) {
+      log.debug("User with email: {} already exists", request.getEmail());
+      throw new EmailAlreadyExistsException("Email already exists");
+    }
+
+    request.setEmail(request.getEmail().toLowerCase());
 
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
+    user.setVerificationToken(generateEmailVerificationToken());
     user = userRepository.save(user);
 
+    emailService.sendVerificationEmail(user.getName(), user.getEmail(), user.getVerificationToken());
+
     return createAuthResponse(user);
+  }
+
+  public void verifyEmail(String token) {
+    UserEntity user = userRepository.findByVerificationToken(token)
+            .orElseThrow(() -> new NotFoundException("Invalid verification token"));
+    user.setEmailVerified(true);
+    user.setVerificationToken(null);
+    userRepository.save(user);
   }
 
   public AuthResponse loginUser(UserLoginRequest request) {
@@ -53,6 +76,11 @@ public class UserService {
               loginThrottleService.recordFailure(username);
               return new UnauthorizedException("Invalid username or password");
             });
+
+    if (!user.isEmailVerified()) {
+      loginThrottleService.recordFailure(username);
+      throw new UnauthorizedException("Invalid username or password");
+    }
 
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       loginThrottleService.recordFailure(username);
@@ -83,9 +111,11 @@ public class UserService {
     return response;
   }
 
-
   private String generateToken(UserAuthDTO user) {
     return jwtService.generateToken(user);
   }
 
+  private String generateEmailVerificationToken() {
+    return registrationTokenService.generateToken();
+  }
 }

@@ -10,6 +10,7 @@ import org.dnd.security.JwtService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
@@ -52,10 +53,11 @@ class GroupControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    testUser = new UserEntity();
-    testUser.setName("testUser");
-    testUser.setPassword("password");
-    testUser = userRepository.save(testUser);
+    testUser = UserHelper.createValidatedUser(
+            "testUser",
+            "password",
+            "user@email.com");
+    userRepository.save(testUser);
 
     authToken = getTokenForUser(testUser);
   }
@@ -192,9 +194,7 @@ class GroupControllerTest extends DatabaseBase {
 
 
   private UserEntity createUser(String name) {
-    UserEntity user = new UserEntity();
-    user.setName(name);
-    user.setPassword("password");
+    UserEntity user = UserHelper.createValidatedUser(name, "password", name + "@email.com");
     return userRepository.save(user);
   }
 
@@ -225,6 +225,7 @@ class GroupControllerTest extends DatabaseBase {
   private String getTokenForUser(UserEntity user) {
     UserAuthDTO userAuth = new UserAuthDTO();
     userAuth.setId(user.getId());
+    userAuth.setEmail(user.getEmail());
     userAuth.setName(user.getName());
     return jwtService.generateToken(userAuth);
   }
