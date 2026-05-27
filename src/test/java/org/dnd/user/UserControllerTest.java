@@ -3,6 +3,7 @@ package org.dnd.user;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.api.model.AuthResponse;
+import org.dnd.api.model.UserAuthDTO;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.email.EmailService;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -50,6 +52,9 @@ class UserControllerTest extends DatabaseBase {
 
   @MockitoBean
   private EmailService emailService;
+
+  @Autowired
+  private PasswordEncoder passwordEncoder;
 
   @BeforeEach
   void setUp() {
@@ -176,6 +181,95 @@ class UserControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest)))
             .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void changeEmail_unverifiedSuccess() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name(username)
+            .email(email)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
+
+    registerRequest.setEmail("changedEmail@email.com");
+
+
+    mockMvc.perform(post("/api/v1/auth/verify/change-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isOk());
+
+    UserEntity user = userRepository.findByName(username).orElseThrow();
+
+    assertFalse(user.isEmailVerified());
+    assertEquals(registerRequest.getEmail().toLowerCase(), user.getEmail());
+  }
+
+  @Test
+  void changeEmail_verifiedSuccess() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+    String newEmail = "new-email@email.com";
+
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            email
+    );
+
+    String token = getTokenForUser(userRepository.save(user));
+
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name(username)
+            .email(newEmail)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/users/change-email")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isOk());
+
+    UserEntity thatUser = userRepository.findByName(username).orElseThrow();
+
+    assertFalse(thatUser.isEmailVerified());
+    assertEquals(registerRequest.getEmail().toLowerCase(), thatUser.getEmail());
+  }
+
+  @Test
+  void changeEmail_verifiedFailsWhenUserNotAuthenticated() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+
+    UserEntity user = UserHelper.createValidatedUser(username, password, email);
+    getTokenForUser(userRepository.save(user));
+
+
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name(username)
+            .email(email)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/user/change-email")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + "invalidToken")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isForbidden());
+
+    UserEntity thatUser = userRepository.findByName(username).orElseThrow();
+
+    assertTrue(thatUser.isEmailVerified());
+    assertEquals(email, thatUser.getEmail());
   }
 
   @Test
@@ -321,6 +415,14 @@ class UserControllerTest extends DatabaseBase {
 
             .andExpect(jsonPath("$.limits.windows").isArray())
             .andExpect(jsonPath("$.limits.windows").isEmpty());
+  }
+
+  private String getTokenForUser(UserEntity user) {
+    UserAuthDTO dto = new UserAuthDTO();
+    dto.setId(user.getId());
+    dto.setName(user.getName());
+    dto.setEmail(user.getEmail());
+    return jwtService.generateToken(dto);
   }
 
 

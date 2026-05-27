@@ -979,6 +979,46 @@ paths:
         '200':
           description: Resent sent
 
+  /auth/verify/change-email:
+    post:
+      tags:
+        - Users
+      summary: Attempt to change unverified email
+      operationId: changeUnverifiedEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        '200':
+          description: Email change sent
+        '403':
+          description: Wrong credentials
+        '409':
+          description: Email already registered
+
+  /users/change-email:
+    post:
+      tags:
+        - Users
+      summary: Attempt to change verified email
+      operationId: changeVerifiedEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegisterRequest'
+      responses:
+        '200':
+          description: Email change sent
+        '403':
+          description: Wrong credentials
+        '409':
+          description: Email already registered
+
   /users/me:
     get:
       tags:

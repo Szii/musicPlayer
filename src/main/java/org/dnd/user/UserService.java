@@ -5,10 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
 import org.dnd.email.EmailService;
-import org.dnd.exception.EmailAlreadyExistsException;
-import org.dnd.exception.NotFoundException;
-import org.dnd.exception.UnauthorizedException;
-import org.dnd.exception.UserAlreadyExistsException;
+import org.dnd.exception.*;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
 import org.dnd.security.RegistrationTokenService;
@@ -83,6 +80,74 @@ public class UserService {
     String verificationToken = registrationTokenService.generateToken();
 
     user.setVerificationToken(verificationToken);
+    userRepository.save(user);
+
+    emailService.sendVerificationEmail(
+            user.getName(),
+            user.getEmail(),
+            verificationToken
+    );
+  }
+
+  @Transactional
+  public void changeUnverifiedEmail(String name, String password, String newEmail) {
+    UserEntity user = userRepository.findByName(name)
+            .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
+
+    if (!passwordEncoder.matches(password, user.getPassword())) {
+      throw new ForbiddenException("Invalid credentials");
+    }
+
+    if (user.isEmailVerified()) {
+      throw new BadRequestException("Email is already verified");
+    }
+
+    String normalizedEmail = newEmail.trim().toLowerCase();
+
+    if (userRepository.existsByEmail(normalizedEmail)) {
+      throw new ConflictException("Email is already used");
+    }
+
+    String verificationToken = registrationTokenService.generateToken();
+
+    user.setEmail(normalizedEmail);
+    user.setEmailVerified(false);
+    user.setVerificationToken(verificationToken);
+
+    userRepository.save(user);
+
+    emailService.sendVerificationEmail(
+            user.getName(),
+            user.getEmail(),
+            verificationToken
+    );
+  }
+
+  @Transactional
+  public void changeVerifiedEmail(String name, String password, String newEmail) {
+    UserEntity user = userRepository.findByName(name)
+            .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
+
+    if (!passwordEncoder.matches(password, user.getPassword())) {
+      throw new ForbiddenException("Invalid credentials");
+    }
+
+    if (!user.isEmailVerified()) {
+      throw new BadRequestException("Current email is not verified");
+    }
+
+    String normalizedEmail = newEmail.trim().toLowerCase();
+
+    if (userRepository.existsByEmail(normalizedEmail)) {
+      throw new ConflictException("Email is already used");
+    }
+
+    String verificationToken = registrationTokenService.generateToken();
+
+    user.setEmail(normalizedEmail);
+    user.setEmailVerified(false);
+    user.setVerificationToken(verificationToken);
+
     userRepository.save(user);
 
     emailService.sendVerificationEmail(
