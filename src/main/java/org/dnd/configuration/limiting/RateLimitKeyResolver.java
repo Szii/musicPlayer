@@ -2,7 +2,6 @@ package org.dnd.configuration.limiting;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.dnd.api.model.ResendVerificationEmailRequest;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.security.JwtService;
@@ -50,9 +49,9 @@ public class RateLimitKeyResolver {
   }
 
 
-  public String resendVerificationKey(ResendVerificationEmailRequest request) {
+  public String resendVerificationKey(UserLoginRequest request) {
     return "resend-verification:" + clientIp() + ":" +
-            normalize(request == null ? null : request.getEmail());
+            normalize(request == null ? null : request.getName());
   }
 
   private String normalize(String value) {
