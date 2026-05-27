@@ -62,7 +62,7 @@ public class UserController implements UsersApi {
   @Override
   @RateLimiting(
           name = "resend-verification-strict",
-          cacheKey = "@rateLimitKeyResolver.resendVerificationKey(#request)",
+          cacheKey = "@rateLimitKeyResolver.registerKey(#userAuthDTO)",
           ratePerMethod = true
   )
   public ResponseEntity<Void> changeUnverifiedEmail(UserRegisterRequest userAuthDTO) {
@@ -73,7 +73,7 @@ public class UserController implements UsersApi {
   @Override
   @RateLimiting(
           name = "resend-verification-strict",
-          cacheKey = "@rateLimitKeyResolver.resendVerificationKey(#request)",
+          cacheKey = "@rateLimitKeyResolver.registerKey(#userAuthDTO)",
           ratePerMethod = true
   )
   public ResponseEntity<Void> changeVerifiedEmail(UserRegisterRequest userAuthDTO) {
