@@ -57,6 +57,15 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
   }
 
+  @ExceptionHandler(EmailNotVerifiedException.class)
+  public ResponseEntity<ErrorResponse> handleEmailNotVerified(EmailNotVerifiedException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            e.getMessage()
+    );
+    return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+  }
+
   @ExceptionHandler(RateLimitException.class)
   public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitException e) {
     ErrorResponse response = new ErrorResponse(
