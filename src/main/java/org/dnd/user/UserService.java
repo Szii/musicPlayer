@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
+import org.dnd.email.EmailService;
 import org.dnd.exception.EmailAlreadyExistsException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.exception.UnauthorizedException;
@@ -28,6 +29,7 @@ public class UserService {
   private final LoginThrottleService loginThrottleService;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final RegistrationTokenService registrationTokenService;
+  private final EmailService emailService;
 
   @Transactional
   public AuthResponse registerUser(UserRegisterRequest request) {
@@ -43,10 +45,14 @@ public class UserService {
       throw new EmailAlreadyExistsException("Email already exists");
     }
 
+    request.setEmail(request.getEmail().toLowerCase());
+
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
     user.setVerificationToken(generateEmailVerificationToken());
     user = userRepository.save(user);
+
+    emailService.sendVerificationEmail(user.getName(), user.getEmail(), user.getVerificationToken());
 
     return createAuthResponse(user);
   }
@@ -112,5 +118,4 @@ public class UserService {
   private String generateEmailVerificationToken() {
     return registrationTokenService.generateToken();
   }
-
 }

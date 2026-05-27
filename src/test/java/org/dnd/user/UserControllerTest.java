@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.AuthResponse;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
+import org.dnd.email.EmailService;
 import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,12 +15,16 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -40,6 +45,9 @@ class UserControllerTest extends DatabaseBase {
 
   @Autowired
   private JwtService jwtService;
+
+  @MockitoBean
+  private EmailService emailService;
 
   @BeforeEach
   void setUp() {
@@ -172,7 +180,7 @@ class UserControllerTest extends DatabaseBase {
   void verifyEmail_registerToLoginFlowSuccess() throws Exception {
     String username = "testUser";
     String password = "password123";
-    String email = "email@email.com";
+    String email = "emMAIl@email.com";
 
     UserRegisterRequest registerRequest = new UserRegisterRequest()
             .name(username)
@@ -188,10 +196,17 @@ class UserControllerTest extends DatabaseBase {
     String token = registeredUser.getVerificationToken();
 
     assertFalse(registeredUser.isEmailVerified());
+    assertEquals(registeredUser.getEmail(), email.toLowerCase());
     assertNotNull(token);
-    
+
     mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", token))
             .andExpect(status().isOk());
+
+    verify(emailService).sendVerificationEmail(
+            eq(username),
+            eq(email.toLowerCase()),
+            anyString()
+    );
 
     UserEntity verifiedUser = userRepository.findByName(username).orElseThrow();
 
@@ -206,10 +221,10 @@ class UserControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.user.name").value("testUser"))
+            .andExpect(jsonPath("$.user.name").value(username))
+            .andExpect(jsonPath("$.user.email").value(email.toLowerCase()))
             .andExpect(jsonPath("$.token").exists());
   }
-
 
   @Test
   void loginUser_InvalidCredentials() throws Exception {

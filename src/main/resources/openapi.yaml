@@ -284,6 +284,7 @@ components:
           example: "user"
         email:
           type: string
+          format: email
           description: Unique email address of the user
           example: "user@email.com"
         password:
