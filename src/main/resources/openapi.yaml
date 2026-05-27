@@ -976,10 +976,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ResendVerificationEmailRequest'
+              $ref: '#/components/schemas/UserLoginRequest'
       responses:
-        '200':
-          description: Resent sent
+       '200':
+         description: Verification email resent if the account needs verification
+       '401':
+         description: Invalid username or password
+       '429':
+         description: Too many resend attempts
 
   /auth/verify/change-email:
     post:

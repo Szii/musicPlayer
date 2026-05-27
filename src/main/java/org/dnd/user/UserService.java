@@ -19,7 +19,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 @Service
@@ -103,16 +102,11 @@ public class UserService {
   }
 
   @Transactional
-  public void resendVerificationEmail(String email) {
-    String normalizedEmail = normalizeEmail(email);
-
-    Optional<UserEntity> optionalUser = userRepository.findByEmail(normalizedEmail);
-
-    if (optionalUser.isEmpty()) {
-      return;
-    }
-
-    UserEntity user = optionalUser.get();
+  public void resendVerificationEmail(UserLoginRequest request) {
+    UserEntity user = authenticateByNameAndPassword(
+            request.getName(),
+            request.getPassword()
+    );
 
     if (user.isEmailVerified()) {
       return;
@@ -213,21 +207,10 @@ public class UserService {
   public AuthResponse loginUser(UserLoginRequest request) {
     log.debug("Attempting login for user: {}", request.getName());
 
-    String username = request.getName();
-    loginThrottleService.checkAllowed(username);
-
-    UserEntity user = userRepository.findByName(username)
-            .orElseThrow(() -> {
-              loginThrottleService.recordFailure(username);
-              return new UnauthorizedException("Invalid username or password");
-            });
-
-    if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-      loginThrottleService.recordFailure(username);
-      throw new UnauthorizedException("Invalid username or password");
-    }
-
-    loginThrottleService.recordSuccess(username);
+    UserEntity user = authenticateByNameAndPassword(
+            request.getName(),
+            request.getPassword()
+    );
 
     if (!user.isEmailVerified()) {
       throw new EmailNotVerifiedException("Email is not verified");
@@ -330,5 +313,24 @@ public class UserService {
     }
 
     return normalizedEmail;
+  }
+
+  private UserEntity authenticateByNameAndPassword(String username, String password) {
+    loginThrottleService.checkAllowed(username);
+
+    UserEntity user = userRepository.findByName(username)
+            .orElseThrow(() -> {
+              loginThrottleService.recordFailure(username);
+              return new UnauthorizedException("Invalid username or password");
+            });
+
+    if (!passwordEncoder.matches(password, user.getPassword())) {
+      loginThrottleService.recordFailure(username);
+      throw new UnauthorizedException("Invalid username or password");
+    }
+
+    loginThrottleService.recordSuccess(username);
+
+    return user;
   }
 }

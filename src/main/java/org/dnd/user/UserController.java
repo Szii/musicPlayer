@@ -4,7 +4,10 @@ import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.UsersApi;
-import org.dnd.api.model.*;
+import org.dnd.api.model.AuthResponse;
+import org.dnd.api.model.User;
+import org.dnd.api.model.UserLoginRequest;
+import org.dnd.api.model.UserRegisterRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -35,8 +38,8 @@ public class UserController implements UsersApi {
           cacheKey = "@rateLimitKeyResolver.resendVerificationKey(#request)",
           ratePerMethod = true
   )
-  public ResponseEntity<Void> resendVerificationEmail(ResendVerificationEmailRequest resendVerificationEmailRequest) throws Exception {
-    userService.resendVerificationEmail(resendVerificationEmailRequest.getEmail());
+  public ResponseEntity<Void> resendVerificationEmail(UserLoginRequest request) throws Exception {
+    userService.resendVerificationEmail(request);
     return ResponseEntity.ok().build();
   }
 
