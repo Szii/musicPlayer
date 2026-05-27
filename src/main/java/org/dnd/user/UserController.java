@@ -23,7 +23,7 @@ public class UserController implements UsersApi {
   @RateLimiting(name = "register-strict",
           cacheKey = "@rateLimitKeyResolver.registerKey(#userRegisterRequest)",
           ratePerMethod = true)
-  public ResponseEntity<AuthResponse> registerUser(UserRegisterRequest userRegisterRequest) {
+  public ResponseEntity<User> registerUser(UserRegisterRequest userRegisterRequest) {
     return ResponseEntity.status(HttpStatus.CREATED)
             .body(userService.registerUser(userRegisterRequest));
   }

@@ -7,6 +7,9 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.email.EmailService;
+import org.dnd.email.EmailVerificationTokenEntity;
+import org.dnd.email.EmailVerificationTokenRepository;
+import org.dnd.email.EmailVerificationTokenType;
 import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +25,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,11 +34,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class UserControllerTest extends DatabaseBase {
+
   @Autowired
   private MockMvc mockMvc;
 
@@ -46,6 +47,9 @@ class UserControllerTest extends DatabaseBase {
 
   @Autowired
   private UserRepository userRepository;
+
+  @Autowired
+  private EmailVerificationTokenRepository emailVerificationTokenRepository;
 
   @Autowired
   private JwtService jwtService;
@@ -58,6 +62,7 @@ class UserControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
+    emailVerificationTokenRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -68,19 +73,35 @@ class UserControllerTest extends DatabaseBase {
             .email("user@email.cz")
             .password("password123");
 
-    MvcResult result = mockMvc.perform(post("/api/v1/auth/register")
+    mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.user.name").value("testUser"))
-            .andExpect(jsonPath("$.token").exists())
-            .andReturn();
+            .andExpect(jsonPath("$.name").value("testUser"))
+            .andExpect(jsonPath("$.email").value("user@email.cz"))
+            .andExpect(jsonPath("$.token").doesNotExist())
+            .andExpect(jsonPath("$.user").doesNotExist());
 
-    Optional<UserEntity> user = userRepository.findByName(request.getName());
+    UserEntity user = userRepository.findByName(request.getName()).orElseThrow();
 
-    assertTrue(user.isPresent());
     assertTrue(userRepository.existsByEmail(request.getEmail()));
-    assertFalse(user.get().isEmailVerified());
+    assertFalse(user.isEmailVerified());
+    assertNull(user.getPendingEmail());
+
+    EmailVerificationTokenEntity token = emailVerificationTokenRepository
+            .findByUserId(user.getId())
+            .orElseThrow();
+
+    assertTrue(token.isValid());
+    assertNotNull(token.getToken());
+    assertEquals(EmailVerificationTokenType.REGISTRATION, token.getType());
+    assertEquals(request.getEmail().toLowerCase(), token.getTargetEmail());
+
+    verify(emailService).sendVerificationEmail(
+            eq("testUser"),
+            eq("user@email.cz"),
+            anyString()
+    );
   }
 
   @Test
@@ -95,12 +116,16 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated());
 
+    UserRegisterRequest duplicateRequest = new UserRegisterRequest()
+            .name("testUser")
+            .email("other@email.cz")
+            .password("password123");
+
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+                    .content(objectMapper.writeValueAsString(duplicateRequest)))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value(ErrorCode.USER_ALREADY_EXISTS.getCode()));
-    ;
   }
 
   @Test
@@ -115,11 +140,14 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated());
 
-    request.setName("anotherUser");
+    UserRegisterRequest duplicateRequest = new UserRegisterRequest()
+            .name("anotherUser")
+            .email("user@email.cz")
+            .password("password123");
 
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
+                    .content(objectMapper.writeValueAsString(duplicateRequest)))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.code").value(ErrorCode.EMAIL_ALREADY_EXISTS.getCode()));
   }
@@ -130,20 +158,13 @@ class UserControllerTest extends DatabaseBase {
     String password = "password123";
     String email = "email@email.com";
 
-    UserRegisterRequest registerRequest = new UserRegisterRequest()
-            .name(username)
-            .email(email)
-            .password(password);
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            email
+    );
 
-    mockMvc.perform(post("/api/v1/auth/register")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isCreated());
-
-    userRepository.findByName(username).ifPresent(user -> {
-      user.setEmailVerified(true);
-      userRepository.save(user);
-    });
+    userRepository.save(user);
 
     UserLoginRequest loginRequest = new UserLoginRequest()
             .name(username)
@@ -153,12 +174,13 @@ class UserControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.user.name").value("testUser"))
+            .andExpect(jsonPath("$.user.name").value(username))
+            .andExpect(jsonPath("$.user.email").value(email))
             .andExpect(jsonPath("$.token").exists());
   }
 
   @Test
-  void loginUser_emailNotVerified() throws Exception {
+  void loginUser_emailNotVerifiedWithCorrectPassword_returnsForbidden() throws Exception {
     String username = "testUser";
     String password = "password123";
     String email = "email@email.com";
@@ -171,7 +193,8 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isCreated());
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.token").doesNotExist());
 
     UserLoginRequest loginRequest = new UserLoginRequest()
             .name(username)
@@ -180,18 +203,69 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(loginRequest)))
-            .andExpect(status().isUnauthorized());
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(ErrorCode.EMAIL_NOT_VERIFIED.getCode()));
+  }
+
+  @Test
+  void loginUser_InvalidCredentials() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            email
+    );
+
+    userRepository.save(user);
+
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name(username)
+            .password("wrongPassword");
+
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
+  }
+
+  @Test
+  void loginUser_NotVerifiedButWrongPasswordStillReturnsUnauthorized() throws Exception {
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name("testUser")
+            .email("user@email.cz")
+            .password("password123");
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
+
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name("testUser")
+            .password("wrongPassword");
+
+    mockMvc.perform(post("/api/v1/auth/login")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isUnauthorized())
+            .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
   }
 
   @Test
   void changeEmail_unverifiedSuccess() throws Exception {
     String username = "testUser";
     String password = "password123";
-    String email = "email@email.com";
+    String originalEmail = "email@email.com";
+    String newEmail = "changedEmail@email.com";
+    String normalizedNewEmail = newEmail.toLowerCase();
 
     UserRegisterRequest registerRequest = new UserRegisterRequest()
             .name(username)
-            .email(email)
+            .email(originalEmail)
             .password(password);
 
     mockMvc.perform(post("/api/v1/auth/register")
@@ -199,22 +273,86 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(registerRequest)))
             .andExpect(status().isCreated());
 
-    registerRequest.setEmail("changedEmail@email.com");
-
+    UserRegisterRequest changeEmailRequest = new UserRegisterRequest()
+            .name(username)
+            .email(newEmail)
+            .password(password);
 
     mockMvc.perform(post("/api/v1/auth/verify/change-email")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
+                    .content(objectMapper.writeValueAsString(changeEmailRequest)))
             .andExpect(status().isOk());
 
     UserEntity user = userRepository.findByName(username).orElseThrow();
 
     assertFalse(user.isEmailVerified());
-    assertEquals(registerRequest.getEmail().toLowerCase(), user.getEmail());
+    assertEquals(normalizedNewEmail, user.getEmail());
+    assertNull(user.getPendingEmail());
+
+    EmailVerificationTokenEntity token = emailVerificationTokenRepository
+            .findByUserId(user.getId())
+            .orElseThrow();
+
+    assertTrue(token.isValid());
+    assertEquals(EmailVerificationTokenType.REGISTRATION, token.getType());
+    assertEquals(normalizedNewEmail, token.getTargetEmail());
+
+    verify(emailService).sendVerificationEmail(
+            eq(username),
+            eq(normalizedNewEmail),
+            anyString()
+    );
   }
 
   @Test
   void changeEmail_verifiedSuccess() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String oldEmail = "email@email.com";
+    String newEmail = "new-email@email.com";
+
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            oldEmail
+    );
+
+    String token = getTokenForUser(userRepository.save(user));
+
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name(username)
+            .email(newEmail)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/users/change-email")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
+
+    UserEntity updatedUser = userRepository.findByName(username).orElseThrow();
+
+    assertTrue(updatedUser.isEmailVerified());
+    assertEquals(oldEmail, updatedUser.getEmail());
+    assertEquals(newEmail, updatedUser.getPendingEmail());
+
+    EmailVerificationTokenEntity tokenEntity = emailVerificationTokenRepository
+            .findByUserId(updatedUser.getId())
+            .orElseThrow();
+
+    assertTrue(tokenEntity.isValid());
+    assertEquals(EmailVerificationTokenType.EMAIL_CHANGE, tokenEntity.getType());
+    assertEquals(newEmail, tokenEntity.getTargetEmail());
+
+    verify(emailService).sendVerificationEmail(
+            eq(username),
+            eq(newEmail),
+            anyString()
+    );
+  }
+
+  @Test
+  void changeEmail_verifiedFailsWhenUserNotAuthenticated() throws Exception {
     String username = "testUser";
     String password = "password123";
     String email = "email@email.com";
@@ -226,50 +364,25 @@ class UserControllerTest extends DatabaseBase {
             email
     );
 
-    String token = getTokenForUser(userRepository.save(user));
+    userRepository.save(user);
 
-    UserRegisterRequest registerRequest = new UserRegisterRequest()
+    UserRegisterRequest request = new UserRegisterRequest()
             .name(username)
             .email(newEmail)
             .password(password);
 
     mockMvc.perform(post("/api/v1/users/change-email")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer invalidToken")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isOk());
-
-    UserEntity thatUser = userRepository.findByName(username).orElseThrow();
-
-    assertFalse(thatUser.isEmailVerified());
-    assertEquals(registerRequest.getEmail().toLowerCase(), thatUser.getEmail());
-  }
-
-  @Test
-  void changeEmail_verifiedFailsWhenUserNotAuthenticated() throws Exception {
-    String username = "testUser";
-    String password = "password123";
-    String email = "email@email.com";
-
-    UserEntity user = UserHelper.createValidatedUser(username, password, email);
-    getTokenForUser(userRepository.save(user));
-
-
-    UserRegisterRequest registerRequest = new UserRegisterRequest()
-            .name(username)
-            .email(email)
-            .password(password);
-
-    mockMvc.perform(post("/api/v1/user/change-email")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + "invalidToken")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
+                    .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden());
 
-    UserEntity thatUser = userRepository.findByName(username).orElseThrow();
+    UserEntity unchangedUser = userRepository.findByName(username).orElseThrow();
 
-    assertTrue(thatUser.isEmailVerified());
-    assertEquals(email, thatUser.getEmail());
+    assertTrue(unchangedUser.isEmailVerified());
+    assertEquals(email, unchangedUser.getEmail());
+    assertNull(unchangedUser.getPendingEmail());
+    assertTrue(emailVerificationTokenRepository.findByUserId(unchangedUser.getId()).isEmpty());
   }
 
   @Test
@@ -277,6 +390,7 @@ class UserControllerTest extends DatabaseBase {
     String username = "testUser";
     String password = "password123";
     String email = "emMAIl@email.com";
+    String normalizedEmail = email.toLowerCase();
 
     UserRegisterRequest registerRequest = new UserRegisterRequest()
             .name(username)
@@ -286,28 +400,40 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/auth/register")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isCreated());
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.token").doesNotExist());
 
     UserEntity registeredUser = userRepository.findByName(username).orElseThrow();
-    String token = registeredUser.getVerificationToken();
+
+    EmailVerificationTokenEntity tokenEntity = emailVerificationTokenRepository
+            .findByUserId(registeredUser.getId())
+            .orElseThrow();
+
+    String verificationToken = tokenEntity.getToken();
 
     assertFalse(registeredUser.isEmailVerified());
-    assertEquals(registeredUser.getEmail(), email.toLowerCase());
-    assertNotNull(token);
+    assertEquals(normalizedEmail, registeredUser.getEmail());
+    assertTrue(tokenEntity.isValid());
+    assertEquals(EmailVerificationTokenType.REGISTRATION, tokenEntity.getType());
+    assertEquals(normalizedEmail, tokenEntity.getTargetEmail());
 
-    mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", token))
+    mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", verificationToken))
             .andExpect(status().isOk());
 
     verify(emailService).sendVerificationEmail(
             eq(username),
-            eq(email.toLowerCase()),
+            eq(normalizedEmail),
             anyString()
     );
 
     UserEntity verifiedUser = userRepository.findByName(username).orElseThrow();
 
+    EmailVerificationTokenEntity usedToken = emailVerificationTokenRepository
+            .findByUserId(verifiedUser.getId())
+            .orElseThrow();
+
     assertTrue(verifiedUser.isEmailVerified());
-    assertNull(verifiedUser.getVerificationToken());
+    assertFalse(usedToken.isValid());
 
     UserLoginRequest loginRequest = new UserLoginRequest()
             .name(username)
@@ -318,79 +444,98 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(loginRequest)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.user.name").value(username))
-            .andExpect(jsonPath("$.user.email").value(email.toLowerCase()))
+            .andExpect(jsonPath("$.user.email").value(normalizedEmail))
             .andExpect(jsonPath("$.token").exists());
   }
 
   @Test
-  void loginUser_InvalidCredentials() throws Exception {
-    UserRegisterRequest registerRequest = new UserRegisterRequest()
-            .name("testUser")
-            .email("user@email.cz")
-            .password("password123");
+  void verifyEmail_emailChangeFlowSuccess() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String oldEmail = "old@email.com";
+    String newEmail = "new@email.com";
 
-    mockMvc.perform(post("/api/v1/auth/register")
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            oldEmail
+    );
+
+    String authToken = getTokenForUser(userRepository.save(user));
+
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name(username)
+            .email(newEmail)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/users/change-email")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isCreated());
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
 
+    UserEntity beforeVerification = userRepository.findByName(username).orElseThrow();
 
-    UserLoginRequest loginRequest = new UserLoginRequest()
-            .name("testUser")
-            .password("wrongPassword");
+    assertTrue(beforeVerification.isEmailVerified());
+    assertEquals(oldEmail, beforeVerification.getEmail());
+    assertEquals(newEmail, beforeVerification.getPendingEmail());
 
-    mockMvc.perform(post("/api/v1/auth/login")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(loginRequest)))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
-  }
+    EmailVerificationTokenEntity tokenEntity = emailVerificationTokenRepository
+            .findByUserId(beforeVerification.getId())
+            .orElseThrow();
 
-  @Test
-  void loginUser_NotVerifiedEmail() throws Exception {
-    UserRegisterRequest registerRequest = new UserRegisterRequest()
-            .name("testUser")
-            .email("user@email.cz")
-            .password("password123");
+    assertTrue(tokenEntity.isValid());
+    assertEquals(EmailVerificationTokenType.EMAIL_CHANGE, tokenEntity.getType());
+    assertEquals(newEmail, tokenEntity.getTargetEmail());
 
-    mockMvc.perform(post("/api/v1/auth/register")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isCreated());
+    mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", tokenEntity.getToken()))
+            .andExpect(status().isOk());
 
+    UserEntity afterVerification = userRepository.findByName(username).orElseThrow();
 
-    UserLoginRequest loginRequest = new UserLoginRequest()
-            .name("testUser")
-            .password("wrongPassword");
+    EmailVerificationTokenEntity usedToken = emailVerificationTokenRepository
+            .findByUserId(afterVerification.getId())
+            .orElseThrow();
 
-    mockMvc.perform(post("/api/v1/auth/login")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(loginRequest)))
-            .andExpect(status().isUnauthorized())
-            .andExpect(jsonPath("$.code").value(ErrorCode.UNAUTHORIZED.getCode()));
+    assertTrue(afterVerification.isEmailVerified());
+    assertEquals(newEmail, afterVerification.getEmail());
+    assertNull(afterVerification.getPendingEmail());
+    assertFalse(usedToken.isValid());
   }
 
   @Test
   void getCurrentUser_Success() throws Exception {
-    UserRegisterRequest registerRequest = new UserRegisterRequest()
-            .name("testUser")
-            .email("email@email.com")
-            .password("password123");
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
 
-    MvcResult registerResult = mockMvc.perform(post("/api/v1/auth/register")
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            email
+    );
+
+    userRepository.save(user);
+
+    UserLoginRequest loginRequest = new UserLoginRequest()
+            .name(username)
+            .password(password);
+
+    MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(registerRequest)))
-            .andExpect(status().isCreated())
+                    .content(objectMapper.writeValueAsString(loginRequest)))
+            .andExpect(status().isOk())
             .andReturn();
 
-    String response = registerResult.getResponse().getContentAsString();
-    AuthResponse authResponse = objectMapper.readValue(response, AuthResponse.class);
-    String token = authResponse.getToken();
+    AuthResponse authResponse = objectMapper.readValue(
+            loginResult.getResponse().getContentAsString(),
+            AuthResponse.class
+    );
 
     mockMvc.perform(get("/api/v1/users/me")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.getToken()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("testUser"))
+            .andExpect(jsonPath("$.name").value(username))
             .andExpect(jsonPath("$.limits.level").value("NORMAL"))
 
             .andExpect(jsonPath("$.limits.tracks.actualTracks").value(0))
@@ -424,6 +569,4 @@ class UserControllerTest extends DatabaseBase {
     dto.setEmail(user.getEmail());
     return jwtService.generateToken(dto);
   }
-
-
 }

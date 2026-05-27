@@ -5,6 +5,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
 import org.dnd.email.EmailService;
+import org.dnd.email.EmailVerificationTokenEntity;
+import org.dnd.email.EmailVerificationTokenRepository;
+import org.dnd.email.EmailVerificationTokenType;
 import org.dnd.exception.*;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
@@ -15,13 +18,22 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class UserService {
+
+  private static final Pattern EMAIL_PATTERN = Pattern.compile(
+          "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
+          Pattern.CASE_INSENSITIVE
+  );
+
   private final UserRepository userRepository;
+  private final EmailVerificationTokenRepository emailVerificationTokenRepository;
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
@@ -31,61 +43,91 @@ public class UserService {
   private final EmailService emailService;
 
   @Transactional
-  public AuthResponse registerUser(UserRegisterRequest request) {
+  public User registerUser(UserRegisterRequest request) {
     log.debug("Registering new user with name: {}", request.getName());
 
     if (userRepository.existsByName(request.getName())) {
-      log.debug("User with name: {} already exists", request.getName());
       throw new UserAlreadyExistsException("Username already exists");
     }
 
-    if (userRepository.existsByEmail(request.getEmail())) {
-      log.debug("User with email: {} already exists", request.getEmail());
+    String normalizedEmail = normalizeEmail(request.getEmail());
+
+    if (userRepository.existsByEmail(normalizedEmail)) {
       throw new EmailAlreadyExistsException("Email already exists");
     }
 
-    request.setEmail(request.getEmail().toLowerCase());
+    request.setEmail(normalizedEmail);
 
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
-    user.setVerificationToken(generateEmailVerificationToken());
-
-    emailService.sendVerificationEmail(user.getName(), user.getEmail(), user.getVerificationToken());
+    user.setEmailVerified(false);
+    user.setPendingEmail(null);
 
     user = userRepository.save(user);
 
-    return createAuthResponse(user);
+    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+            user,
+            EmailVerificationTokenType.REGISTRATION,
+            user.getEmail()
+    );
+
+    emailService.sendVerificationEmail(
+            user.getName(),
+            user.getEmail(),
+            verificationToken.getToken()
+    );
+
+    return userMapper.toDto(user);
   }
 
+  @Transactional
   public void verifyEmail(String token) {
-    UserEntity user = userRepository.findByVerificationToken(token)
+    EmailVerificationTokenEntity verificationToken = emailVerificationTokenRepository
+            .findByTokenAndValidTrue(token)
             .orElseThrow(() -> new NotFoundException("Invalid verification token"));
-    user.setEmailVerified(true);
-    user.setVerificationToken(null);
+
+    UserEntity user = verificationToken.getUser();
+
+    if (verificationToken.getType() == EmailVerificationTokenType.REGISTRATION) {
+      verifyRegistrationEmail(user, verificationToken);
+    } else if (verificationToken.getType() == EmailVerificationTokenType.EMAIL_CHANGE) {
+      verifyEmailChange(user, verificationToken);
+    } else {
+      throw new BadRequestException("Unsupported verification token type");
+    }
+
+    verificationToken.setValid(false);
+
     userRepository.save(user);
+    emailVerificationTokenRepository.save(verificationToken);
   }
 
   @Transactional
   public void resendVerificationEmail(String email) {
-    String normalizedEmail = email.trim().toLowerCase();
+    String normalizedEmail = normalizeEmail(email);
 
     Optional<UserEntity> optionalUser = userRepository.findByEmail(normalizedEmail);
 
-    if (optionalUser.isEmpty() || optionalUser.get().isEmailVerified()) {
+    if (optionalUser.isEmpty()) {
       return;
     }
 
     UserEntity user = optionalUser.get();
 
-    String verificationToken = registrationTokenService.generateToken();
+    if (user.isEmailVerified()) {
+      return;
+    }
 
-    user.setVerificationToken(verificationToken);
-    userRepository.save(user);
+    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+            user,
+            EmailVerificationTokenType.REGISTRATION,
+            user.getEmail()
+    );
 
     emailService.sendVerificationEmail(
             user.getName(),
             user.getEmail(),
-            verificationToken
+            verificationToken.getToken()
     );
   }
 
@@ -102,24 +144,29 @@ public class UserService {
       throw new BadRequestException("Email is already verified");
     }
 
-    String normalizedEmail = newEmail.trim().toLowerCase();
+    String normalizedEmail = normalizeEmail(newEmail);
 
-    if (userRepository.existsByEmail(normalizedEmail)) {
+    if (!normalizedEmail.equalsIgnoreCase(user.getEmail())
+            && userRepository.existsByEmail(normalizedEmail)) {
       throw new ConflictException("Email is already used");
     }
 
-    String verificationToken = registrationTokenService.generateToken();
-
     user.setEmail(normalizedEmail);
     user.setEmailVerified(false);
-    user.setVerificationToken(verificationToken);
+    user.setPendingEmail(null);
 
-    userRepository.save(user);
+    user = userRepository.save(user);
+
+    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+            user,
+            EmailVerificationTokenType.REGISTRATION,
+            user.getEmail()
+    );
 
     emailService.sendVerificationEmail(
             user.getName(),
             user.getEmail(),
-            verificationToken
+            verificationToken.getToken()
     );
   }
 
@@ -136,24 +183,30 @@ public class UserService {
       throw new BadRequestException("Current email is not verified");
     }
 
-    String normalizedEmail = newEmail.trim().toLowerCase();
+    String normalizedEmail = normalizeEmail(newEmail);
+
+    if (normalizedEmail.equalsIgnoreCase(user.getEmail())) {
+      throw new BadRequestException("New email must be different from current email");
+    }
 
     if (userRepository.existsByEmail(normalizedEmail)) {
       throw new ConflictException("Email is already used");
     }
 
-    String verificationToken = registrationTokenService.generateToken();
+    user.setPendingEmail(normalizedEmail);
 
-    user.setEmail(normalizedEmail);
-    user.setEmailVerified(false);
-    user.setVerificationToken(verificationToken);
+    user = userRepository.save(user);
 
-    userRepository.save(user);
+    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+            user,
+            EmailVerificationTokenType.EMAIL_CHANGE,
+            normalizedEmail
+    );
 
     emailService.sendVerificationEmail(
             user.getName(),
-            user.getEmail(),
-            verificationToken
+            normalizedEmail,
+            verificationToken.getToken()
     );
   }
 
@@ -169,17 +222,17 @@ public class UserService {
               return new UnauthorizedException("Invalid username or password");
             });
 
-    if (!user.isEmailVerified()) {
-      loginThrottleService.recordFailure(username);
-      throw new UnauthorizedException("Invalid username or password");
-    }
-
     if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
       loginThrottleService.recordFailure(username);
       throw new UnauthorizedException("Invalid username or password");
     }
 
     loginThrottleService.recordSuccess(username);
+
+    if (!user.isEmailVerified()) {
+      throw new EmailNotVerifiedException("Email is not verified");
+    }
+
     return createAuthResponse(user);
   }
 
@@ -196,6 +249,60 @@ public class UserService {
     return userResponse;
   }
 
+  private EmailVerificationTokenEntity createOrUpdateVerificationToken(
+          UserEntity user,
+          EmailVerificationTokenType type,
+          String targetEmail
+  ) {
+    EmailVerificationTokenEntity verificationToken = emailVerificationTokenRepository
+            .findByUserId(user.getId())
+            .orElseGet(() -> EmailVerificationTokenEntity.builder()
+                    .user(user)
+                    .build());
+
+    verificationToken.setToken(generateEmailVerificationToken());
+    verificationToken.setType(type);
+    verificationToken.setTargetEmail(targetEmail);
+    verificationToken.setCreatedAt(LocalDateTime.now());
+    verificationToken.setValid(true);
+
+    return emailVerificationTokenRepository.save(verificationToken);
+  }
+
+  private void verifyRegistrationEmail(
+          UserEntity user,
+          EmailVerificationTokenEntity verificationToken
+  ) {
+    if (!verificationToken.getTargetEmail().equalsIgnoreCase(user.getEmail())) {
+      throw new BadRequestException("Verification token does not match current email");
+    }
+
+    user.setEmailVerified(true);
+  }
+
+  private void verifyEmailChange(
+          UserEntity user,
+          EmailVerificationTokenEntity verificationToken
+  ) {
+    String pendingEmail = user.getPendingEmail();
+
+    if (pendingEmail == null || pendingEmail.isBlank()) {
+      throw new BadRequestException("No pending email change");
+    }
+
+    if (!verificationToken.getTargetEmail().equalsIgnoreCase(pendingEmail)) {
+      throw new BadRequestException("Verification token does not match pending email");
+    }
+
+    if (userRepository.existsByEmail(pendingEmail)) {
+      throw new ConflictException("Email is already used");
+    }
+
+    user.setEmail(pendingEmail);
+    user.setPendingEmail(null);
+    user.setEmailVerified(true);
+  }
+
   private AuthResponse createAuthResponse(UserEntity user) {
     AuthResponse response = new AuthResponse();
     response.setUser(userMapper.toDto(user));
@@ -209,5 +316,19 @@ public class UserService {
 
   private String generateEmailVerificationToken() {
     return registrationTokenService.generateToken();
+  }
+
+  private String normalizeEmail(String email) {
+    if (email == null || email.isBlank()) {
+      throw new BadRequestException("Email is required");
+    }
+
+    String normalizedEmail = email.trim().toLowerCase();
+
+    if (!EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
+      throw new BadRequestException("Invalid email format");
+    }
+
+    return normalizedEmail;
   }
 }
