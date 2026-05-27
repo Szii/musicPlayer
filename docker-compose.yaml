@@ -38,8 +38,8 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD}
       MAIL_FROM: ${MAIL_USERNAME}
 
-      FRONTEND_URL: http://localhost:3000
-      FRONTEND_PATH: /verify-email
+      FRONTEND_URL: ${FRONTEND_URL}
+      FRONTEND_PATH: ${FRONTEND_PATH}
     ports:
       - "8080:8080"
 

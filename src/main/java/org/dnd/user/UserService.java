@@ -4,10 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
-import org.dnd.email.EmailService;
-import org.dnd.email.EmailVerificationTokenEntity;
-import org.dnd.email.EmailVerificationTokenRepository;
-import org.dnd.email.EmailVerificationTokenType;
+import org.dnd.email.*;
 import org.dnd.exception.*;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
@@ -18,7 +15,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.regex.Pattern;
 
 @Service
@@ -40,6 +36,7 @@ public class UserService {
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final RegistrationTokenService registrationTokenService;
   private final EmailService emailService;
+  private final EmailVerificationTokenService emailVerificationTokenService;
 
   @Transactional
   public User registerUser(UserRegisterRequest request) {
@@ -64,7 +61,7 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
             user,
             EmailVerificationTokenType.REGISTRATION,
             user.getEmail()
@@ -112,7 +109,7 @@ public class UserService {
       return;
     }
 
-    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
             user,
             EmailVerificationTokenType.REGISTRATION,
             user.getEmail()
@@ -151,7 +148,7 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
             user,
             EmailVerificationTokenType.REGISTRATION,
             user.getEmail()
@@ -191,7 +188,7 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    EmailVerificationTokenEntity verificationToken = createOrUpdateVerificationToken(
+    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
             user,
             EmailVerificationTokenType.EMAIL_CHANGE,
             normalizedEmail
@@ -230,26 +227,6 @@ public class UserService {
     User userResponse = userMapper.toDto(user);
     userResponse.setLimits(userRankEvaluatorService.getLimitsForUser(user));
     return userResponse;
-  }
-
-  private EmailVerificationTokenEntity createOrUpdateVerificationToken(
-          UserEntity user,
-          EmailVerificationTokenType type,
-          String targetEmail
-  ) {
-    EmailVerificationTokenEntity verificationToken = emailVerificationTokenRepository
-            .findByUserId(user.getId())
-            .orElseGet(() -> EmailVerificationTokenEntity.builder()
-                    .user(user)
-                    .build());
-
-    verificationToken.setToken(generateEmailVerificationToken());
-    verificationToken.setType(type);
-    verificationToken.setTargetEmail(targetEmail);
-    verificationToken.setCreatedAt(LocalDateTime.now());
-    verificationToken.setValid(true);
-
-    return emailVerificationTokenRepository.save(verificationToken);
   }
 
   private void verifyRegistrationEmail(
