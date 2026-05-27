@@ -60,6 +60,19 @@ public class UserController implements UsersApi {
   }
 
   @Override
+  public ResponseEntity<Void> changeUnverifiedEmail(UserRegisterRequest userAuthDTO) {
+    userService.changeUnverifiedEmail(userAuthDTO.getName(), userAuthDTO.getPassword(), userAuthDTO.getEmail());
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  public ResponseEntity<Void> changeVerifiedEmail(UserRegisterRequest userAuthDTO) {
+    userService.changeVerifiedEmail(userAuthDTO.getName(), userAuthDTO.getPassword(), userAuthDTO.getEmail());
+    return ResponseEntity.ok().build();
+  }
+
+
+  @Override
   @RateLimiting(
           name = "default-api",
           cacheKey = "@rateLimitKeyResolver.currentUserKey()",
