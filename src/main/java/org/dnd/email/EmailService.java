@@ -25,8 +25,11 @@ public class EmailService {
   @Value("${app.frontend-url}")
   private String frontendUrl;
 
-  @Value("${app.frontend-path}")
-  private String frontendPath;
+  @Value("${app.frontend-path-verify-email}")
+  private String frontendPathVerifyEmail;
+
+  @Value("${app.frontend-path-reset-password}")
+  private String frontendPathResetPassword;
 
   @Value("${app.mail.from}")
   private String from;
@@ -34,10 +37,13 @@ public class EmailService {
   @Value("classpath:email/verification-email.html")
   private Resource verificationEmailTemplate;
 
+  @Value("classpath:email/reset-password-email.html")
+  private Resource resetPasswordTemplate;
+
   public void sendVerificationEmail(String username, String email, String verificationToken) {
     String verificationUrl = UriComponentsBuilder
             .fromUriString(frontendUrl)
-            .path(frontendPath)
+            .path(frontendPathVerifyEmail)
             .queryParam("token", verificationToken)
             .toUriString();
 
@@ -49,7 +55,31 @@ public class EmailService {
 
       helper.setFrom(from);
       helper.setTo(email);
-      helper.setSubject("Verify your email");
+      helper.setSubject("Verify Your email");
+      helper.setText(html, true);
+
+      mailSender.send(mimeMessage);
+    } catch (MessagingException | IOException | MailException e) {
+      throw new IllegalStateException("Failed to send verification email", e);
+    }
+  }
+
+  public void sendPasswordReset(String email, String passwordResetToken) {
+    String verificationUrl = UriComponentsBuilder
+            .fromUriString(frontendUrl)
+            .path(frontendPathVerifyEmail)
+            .queryParam("token", passwordResetToken)
+            .toUriString();
+
+    try {
+      String html = loadForgotPasswordTemplate(verificationUrl);
+
+      MimeMessage mimeMessage = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+
+      helper.setFrom(from);
+      helper.setTo(email);
+      helper.setSubject("Reset Your password");
       helper.setText(html, true);
 
       mailSender.send(mimeMessage);
@@ -67,5 +97,15 @@ public class EmailService {
     return template
             .replace("{{username}}", HtmlUtils.htmlEscape(username))
             .replace("{{verificationUrl}}", HtmlUtils.htmlEscape(verificationUrl));
+  }
+
+  private String loadForgotPasswordTemplate(String passwordResetUrl) throws IOException {
+    String template = StreamUtils.copyToString(
+            resetPasswordTemplate.getInputStream(),
+            StandardCharsets.UTF_8
+    );
+
+    return template
+            .replace("{{passwordResetUrl}}", HtmlUtils.htmlEscape(passwordResetUrl));
   }
 }

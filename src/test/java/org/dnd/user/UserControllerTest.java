@@ -7,11 +7,11 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.email.EmailService;
-import org.dnd.email.EmailVerificationTokenEntity;
-import org.dnd.email.EmailVerificationTokenRepository;
-import org.dnd.email.EmailVerificationTokenType;
 import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
+import org.dnd.token.TokenEntity;
+import org.dnd.token.TokenRepository;
+import org.dnd.token.TokenType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +49,7 @@ class UserControllerTest extends DatabaseBase {
   private UserRepository userRepository;
 
   @Autowired
-  private EmailVerificationTokenRepository emailVerificationTokenRepository;
+  private TokenRepository tokenRepository;
 
   @Autowired
   private JwtService jwtService;
@@ -62,7 +62,7 @@ class UserControllerTest extends DatabaseBase {
 
   @BeforeEach
   void setUp() {
-    emailVerificationTokenRepository.deleteAll();
+    tokenRepository.deleteAll();
     userRepository.deleteAll();
   }
 
@@ -88,13 +88,13 @@ class UserControllerTest extends DatabaseBase {
     assertFalse(user.isEmailVerified());
     assertNull(user.getPendingEmail());
 
-    EmailVerificationTokenEntity token = emailVerificationTokenRepository
-            .findByUserId(user.getId())
+    TokenEntity token = tokenRepository
+            .findByUserIdAndType(user.getId(), TokenType.REGISTRATION)
             .orElseThrow();
 
     assertTrue(token.isValid());
     assertNotNull(token.getToken());
-    assertEquals(EmailVerificationTokenType.REGISTRATION, token.getType());
+    assertEquals(TokenType.REGISTRATION, token.getType());
     assertEquals(request.getEmail().toLowerCase(), token.getTargetEmail());
 
     verify(emailService).sendVerificationEmail(
@@ -283,25 +283,20 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(changeEmailRequest)))
             .andExpect(status().isOk());
 
+    verify(emailService).sendVerificationEmail(
+            eq(username),
+            eq(normalizedNewEmail),
+            anyString()
+    );
+
     UserEntity user = userRepository.findByName(username).orElseThrow();
 
     assertFalse(user.isEmailVerified());
     assertEquals(normalizedNewEmail, user.getEmail());
     assertNull(user.getPendingEmail());
 
-    EmailVerificationTokenEntity token = emailVerificationTokenRepository
-            .findByUserId(user.getId())
-            .orElseThrow();
-
-    assertTrue(token.isValid());
-    assertEquals(EmailVerificationTokenType.REGISTRATION, token.getType());
-    assertEquals(normalizedNewEmail, token.getTargetEmail());
-
-    verify(emailService).sendVerificationEmail(
-            eq(username),
-            eq(normalizedNewEmail),
-            anyString()
-    );
+    assertTrue(tokenRepository
+            .findByUserIdAndType(user.getId(), TokenType.EMAIL_CHANGE).isEmpty());
   }
 
   @Test
@@ -330,25 +325,25 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk());
 
+    verify(emailService).sendVerificationEmail(
+            eq(username),
+            eq(newEmail),
+            anyString()
+    );
+
     UserEntity updatedUser = userRepository.findByName(username).orElseThrow();
 
     assertTrue(updatedUser.isEmailVerified());
     assertEquals(oldEmail, updatedUser.getEmail());
     assertEquals(newEmail, updatedUser.getPendingEmail());
 
-    EmailVerificationTokenEntity tokenEntity = emailVerificationTokenRepository
-            .findByUserId(updatedUser.getId())
+    TokenEntity tokenEntity = tokenRepository
+            .findByUserIdAndType(user.getId(), TokenType.EMAIL_CHANGE)
             .orElseThrow();
 
     assertTrue(tokenEntity.isValid());
-    assertEquals(EmailVerificationTokenType.EMAIL_CHANGE, tokenEntity.getType());
+    assertEquals(TokenType.EMAIL_CHANGE, tokenEntity.getType());
     assertEquals(newEmail, tokenEntity.getTargetEmail());
-
-    verify(emailService).sendVerificationEmail(
-            eq(username),
-            eq(newEmail),
-            anyString()
-    );
   }
 
   @Test
@@ -382,7 +377,7 @@ class UserControllerTest extends DatabaseBase {
     assertTrue(unchangedUser.isEmailVerified());
     assertEquals(email, unchangedUser.getEmail());
     assertNull(unchangedUser.getPendingEmail());
-    assertTrue(emailVerificationTokenRepository.findByUserId(unchangedUser.getId()).isEmpty());
+    assertTrue(tokenRepository.findByUserIdAndType(unchangedUser.getId(), TokenType.EMAIL_CHANGE).isEmpty());
   }
 
   @Test
@@ -405,8 +400,8 @@ class UserControllerTest extends DatabaseBase {
 
     UserEntity registeredUser = userRepository.findByName(username).orElseThrow();
 
-    EmailVerificationTokenEntity tokenEntity = emailVerificationTokenRepository
-            .findByUserId(registeredUser.getId())
+    TokenEntity tokenEntity = tokenRepository
+            .findByUserIdAndType(registeredUser.getId(), TokenType.REGISTRATION)
             .orElseThrow();
 
     String verificationToken = tokenEntity.getToken();
@@ -414,7 +409,7 @@ class UserControllerTest extends DatabaseBase {
     assertFalse(registeredUser.isEmailVerified());
     assertEquals(normalizedEmail, registeredUser.getEmail());
     assertTrue(tokenEntity.isValid());
-    assertEquals(EmailVerificationTokenType.REGISTRATION, tokenEntity.getType());
+    assertEquals(TokenType.REGISTRATION, tokenEntity.getType());
     assertEquals(normalizedEmail, tokenEntity.getTargetEmail());
 
     mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", verificationToken))
@@ -428,12 +423,10 @@ class UserControllerTest extends DatabaseBase {
 
     UserEntity verifiedUser = userRepository.findByName(username).orElseThrow();
 
-    EmailVerificationTokenEntity usedToken = emailVerificationTokenRepository
-            .findByUserId(verifiedUser.getId())
-            .orElseThrow();
 
     assertTrue(verifiedUser.isEmailVerified());
-    assertFalse(usedToken.isValid());
+    assertTrue(tokenRepository
+            .findByUserIdAndType(verifiedUser.getId(), TokenType.REGISTRATION).isEmpty());
 
     UserLoginRequest loginRequest = new UserLoginRequest()
             .name(username)
@@ -480,12 +473,12 @@ class UserControllerTest extends DatabaseBase {
     assertEquals(oldEmail, beforeVerification.getEmail());
     assertEquals(newEmail, beforeVerification.getPendingEmail());
 
-    EmailVerificationTokenEntity tokenEntity = emailVerificationTokenRepository
-            .findByUserId(beforeVerification.getId())
+    TokenEntity tokenEntity = tokenRepository
+            .findByUserIdAndType(beforeVerification.getId(), TokenType.EMAIL_CHANGE)
             .orElseThrow();
 
     assertTrue(tokenEntity.isValid());
-    assertEquals(EmailVerificationTokenType.EMAIL_CHANGE, tokenEntity.getType());
+    assertEquals(TokenType.EMAIL_CHANGE, tokenEntity.getType());
     assertEquals(newEmail, tokenEntity.getTargetEmail());
 
     mockMvc.perform(post("/api/v1/auth/verify/{verificationToken}", tokenEntity.getToken()))
@@ -493,14 +486,12 @@ class UserControllerTest extends DatabaseBase {
 
     UserEntity afterVerification = userRepository.findByName(username).orElseThrow();
 
-    EmailVerificationTokenEntity usedToken = emailVerificationTokenRepository
-            .findByUserId(afterVerification.getId())
-            .orElseThrow();
+    assertTrue(tokenRepository
+            .findByUserIdAndType(afterVerification.getId(), TokenType.EMAIL_CHANGE).isEmpty());
 
     assertTrue(afterVerification.isEmailVerified());
     assertEquals(newEmail, afterVerification.getEmail());
     assertNull(afterVerification.getPendingEmail());
-    assertFalse(usedToken.isValid());
   }
 
   @Test

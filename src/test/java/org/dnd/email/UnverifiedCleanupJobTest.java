@@ -1,6 +1,9 @@
 package org.dnd.email;
 
 import org.dnd.DatabaseBase;
+import org.dnd.token.TokenEntity;
+import org.dnd.token.TokenRepository;
+import org.dnd.token.TokenType;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +28,7 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
   private UserRepository userRepository;
 
   @Autowired
-  private EmailVerificationTokenRepository tokenRepository;
+  private TokenRepository tokenRepository;
 
   @BeforeEach
   void setUp() {
@@ -48,7 +51,7 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     saveToken(
             oldUnverifiedUser,
             "old-unverified-token",
-            EmailVerificationTokenType.REGISTRATION,
+            TokenType.REGISTRATION,
             oldUnverifiedUser.getEmail(),
             now.minusHours(2),
             true
@@ -65,7 +68,7 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     saveToken(
             recentUnverifiedUser,
             "recent-unverified-token",
-            EmailVerificationTokenType.REGISTRATION,
+            TokenType.REGISTRATION,
             recentUnverifiedUser.getEmail(),
             now.minusMinutes(20),
             true
@@ -82,7 +85,7 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     saveToken(
             oldVerifiedUser,
             "old-verified-token",
-            EmailVerificationTokenType.REGISTRATION,
+            TokenType.REGISTRATION,
             oldVerifiedUser.getEmail(),
             now.minusHours(2),
             false
@@ -99,7 +102,7 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     saveToken(
             verifiedUserChangingEmail,
             "email-change-token",
-            EmailVerificationTokenType.EMAIL_CHANGE,
+            TokenType.EMAIL_CHANGE,
             verifiedUserChangingEmail.getPendingEmail(),
             now.minusHours(2),
             true
@@ -108,13 +111,12 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     unverifiedCleanupJob.cleanUpUnverifiedUsers();
 
     assertTrue(userRepository.findById(oldUnverifiedUser.getId()).isEmpty());
-    assertTrue(tokenRepository.findByUserId(oldUnverifiedUser.getId()).isEmpty());
+    assertTrue(tokenRepository.findByUserIdAndType(oldUnverifiedUser.getId(), TokenType.REGISTRATION).isEmpty());
 
     assertTrue(userRepository.findById(recentUnverifiedUser.getId()).isPresent());
-    assertTrue(tokenRepository.findByUserId(recentUnverifiedUser.getId()).isPresent());
+    assertTrue(tokenRepository.findByUserIdAndType(recentUnverifiedUser.getId(), TokenType.REGISTRATION).isPresent());
 
     assertTrue(userRepository.findById(oldVerifiedUser.getId()).isPresent());
-    assertTrue(tokenRepository.findByUserId(oldVerifiedUser.getId()).isPresent());
 
     UserEntity remainingChangingEmailUser = userRepository
             .findById(verifiedUserChangingEmail.getId())
@@ -123,7 +125,7 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     assertTrue(remainingChangingEmailUser.isEmailVerified());
     assertEquals("verified-changing@email.com", remainingChangingEmailUser.getEmail());
     assertEquals("new-email@email.com", remainingChangingEmailUser.getPendingEmail());
-    assertTrue(tokenRepository.findByUserId(verifiedUserChangingEmail.getId()).isPresent());
+    assertTrue(tokenRepository.findByUserIdAndType(verifiedUserChangingEmail.getId(), TokenType.EMAIL_CHANGE).isPresent());
   }
 
   private UserEntity saveUser(
@@ -145,15 +147,15 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
     return userRepository.save(user);
   }
 
-  private EmailVerificationTokenEntity saveToken(
+  private TokenEntity saveToken(
           UserEntity user,
           String tokenValue,
-          EmailVerificationTokenType type,
+          TokenType type,
           String targetEmail,
           LocalDateTime createdAt,
           boolean valid
   ) {
-    EmailVerificationTokenEntity token = EmailVerificationTokenEntity.builder()
+    TokenEntity token = TokenEntity.builder()
             .user(user)
             .token(tokenValue)
             .type(type)
