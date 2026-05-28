@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static org.dnd.configuration.limiting.RateLimitNames.*;
+
 @RequestMapping("/api/v1")
 @Tag(name = "MusicGroups", description = "Operations related to user groups")
 @RestController
@@ -23,8 +25,8 @@ public class GroupController implements MusicGroupsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<List<Group>> getUserGroups() {
@@ -33,8 +35,8 @@ public class GroupController implements MusicGroupsApi {
 
   @Override
   @RateLimiting(
-          name = "create-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = CREATE_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Group> createGroup(GroupRequest groupRequest) {
@@ -43,8 +45,8 @@ public class GroupController implements MusicGroupsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Void> deleteGroup(Long groupId) {
@@ -54,8 +56,8 @@ public class GroupController implements MusicGroupsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Group> updateGroup(Long groupId, GroupRequest groupRequest) {

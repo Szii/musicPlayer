@@ -17,6 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static org.dnd.configuration.limiting.RateLimitNames.*;
+
 @RequestMapping("/api/v1")
 @Tag(name = "Tracks", description = "Music track management endpoints")
 @RestController
@@ -34,8 +36,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<List<Track>> getUserTracks() throws Exception {
@@ -45,8 +47,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "create-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = CREATE_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Track> createTrack(TrackRequest trackRequest) throws Exception {
@@ -55,8 +57,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Void> deleteTrack(Long trackId) throws Exception {
@@ -66,8 +68,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Track> updateTrack(Long trackId, TrackRequest trackRequest) throws Exception {
@@ -76,8 +78,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Track> updateTrackWindow(Long trackId, Long pointId, TrackWindowRequest trackRequest) throws Exception {
@@ -86,8 +88,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Track> deleteTrackWindow(Long trackId, Long pointId) throws Exception {
@@ -96,8 +98,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<List<Track>> getPublishedTracks() throws Exception {
@@ -106,8 +108,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<List<Track>> getUserSubscribedTracks() throws Exception {
@@ -116,8 +118,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
@@ -126,8 +128,8 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<WaveformResponse> getTrackWaveform(Long trackId) {

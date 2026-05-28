@@ -13,6 +13,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import static org.dnd.configuration.limiting.RateLimitNames.*;
+
 @RequestMapping("/api/v1")
 @Tag(name = "Share", description = "Endpoints for sharing and subscribing to music tracks")
 @RestController
@@ -24,8 +26,8 @@ public class ShareController implements ShareApi {
 
   @Override
   @RateLimiting(
-          name = "create-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = CREATE_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<TrackShareResponse> publishTrack(Long trackId, PublishTrackRequest request) {
@@ -35,8 +37,8 @@ public class ShareController implements ShareApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Void> unpublishTrack(Long trackId) {
@@ -46,8 +48,8 @@ public class ShareController implements ShareApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Void> subscribeToTrack(
@@ -58,8 +60,8 @@ public class ShareController implements ShareApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Void> unsubscribeFromTrack(

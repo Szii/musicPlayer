@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import static org.dnd.configuration.limiting.RateLimitNames.*;
+
 @Controller
 @RequestMapping("/api/v1")
 @Tag(name = "BoardSessions", description = "Operations related to board sessions")
@@ -20,8 +22,8 @@ public class SessionController implements SessionsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<SessionsResponse> deleteSession(Long sessionId) {
@@ -32,11 +34,11 @@ public class SessionController implements SessionsApi {
   public ResponseEntity<SessionResponse> getSessionById(Long sessionId) {
     return ResponseEntity.ok(sessionService.getSession(sessionId));
   }
-  
+
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<SessionsResponse> getSessions() {
@@ -49,8 +51,8 @@ public class SessionController implements SessionsApi {
 
   @Override
   @RateLimiting(
-          name = "create-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = CREATE_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<SessionsResponse> upsertSession(SessionRequest sessionRequest) {

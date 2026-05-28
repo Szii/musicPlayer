@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+import static org.dnd.configuration.limiting.RateLimitNames.*;
+
 @RequestMapping("/api/v1")
 @Tag(name = "Boards", description = "Music boards management endpoints")
 @RestController
@@ -26,8 +28,8 @@ public class BoardController implements MusicBoardsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<List<Board>> getUserBoards() {
@@ -40,8 +42,8 @@ public class BoardController implements MusicBoardsApi {
 
   @Override
   @RateLimiting(
-          name = "create-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = CREATE_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<SessionResponse> createUserBoard(BoardCreateRequest boardRequest) {
@@ -50,8 +52,8 @@ public class BoardController implements MusicBoardsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<SessionResponse> deleteUserBoard(Long boardId) {
@@ -60,8 +62,8 @@ public class BoardController implements MusicBoardsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Board> getUserBoard(Long boardId) throws Exception {
@@ -70,8 +72,8 @@ public class BoardController implements MusicBoardsApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Board> updateUserBoard(Long boardId, BoardUpdateRequest boardRequest) {
