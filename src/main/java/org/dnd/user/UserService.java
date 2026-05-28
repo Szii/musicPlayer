@@ -236,7 +236,7 @@ public class UserService {
             normalizedEmail
     );
 
-    emailService.sendVerificationEmail(
+    emailService.sendEmailChangeMail(
             user.getName(),
             normalizedEmail,
             verificationToken.getToken()

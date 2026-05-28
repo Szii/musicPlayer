@@ -324,7 +324,7 @@ class UserControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk());
 
-    verify(emailService).sendVerificationEmail(
+    verify(emailService).sendEmailChangeMail(
             eq(username),
             eq(newEmail),
             anyString()
