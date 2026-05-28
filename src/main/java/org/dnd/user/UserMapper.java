@@ -1,9 +1,6 @@
 package org.dnd.user;
 
-import org.dnd.api.model.User;
-import org.dnd.api.model.UserAuthDTO;
-import org.dnd.api.model.UserInfoLite;
-import org.dnd.api.model.UserRegisterRequest;
+import org.dnd.api.model.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -19,6 +16,8 @@ public interface UserMapper {
   @Mapping(target = "id", source = "entity.id")
   @Mapping(target = "name", source = "entity.name")
   UserAuthDTO toAuthDto(UserEntity entity);
+
+  UserLoginRequest fromUserChangePasswordRequest(UserChangePasswordRequest request);
 
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "ownedTracks", ignore = true)

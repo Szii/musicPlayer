@@ -2,10 +2,7 @@ package org.dnd.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
-import org.dnd.api.model.AuthResponse;
-import org.dnd.api.model.UserAuthDTO;
-import org.dnd.api.model.UserLoginRequest;
-import org.dnd.api.model.UserRegisterRequest;
+import org.dnd.api.model.*;
 import org.dnd.email.EmailService;
 import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
@@ -24,6 +21,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -492,6 +491,122 @@ class UserControllerTest extends DatabaseBase {
     assertTrue(afterVerification.isEmailVerified());
     assertEquals(newEmail, afterVerification.getEmail());
     assertNull(afterVerification.getPendingEmail());
+  }
+
+  @Test
+  void changePassword_unverifiedFlowSuccess() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+    String newPassword = "password12345";
+
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            email
+    );
+
+    UserEntity managedUser = userRepository.save(user);
+
+    ForgotPasswordRequest request = new ForgotPasswordRequest()
+            .email(email);
+
+
+    mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
+
+    Optional<TokenEntity> passwordResetToken = tokenRepository.findByUserIdAndType(managedUser.getId(), TokenType.FORGOT_PASSWORD);
+
+    assertTrue(passwordResetToken.isPresent());
+
+    String token = passwordResetToken.get().getToken();
+
+    verify(emailService).sendPasswordReset(
+            eq(request.getEmail()),
+            eq(token)
+    );
+
+    UserChangePasswordWithTokenRequest changePasswordRequest = new UserChangePasswordWithTokenRequest();
+    changePasswordRequest.setPassword(newPassword);
+    changePasswordRequest.setToken(token);
+
+    mockMvc.perform(post("/api/v1/auth/verify/change-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(changePasswordRequest)))
+            .andExpect(status().isOk());
+
+    UserEntity afterPasswordChange = userRepository.findByName(username).orElseThrow();
+
+    assertTrue(afterPasswordChange.isEmailVerified());
+    assertTrue(passwordEncoder.matches(newPassword, afterPasswordChange.getPassword()));
+    assertTrue(tokenRepository
+            .findByUserIdAndType(afterPasswordChange.getId(), TokenType.FORGOT_PASSWORD).isEmpty());
+  }
+
+  @Test
+  void changePassword_unverifiedFlowFails() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String email = "email@email.com";
+    String newPassword = "password12345";
+
+    UserEntity user = UserHelper.createValidatedUser(
+            username,
+            passwordEncoder.encode(password),
+            email
+    );
+
+    UserEntity managedUser = userRepository.save(user);
+
+    ForgotPasswordRequest request = new ForgotPasswordRequest()
+            .email(email);
+
+
+    mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
+
+    Optional<TokenEntity> passwordResetToken = tokenRepository.findByUserIdAndType(managedUser.getId(), TokenType.FORGOT_PASSWORD);
+
+    assertTrue(passwordResetToken.isPresent());
+
+    String token = passwordResetToken.get().getToken();
+
+    verify(emailService).sendPasswordReset(
+            eq(request.getEmail()),
+            eq(token)
+    );
+
+    UserChangePasswordWithTokenRequest changePasswordRequest = new UserChangePasswordWithTokenRequest();
+    changePasswordRequest.setPassword(newPassword);
+    changePasswordRequest.setToken("random-token");
+
+    mockMvc.perform(post("/api/v1/auth/verify/change-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(changePasswordRequest)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void changePassword_verifiedUser_success() throws Exception {
+    UserEntity user = UserHelper.createValidatedUser("franta", passwordEncoder.encode("lala"), "email@email.com");
+    UserEntity managedUser = userRepository.save(user);
+    String token = getTokenForUser(managedUser);
+
+    UserChangePasswordRequest request = new UserChangePasswordRequest("franta", "lala", "lala1");
+
+
+    mockMvc.perform(post("/api/v1/verify/change-password")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
+
+    UserEntity modifiedUser = userRepository.findById(managedUser.getId()).orElseThrow();
+    assertTrue(passwordEncoder.matches("lala1", modifiedUser.getPassword()));
   }
 
   @Test

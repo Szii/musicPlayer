@@ -40,7 +40,7 @@ public class UserService {
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final RegistrationTokenService registrationTokenService;
   private final EmailService emailService;
-  private final TokenService emailVerificationTokenService;
+  private final TokenService tokenService;
 
   @Transactional
   public User registerUser(UserRegisterRequest request) {
@@ -65,7 +65,7 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    TokenEntity verificationToken = emailVerificationTokenService.create(
+    TokenEntity verificationToken = tokenService.create(
             user,
             TokenType.REGISTRATION,
             user.getEmail()
@@ -84,7 +84,7 @@ public class UserService {
   public void verifyEmail(String token) {
     TokenEntity verificationToken = tokenRepository
             .findByTokenAndValidTrue(token)
-            .orElseThrow(() -> new NotFoundException("Invalid verification token"));
+            .orElseThrow(() -> new ForbiddenException("Invalid verification token"));
 
     UserEntity user = verificationToken.getUser();
 
@@ -101,7 +101,7 @@ public class UserService {
   }
 
   @Transactional
-  public void resendVerificationEmail(UserLoginRequest request) {
+  public void resendVerificationEmailToSameEmail(UserLoginRequest request) {
     UserEntity user = authenticateByNameAndPassword(
             request.getName(),
             request.getPassword()
@@ -111,7 +111,7 @@ public class UserService {
       return;
     }
 
-    TokenEntity verificationToken = emailVerificationTokenService.create(
+    TokenEntity verificationToken = tokenService.create(
             user,
             TokenType.REGISTRATION,
             user.getEmail()
@@ -125,7 +125,7 @@ public class UserService {
   }
 
   @Transactional
-  public void changeUnverifiedEmail(String name, String password, String newEmail) {
+  public void sendVerificationEmailToNewEmail(String name, String password, String newEmail) {
     UserEntity user = userRepository.findByName(name)
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
 
@@ -150,7 +150,7 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    TokenEntity verificationToken = emailVerificationTokenService.create(
+    TokenEntity verificationToken = tokenService.create(
             user,
             TokenType.REGISTRATION,
             user.getEmail()
@@ -161,6 +161,46 @@ public class UserService {
             user.getEmail(),
             verificationToken.getToken()
     );
+  }
+
+  @Transactional
+  public void sendChangePasswordEmail(String email) {
+    String normalizedEmail = normalizeEmail(email);
+
+    userRepository.findByEmail(normalizedEmail)
+            .ifPresent(user -> {
+              TokenEntity resetToken = tokenService.create(
+                      user,
+                      TokenType.FORGOT_PASSWORD,
+                      user.getEmail()
+              );
+
+              emailService.sendPasswordReset(user.getEmail(), resetToken.getToken());
+            });
+  }
+
+  @Transactional
+  public void changePasswordByToken(UserChangePasswordWithTokenRequest request) {
+    tokenRepository.findByTokenAndValidTrue(request.getToken())
+            .ifPresentOrElse(tokenEntity -> {
+              UserEntity user = tokenEntity.getUser();
+              user.setPassword(passwordEncoder.encode(request.getPassword()));
+              userRepository.save(user);
+              tokenRepository.delete(tokenEntity);
+            }, () -> {
+              throw new ForbiddenException("Invalid credentials");
+            });
+  }
+
+  @Transactional
+  public void changePasswordByAuth(UserChangePasswordRequest request) {
+    User user = loginUser(userMapper.fromUserChangePasswordRequest(request)).getUser();
+
+    UserEntity userEntity = userRepository.findById(user.getId())
+            .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
+    userEntity.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+    userRepository.save(userEntity);
   }
 
   @Transactional
@@ -190,7 +230,7 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    TokenEntity verificationToken = emailVerificationTokenService.create(
+    TokenEntity verificationToken = tokenService.create(
             user,
             TokenType.EMAIL_CHANGE,
             normalizedEmail
@@ -309,7 +349,6 @@ public class UserService {
     }
 
     loginThrottleService.recordSuccess(username);
-
     return user;
   }
 }
