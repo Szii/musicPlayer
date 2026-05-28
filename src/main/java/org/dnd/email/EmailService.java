@@ -67,7 +67,7 @@ public class EmailService {
   public void sendPasswordReset(String email, String passwordResetToken) {
     String verificationUrl = UriComponentsBuilder
             .fromUriString(frontendUrl)
-            .path(frontendPathVerifyEmail)
+            .path(frontendPathResetPassword)
             .queryParam("token", passwordResetToken)
             .toUriString();
 
