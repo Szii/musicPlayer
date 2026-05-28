@@ -15,6 +15,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import static org.dnd.configuration.limiting.RateLimitNames.*;
+
 @RequestMapping("/api/v1")
 @Tag(name = "Playback", description = "Playback control operations for a specific board")
 @RestController
@@ -28,8 +30,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<PlaybackState> getBoardPlaybackState(Long boardId) {
@@ -38,8 +40,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<PlaybackState> playBoard(Long boardId, PlayRequest playRequest) {
@@ -48,8 +50,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<PlaybackState> stopBoard(Long boardId) {
@@ -58,8 +60,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   @Deprecated
@@ -69,8 +71,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   @Deprecated
@@ -80,8 +82,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   @Deprecated
@@ -91,8 +93,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.streamKey(#streamToken)",
+          name = STREAM_API,
+          cacheKey = STREAM_TOKEN_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Resource> streamBoardAudio(Long boardId, String streamToken) {
@@ -103,8 +105,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<PlaybackState> playTrack(Long trackId, PlayRequest playRequest) {
@@ -113,8 +115,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.streamKey(#streamToken)",
+          name = STREAM_API,
+          cacheKey = STREAM_TOKEN_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<Resource> streamTrackAudio(Long trackId, String streamToken) {
@@ -125,8 +127,8 @@ public class PlaybackController implements PlaybackApi {
 
   @Override
   @RateLimiting(
-          name = "default-api",
-          cacheKey = "@rateLimitKeyResolver.currentUserKey()",
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
   public ResponseEntity<StreamInfoResponse> getTrackStreamInfo(Long trackId) {
