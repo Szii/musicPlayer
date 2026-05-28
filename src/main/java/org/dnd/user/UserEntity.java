@@ -3,8 +3,8 @@ package org.dnd.user;
 import jakarta.persistence.*;
 import lombok.*;
 import org.dnd.board.BoardEntity;
-import org.dnd.email.EmailVerificationTokenEntity;
 import org.dnd.group.GroupEntity;
+import org.dnd.token.TokenEntity;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.trackShare.TrackShareEntity;
 
@@ -61,17 +61,19 @@ public class UserEntity {
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-  private EmailVerificationTokenEntity verificationToken;
-
   @ManyToMany(fetch = FetchType.EAGER)
   @JoinTable(
           name = "user_shares",
           joinColumns = @JoinColumn(name = "user_id"),
           inverseJoinColumns = @JoinColumn(name = "share_id")
   )
+
   @Builder.Default
   private Set<TrackShareEntity> shares = new HashSet<>();
+
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+  @Builder.Default
+  private Set<TokenEntity> tokens = new HashSet<>();
 
   @PrePersist
   void prePersist() {

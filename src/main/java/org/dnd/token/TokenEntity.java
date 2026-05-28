@@ -1,4 +1,4 @@
-package org.dnd.email;
+package org.dnd.token;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,13 +7,13 @@ import org.dnd.user.UserEntity;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "email_verification_tokens")
+@Table(name = "tokens")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EmailVerificationTokenEntity {
+public class TokenEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,13 +22,13 @@ public class EmailVerificationTokenEntity {
   @Column(nullable = false, unique = true, length = 255)
   private String token;
 
-  @OneToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "user_id", nullable = false, unique = true)
+  @ManyToOne(fetch = FetchType.LAZY, optional = false)
+  @JoinColumn(name = "user_id", nullable = false)
   private UserEntity user;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, length = 50)
-  private EmailVerificationTokenType type;
+  private TokenType type;
 
   @Column(name = "target_email", nullable = false)
   private String targetEmail;

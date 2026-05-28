@@ -4,10 +4,7 @@ import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.UsersApi;
-import org.dnd.api.model.AuthResponse;
-import org.dnd.api.model.User;
-import org.dnd.api.model.UserLoginRequest;
-import org.dnd.api.model.UserRegisterRequest;
+import org.dnd.api.model.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -39,7 +36,7 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> resendVerificationEmail(UserLoginRequest request) throws Exception {
-    userService.resendVerificationEmail(request);
+    userService.resendVerificationEmailToSameEmail(request);
     return ResponseEntity.ok().build();
   }
 
@@ -69,7 +66,18 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> changeUnverifiedEmail(UserRegisterRequest userAuthDTO) {
-    userService.changeUnverifiedEmail(userAuthDTO.getName(), userAuthDTO.getPassword(), userAuthDTO.getEmail());
+    userService.sendVerificationEmailToNewEmail(userAuthDTO.getName(), userAuthDTO.getPassword(), userAuthDTO.getEmail());
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  @RateLimiting(
+          name = "resend-verification-strict",
+          cacheKey = "@rateLimitKeyResolver.registerKey(#userChangePasswordWithTokenRequest)",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> changeUnverifiedPassword(UserChangePasswordWithTokenRequest userChangePasswordWithTokenRequest) {
+    userService.changePasswordByToken(userChangePasswordWithTokenRequest);
     return ResponseEntity.ok().build();
   }
 
@@ -84,6 +92,27 @@ public class UserController implements UsersApi {
     return ResponseEntity.ok().build();
   }
 
+  @Override
+  @RateLimiting(
+          name = "resend-verification-strict",
+          cacheKey = "@rateLimitKeyResolver.changeUserPassword(#userChangePasswordRequest)",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> changeVerifiedPassword(UserChangePasswordRequest userChangePasswordRequest) {
+    userService.changePasswordByAuth(userChangePasswordRequest);
+    return ResponseEntity.ok().build();
+  }
+
+  @Override
+  @RateLimiting(
+          name = "resend-verification-strict",
+          cacheKey = "@rateLimitKeyResolver.resendPasswordVerification(#forgotPasswordRequest)",
+          ratePerMethod = true
+  )
+  public ResponseEntity<Void> forgotPassword(ForgotPasswordRequest forgotPasswordRequest) {
+    userService.sendChangePasswordEmail(forgotPasswordRequest.getEmail());
+    return ResponseEntity.ok().build();
+  }
 
   @Override
   @RateLimiting(

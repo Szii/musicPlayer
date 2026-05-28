@@ -322,6 +322,56 @@ components:
           description: Unique email address of the user
           example: "user@email.com"
 
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+
+    UserChangePasswordRequest:
+      type: object
+      description: Request to change password as verified user
+      required:
+        - name
+        - password
+        - newPassword
+      properties:
+        name:
+          type: string
+          description: Username
+          example: "user"
+        password:
+          type: string
+          format: password
+          description: Plain-text password to be checked on the server
+          example: "secret123"
+        newPassword:
+          type: string
+          format: password
+          description: Plain-text password to be checked on the server
+          example: "secret123"
+
+    UserChangePasswordWithTokenRequest:
+      type: object
+      description: Request to change password as unverified user
+      required:
+        - token
+        - password
+      properties:
+        token:
+          type: string
+          description: verification token
+          example: "user"
+        password:
+          type: string
+          format: password
+          description: Plain-text password to be checked on the server
+          example: "secret123"
+
     UserAuthDTO:
       type: object
       required:
@@ -1004,6 +1054,63 @@ paths:
           description: Wrong credentials
         '409':
           description: Email already registered
+
+  /auth/verify/change-password:
+    post:
+      tags:
+        - Users
+      summary: Attempt to change unverified password (in case user forgot it)
+      operationId: changeUnverifiedPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserChangePasswordWithTokenRequest'
+      responses:
+        '200':
+          description: Password change sent
+        '403':
+          description: Wrong token
+
+  /verify/change-password:
+    post:
+      tags:
+        - Users
+      summary: Attempt to change verified password (if user is already logged in)
+      operationId: changeVerifiedPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserChangePasswordRequest'
+      responses:
+        '200':
+          description: Password change sent
+        '403':
+          description: Wrong credentials
+
+  /auth/forgot-password:
+    post:
+      tags:
+        - Users
+      summary: Send password reset email if account exists
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: If an account exists for this email, a password reset email was sent
+        '400':
+          description: Invalid email format
+        '429':
+          description: Too many password reset requests
+
 
   /users/change-email:
     post:

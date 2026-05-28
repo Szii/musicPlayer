@@ -4,11 +4,15 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
-import org.dnd.email.*;
+import org.dnd.email.EmailService;
 import org.dnd.exception.*;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
 import org.dnd.security.RegistrationTokenService;
+import org.dnd.token.TokenEntity;
+import org.dnd.token.TokenRepository;
+import org.dnd.token.TokenService;
+import org.dnd.token.TokenType;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,7 +32,7 @@ public class UserService {
   );
 
   private final UserRepository userRepository;
-  private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+  private final TokenRepository tokenRepository;
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
   private final JwtService jwtService;
@@ -36,7 +40,7 @@ public class UserService {
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final RegistrationTokenService registrationTokenService;
   private final EmailService emailService;
-  private final EmailVerificationTokenService emailVerificationTokenService;
+  private final TokenService tokenService;
 
   @Transactional
   public User registerUser(UserRegisterRequest request) {
@@ -61,9 +65,9 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
+    TokenEntity verificationToken = tokenService.create(
             user,
-            EmailVerificationTokenType.REGISTRATION,
+            TokenType.REGISTRATION,
             user.getEmail()
     );
 
@@ -78,28 +82,26 @@ public class UserService {
 
   @Transactional
   public void verifyEmail(String token) {
-    EmailVerificationTokenEntity verificationToken = emailVerificationTokenRepository
+    TokenEntity verificationToken = tokenRepository
             .findByTokenAndValidTrue(token)
-            .orElseThrow(() -> new NotFoundException("Invalid verification token"));
+            .orElseThrow(() -> new ForbiddenException("Invalid verification token"));
 
     UserEntity user = verificationToken.getUser();
 
-    if (verificationToken.getType() == EmailVerificationTokenType.REGISTRATION) {
+    if (verificationToken.getType() == TokenType.REGISTRATION) {
       verifyRegistrationEmail(user, verificationToken);
-    } else if (verificationToken.getType() == EmailVerificationTokenType.EMAIL_CHANGE) {
+    } else if (verificationToken.getType() == TokenType.EMAIL_CHANGE) {
       verifyEmailChange(user, verificationToken);
     } else {
       throw new BadRequestException("Unsupported verification token type");
     }
 
-    verificationToken.setValid(false);
-
     userRepository.save(user);
-    emailVerificationTokenRepository.save(verificationToken);
+    tokenRepository.delete(verificationToken);
   }
 
   @Transactional
-  public void resendVerificationEmail(UserLoginRequest request) {
+  public void resendVerificationEmailToSameEmail(UserLoginRequest request) {
     UserEntity user = authenticateByNameAndPassword(
             request.getName(),
             request.getPassword()
@@ -109,9 +111,9 @@ public class UserService {
       return;
     }
 
-    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
+    TokenEntity verificationToken = tokenService.create(
             user,
-            EmailVerificationTokenType.REGISTRATION,
+            TokenType.REGISTRATION,
             user.getEmail()
     );
 
@@ -123,7 +125,7 @@ public class UserService {
   }
 
   @Transactional
-  public void changeUnverifiedEmail(String name, String password, String newEmail) {
+  public void sendVerificationEmailToNewEmail(String name, String password, String newEmail) {
     UserEntity user = userRepository.findByName(name)
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
 
@@ -148,9 +150,9 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
+    TokenEntity verificationToken = tokenService.create(
             user,
-            EmailVerificationTokenType.REGISTRATION,
+            TokenType.REGISTRATION,
             user.getEmail()
     );
 
@@ -159,6 +161,46 @@ public class UserService {
             user.getEmail(),
             verificationToken.getToken()
     );
+  }
+
+  @Transactional
+  public void sendChangePasswordEmail(String email) {
+    String normalizedEmail = normalizeEmail(email);
+
+    userRepository.findByEmail(normalizedEmail)
+            .ifPresent(user -> {
+              TokenEntity resetToken = tokenService.create(
+                      user,
+                      TokenType.FORGOT_PASSWORD,
+                      user.getEmail()
+              );
+
+              emailService.sendPasswordReset(user.getEmail(), resetToken.getToken());
+            });
+  }
+
+  @Transactional
+  public void changePasswordByToken(UserChangePasswordWithTokenRequest request) {
+    tokenRepository.findByTokenAndValidTrue(request.getToken())
+            .ifPresentOrElse(tokenEntity -> {
+              UserEntity user = tokenEntity.getUser();
+              user.setPassword(passwordEncoder.encode(request.getPassword()));
+              userRepository.save(user);
+              tokenRepository.delete(tokenEntity);
+            }, () -> {
+              throw new ForbiddenException("Invalid credentials");
+            });
+  }
+
+  @Transactional
+  public void changePasswordByAuth(UserChangePasswordRequest request) {
+    User user = loginUser(userMapper.fromUserChangePasswordRequest(request)).getUser();
+
+    UserEntity userEntity = userRepository.findById(user.getId())
+            .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
+    userEntity.setPassword(passwordEncoder.encode(request.getNewPassword()));
+
+    userRepository.save(userEntity);
   }
 
   @Transactional
@@ -188,9 +230,9 @@ public class UserService {
 
     user = userRepository.save(user);
 
-    EmailVerificationTokenEntity verificationToken = emailVerificationTokenService.createOrUpdate(
+    TokenEntity verificationToken = tokenService.create(
             user,
-            EmailVerificationTokenType.EMAIL_CHANGE,
+            TokenType.EMAIL_CHANGE,
             normalizedEmail
     );
 
@@ -231,7 +273,7 @@ public class UserService {
 
   private void verifyRegistrationEmail(
           UserEntity user,
-          EmailVerificationTokenEntity verificationToken
+          TokenEntity verificationToken
   ) {
     if (!verificationToken.getTargetEmail().equalsIgnoreCase(user.getEmail())) {
       throw new BadRequestException("Verification token does not match current email");
@@ -242,7 +284,7 @@ public class UserService {
 
   private void verifyEmailChange(
           UserEntity user,
-          EmailVerificationTokenEntity verificationToken
+          TokenEntity verificationToken
   ) {
     String pendingEmail = user.getPendingEmail();
 
@@ -307,7 +349,6 @@ public class UserService {
     }
 
     loginThrottleService.recordSuccess(username);
-
     return user;
   }
 }
