@@ -37,6 +37,9 @@ public class EmailService {
   @Value("classpath:email/verification-email.html")
   private Resource verificationEmailTemplate;
 
+  @Value("classpath:email/change-existing-email.html")
+  private Resource changeEmailTemplate;
+
   @Value("classpath:email/reset-password-email.html")
   private Resource resetPasswordTemplate;
 
@@ -49,6 +52,30 @@ public class EmailService {
 
     try {
       String html = loadVerificationTemplate(username, verificationUrl);
+
+      MimeMessage mimeMessage = mailSender.createMimeMessage();
+      MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
+
+      helper.setFrom(from);
+      helper.setTo(email);
+      helper.setSubject("Verify Your email");
+      helper.setText(html, true);
+
+      mailSender.send(mimeMessage);
+    } catch (MessagingException | IOException | MailException e) {
+      throw new IllegalStateException("Failed to send verification email", e);
+    }
+  }
+
+  public void sendEmailChangeMail(String username, String email, String verificationToken) {
+    String verificationUrl = UriComponentsBuilder
+            .fromUriString(frontendUrl)
+            .path(frontendPathVerifyEmail)
+            .queryParam("token", verificationToken)
+            .toUriString();
+
+    try {
+      String html = loadChangeEmailTemplate(username, verificationUrl);
 
       MimeMessage mimeMessage = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
@@ -99,6 +126,17 @@ public class EmailService {
             .replace("{{verificationUrl}}", HtmlUtils.htmlEscape(verificationUrl));
   }
 
+  private String loadChangeEmailTemplate(String username, String verificationUrl) throws IOException {
+    String template = StreamUtils.copyToString(
+            changeEmailTemplate.getInputStream(),
+            StandardCharsets.UTF_8
+    );
+
+    return template
+            .replace("{{username}}", HtmlUtils.htmlEscape(username))
+            .replace("{{verificationUrl}}", HtmlUtils.htmlEscape(verificationUrl));
+  }
+
   private String loadForgotPasswordTemplate(String passwordResetUrl) throws IOException {
     String template = StreamUtils.copyToString(
             resetPasswordTemplate.getInputStream(),
@@ -109,3 +147,4 @@ public class EmailService {
             .replace("{{passwordResetUrl}}", HtmlUtils.htmlEscape(passwordResetUrl));
   }
 }
+
