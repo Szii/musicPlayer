@@ -93,6 +93,7 @@ public class UserRankEvaluatorService {
               UserWindowsLimit windowLimits = new UserWindowsLimit();
               windowLimits.setActualTrackWindows(actualWindows);
               windowLimits.setMaxTrackWindows(limits.maxWindows());
+              windowLimits.setTrackId(Math.toIntExact(track.getId()));
               windowLimits.setTrackWindowsLimitReached(
                       limits.isLimitReached(limits.maxWindows(), actualWindows)
               );
