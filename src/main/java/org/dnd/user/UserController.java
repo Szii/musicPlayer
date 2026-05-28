@@ -73,7 +73,7 @@ public class UserController implements UsersApi {
   @Override
   @RateLimiting(
           name = "resend-verification-strict",
-          cacheKey = "@rateLimitKeyResolver.registerKey(#userChangePasswordWithTokenRequest)",
+          cacheKey = "@rateLimitKeyResolver.changeUserPasswordWithToken(#userChangePasswordWithTokenRequest)",
           ratePerMethod = true
   )
   public ResponseEntity<Void> changeUnverifiedPassword(UserChangePasswordWithTokenRequest userChangePasswordWithTokenRequest) {
