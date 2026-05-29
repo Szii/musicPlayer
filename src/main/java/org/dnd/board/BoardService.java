@@ -13,8 +13,6 @@ import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
-import org.dnd.track.TrackWindowEntity;
-import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
@@ -36,7 +34,6 @@ public class BoardService {
   private final BoardEnricher boardEnricher;
   private final SessionRepository sessionRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
-  private final TrackWindowRepository trackWindowRepository;
 
   @Transactional(readOnly = true)
   public List<Board> getUserBoards() {
@@ -122,7 +119,6 @@ public class BoardService {
     boardMapper.updateBoardFromRequest(request, board);
     setTrackIfExist(request.getSelectedTrackId(), board);
     setGroupIfExist(request.getSelectedGroupId(), board);
-    setWindowIfExist(request.getSelectedWindowId(), board);
 
     BoardEntity savedBoard = boardRepository.save(board);
 
@@ -135,7 +131,7 @@ public class BoardService {
       return;
     }
 
-    TrackEntity track = trackRepository.findByIdAndOwner_Id(selectedTrackId, SecurityUtils.getCurrentUserId())
+    TrackEntity track = trackRepository.findById(selectedTrackId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", selectedTrackId)));
     board.setSelectedTrack(track);
   }
@@ -145,20 +141,9 @@ public class BoardService {
       board.setSelectedGroup(null);
       return;
     }
-    GroupEntity group = groupRepository.findByIdAndOwner_Id(selectedGroupId, SecurityUtils.getCurrentUserId())
+    GroupEntity group = groupRepository.findById(selectedGroupId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", selectedGroupId)));
     board.setSelectedGroup(group);
-
-  }
-
-  private void setWindowIfExist(Long selectedWindowId, BoardEntity board) {
-    if (selectedWindowId == null) {
-      board.setSelectedWindow(null);
-      return;
-    }
-    TrackWindowEntity window = trackWindowRepository.findById(selectedWindowId)
-            .orElseThrow(() -> new NotFoundException(String.format("Window with id %d not found", selectedWindowId)));
-    board.setSelectedWindow(window);
 
   }
 
