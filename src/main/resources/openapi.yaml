@@ -586,6 +586,8 @@ components:
           example: "Default Playback"
         selectedTrack:
           $ref: '#/components/schemas/Track'
+        selectedWindow:
+          $ref: '#/components/schemas/TrackWindow'
         selectedGroup:
           $ref: '#/components/schemas/Group'
         availableTracks:
@@ -669,6 +671,9 @@ components:
         selectedGroupId:
           type: integer
           format: int64
+        selectedWindowId:
+         type: integer
+         format: int64
         volume:
           type: integer
           description: Playback volume (0-100)

@@ -8,6 +8,7 @@ import lombok.Setter;
 import org.dnd.group.GroupEntity;
 import org.dnd.session.SessionEntity;
 import org.dnd.track.TrackEntity;
+import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserEntity;
 
 @Entity
@@ -28,6 +29,10 @@ public class BoardEntity {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "selected_group_id")
   private GroupEntity selectedGroup;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "selected_window_id")
+  private TrackWindowEntity selectedWindow;
 
   @Column(nullable = false)
   private int volume = 50;

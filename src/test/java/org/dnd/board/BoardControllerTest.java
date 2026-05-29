@@ -321,8 +321,6 @@ class BoardControllerTest extends DatabaseBase {
     trackWhichIsNotInGroup.setTrackOriginalName("original name");
     trackWhichIsNotInGroup.setOwner(testUser);
 
-    trackWhichIsNotInGroup = trackRepository.save(trackWhichIsNotInGroup);
-
     GroupEntity group = new GroupEntity();
     group.setListName("Test Group");
     group.setOwner(testUser);
