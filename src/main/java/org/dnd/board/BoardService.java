@@ -158,7 +158,12 @@ public class BoardService {
     }
     TrackWindowEntity window = trackWindowRepository.findById(selectedWindowId)
             .orElseThrow(() -> new NotFoundException(String.format("Window with id %d not found", selectedWindowId)));
+    if (!board.getSelectedTrack().getTrackWindows().contains(window)) {
+      throw new NotFoundException(String.format("Window with id %d not found", selectedWindowId));
+    }
+
     board.setSelectedWindow(window);
+
 
   }
 
