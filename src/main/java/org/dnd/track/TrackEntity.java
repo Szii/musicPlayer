@@ -51,6 +51,11 @@ public class TrackEntity {
   @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "track_share_id", unique = true)
   private TrackShareEntity trackShare;
+
+  public void addTrackWindow(TrackWindowEntity window) {
+    this.trackWindows.add(window);
+    window.setTrack(this);
+  }
 }
 
 

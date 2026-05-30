@@ -111,7 +111,6 @@ public class BoardService {
   @Transactional
   public Board updateUserBoard(Long boardId, BoardUpdateRequest request) {
     Long userId = SecurityUtils.getCurrentUserId();
-
     log.debug("Updating board {} for user {}", boardId, userId);
 
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
@@ -120,8 +119,8 @@ public class BoardService {
             ));
 
     boardMapper.updateBoardFromRequest(request, board);
-    setTrackIfExist(request.getSelectedTrackId(), board);
     setGroupIfExist(request.getSelectedGroupId(), board);
+    setTrackIfExist(request.getSelectedTrackId(), board);
     setWindowIfExist(request.getSelectedWindowId(), board);
 
     BoardEntity savedBoard = boardRepository.save(board);
@@ -135,8 +134,13 @@ public class BoardService {
       return;
     }
 
-    TrackEntity track = trackRepository.findByIdAndOwner_Id(selectedTrackId, SecurityUtils.getCurrentUserId())
+    TrackEntity track = trackRepository.findById(selectedTrackId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", selectedTrackId)));
+
+    if (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(userRepository.getReferenceById(SecurityUtils.getCurrentUserId()))) {
+      throw new NotFoundException(String.format("Track with id %d not found", selectedTrackId));
+    }
+
     board.setSelectedTrack(track);
   }
 
