@@ -648,9 +648,8 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.limits.tracks.maxTracks").value(10))
             .andExpect(jsonPath("$.limits.tracks.trackLimitReached").value(false))
 
-            .andExpect(jsonPath("$.limits.boards.actualBoards").value(0))
-            .andExpect(jsonPath("$.limits.boards.maxBoards").value(3))
-            .andExpect(jsonPath("$.limits.boards.boardLimitReached").value(false))
+            .andExpect(jsonPath("$.limits.boards").isArray())
+            .andExpect(jsonPath("$.limits.boards").isEmpty())
 
             .andExpect(jsonPath("$.limits.groups.actualGroups").value(0))
             .andExpect(jsonPath("$.limits.groups.maxGroups").value(5))
