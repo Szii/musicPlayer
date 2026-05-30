@@ -134,12 +134,12 @@ public class BoardService {
       return;
     }
 
-    TrackEntity track = trackRepository.findById(selectedTrackId)
-            .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", selectedTrackId)));
+    Long currentUserId = SecurityUtils.getCurrentUserId();
 
-    if (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(userRepository.getReferenceById(SecurityUtils.getCurrentUserId()))) {
-      throw new NotFoundException(String.format("Track with id %d not found", selectedTrackId));
-    }
+    TrackEntity track = trackRepository.findAccessibleByIdAndUserId(selectedTrackId, currentUserId)
+            .orElseThrow(() -> new NotFoundException(
+                    String.format("Track with id %d not found", selectedTrackId)
+            ));
 
     board.setSelectedTrack(track);
   }

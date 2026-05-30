@@ -365,7 +365,6 @@ class BoardControllerTest extends DatabaseBase {
 
     TrackShareEntity share = new TrackShareEntity();
     share.setShareCode("abcd");
-    share.getUsers().add(testUser);
 
     TrackEntity trackInGroup = new TrackEntity();
     trackInGroup.setTrackName("Track In Group");
@@ -392,7 +391,10 @@ class BoardControllerTest extends DatabaseBase {
     board.setSelectedGroup(group);
 
     boardRepository.save(board);
-    
+
+    testUser.addShare(trackInGroup.getTrackShare());
+    userRepository.save(testUser);
+
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
             .volume(100)
             .selectedGroupId(group.getId())

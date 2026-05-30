@@ -81,4 +81,9 @@ public class UserEntity {
       createdAt = LocalDateTime.now();
     }
   }
+
+  public void addShare(TrackShareEntity share) {
+    this.shares.add(share);
+    share.getUsers().add(this);
+  }
 }
