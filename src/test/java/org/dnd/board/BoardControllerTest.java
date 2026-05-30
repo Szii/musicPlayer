@@ -392,12 +392,7 @@ class BoardControllerTest extends DatabaseBase {
     board.setSelectedGroup(group);
 
     boardRepository.save(board);
-
-    System.out.println(group.getId());
-    System.out.println(trackInGroup.getId());
-    System.out.println(trackWindow.getId());
-
-
+    
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
             .volume(100)
             .selectedGroupId(group.getId())

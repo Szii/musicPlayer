@@ -111,7 +111,6 @@ public class BoardService {
   @Transactional
   public Board updateUserBoard(Long boardId, BoardUpdateRequest request) {
     Long userId = SecurityUtils.getCurrentUserId();
-    System.out.println("updating board");
     log.debug("Updating board {} for user {}", boardId, userId);
 
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
