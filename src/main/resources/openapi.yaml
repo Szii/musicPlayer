@@ -150,7 +150,9 @@ components:
         level:
           $ref: '#/components/schemas/UserRankLevel'
         boards:
-          $ref: '#/components/schemas/UserBoardsLimits'
+          type: array
+          items:
+            $ref: '#/components/schemas/UserBoardsLimits'
         groups:
           $ref: '#/components/schemas/UserGroupsLimits'
         tracks:
@@ -185,6 +187,10 @@ components:
       type: object
       description: User-specific limits and quotas
       properties:
+        sessionId:
+          type: integer
+          description: Id of session of the board
+          example: 1
         maxBoards:
           type: integer
           description: Maximum number of boards the user can create

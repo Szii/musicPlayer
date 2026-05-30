@@ -1,6 +1,8 @@
 package org.dnd.rank;
 
 import org.dnd.api.model.UserLimits;
+import org.dnd.board.BoardEntity;
+import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.user.UserEntity;
@@ -94,6 +96,11 @@ class UserRankEvaluatorServiceTest {
     UserEntity user = mock(UserEntity.class);
 
     TrackEntity track = trackWithWindows(3);
+    BoardEntity board = new BoardEntity();
+    board.setId(1L);
+    SessionEntity session = new SessionEntity();
+    session.setId(1L);
+    session.setBoards(Set.of(board));
 
     when(user.getId()).thenReturn(1L);
     when(user.getRank()).thenReturn(UserRank.NORMAL);
@@ -102,7 +109,9 @@ class UserRankEvaluatorServiceTest {
     when(user.getOwnedGroups()).thenReturn(rawSet(2));
     when(user.getShares()).thenReturn(rawSet(10));
 
+
     when(sessionRepository.countByOwner_Id(1L)).thenReturn(5L);
+    when(sessionRepository.findByOwner_Id(1L)).thenReturn(List.of(session));
 
     UserLimits result = service.getLimitsForUser(user);
 
@@ -110,9 +119,9 @@ class UserRankEvaluatorServiceTest {
     assertThat(result.getTracks().getMaxTracks()).isEqualTo(10);
     assertThat(result.getTracks().getTrackLimitReached()).isFalse();
 
-    assertThat(result.getBoards().getActualBoards()).isEqualTo(3);
-    assertThat(result.getBoards().getMaxBoards()).isEqualTo(3);
-    assertThat(result.getBoards().getBoardLimitReached()).isTrue();
+    assertThat(result.getBoards().getFirst().getActualBoards()).isEqualTo(1);
+    assertThat(result.getBoards().getFirst().getMaxBoards()).isEqualTo(3);
+    assertThat(result.getBoards().getFirst().getBoardLimitReached()).isFalse();
 
     assertThat(result.getGroups().getActualGroups()).isEqualTo(2);
     assertThat(result.getGroups().getMaxGroups()).isEqualTo(5);

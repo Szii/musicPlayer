@@ -60,6 +60,7 @@ class BoardControllerTest extends DatabaseBase {
   private SessionRepository sessionRepository;
 
   private SessionEntity testSession;
+  private SessionEntity emptySession;
 
   private UserEntity testUser;
   private UserEntity anotherUser;
@@ -78,6 +79,12 @@ class BoardControllerTest extends DatabaseBase {
     testSession.setDescription("Test session description");
     testSession.setOwner(testUser);
     testSession = sessionRepository.save(testSession);
+
+    emptySession = new SessionEntity();
+    emptySession.setName("Empty Session");
+    emptySession.setDescription("Empty session description");
+    emptySession.setOwner(testUser);
+    emptySession = sessionRepository.save(emptySession);
 
     UserAuthDTO userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
@@ -122,7 +129,7 @@ class BoardControllerTest extends DatabaseBase {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessionId").value(testSession.getId()))
             .andExpect(jsonPath("$.boards").isArray())
-            .andExpect(jsonPath("$.boards.length()").value(1))
+            .andExpect(jsonPath("$.boards.size()").value(1))
             .andExpect(jsonPath("$.boards[0].name").value("Test Board"))
             .andExpect(jsonPath("$.boards[0].volume").value(75))
             .andExpect(jsonPath("$.boards[0].repeat").value(true))
@@ -251,6 +258,31 @@ class BoardControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden())
             .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
+  }
+
+  @Test
+  void createUserBoard_Success_WhenBoardLimitIsNotReachedForTheAnotherSession() throws Exception {
+    for (int i = 0; i < UserRankLimits.normal().maxGroups(); i++) {
+      BoardEntity board = new BoardEntity();
+      board.setName("Board " + i);
+      board.setOwner(testUser);
+      board.setVolume(50);
+      board.setSession(testSession);
+      boardRepository.save(board);
+    }
+
+    BoardCreateRequest request = new BoardCreateRequest()
+            .volume(75)
+            .repeat(true)
+            .overplay(false)
+            .sessionId(emptySession.getId())
+            .name("Board to another session");
+
+    mockMvc.perform(post("/api/v1/boards")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isOk());
   }
 
   @Test

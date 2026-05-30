@@ -74,22 +74,24 @@ public class BoardService {
                     String.format("User with id %d not found", userId)
             ));
 
-    if (!userRankEvaluatorService.canCreateBoard(owner)) {
+    SessionEntity session = sessionRepository.findByIdAndOwner_Id(request.getSessionId(), userId)
+            .orElseThrow(() -> new NotFoundException(
+                    String.format("Session with id %d not found for user %d", request.getSessionId(), userId)
+            ));
+
+    if (!userRankEvaluatorService.canCreateBoardForSession(owner, session)) {
       throw new LimitReachedException("Board limit reached");
     }
 
     BoardEntity board = boardMapper.toEntity(request);
     board.setOwner(owner);
 
-    SessionEntity session = sessionRepository.findByIdAndOwner_Id(request.getSessionId(), userId)
-            .orElseThrow(() -> new NotFoundException(
-                    String.format("Session with id %d not found for user %d", request.getSessionId(), userId)
-            ));
-
     board.setSession(session);
 
     setTrackIfExist(request.getSelectedTrackId(), board);
     setGroupIfExist(request.getSelectedGroupId(), board);
+
+    session.getBoards().add(board);
 
     BoardEntity savedBoard = boardRepository.save(board);
 
@@ -162,13 +164,11 @@ public class BoardService {
     }
     TrackWindowEntity window = trackWindowRepository.findById(selectedWindowId)
             .orElseThrow(() -> new NotFoundException(String.format("Window with id %d not found", selectedWindowId)));
-    if (!board.getSelectedTrack().getTrackWindows().contains(window)) {
+    if (board.getSelectedTrack() != null && !board.getSelectedTrack().getTrackWindows().contains(window)) {
       throw new NotFoundException(String.format("Window with id %d not found", selectedWindowId));
     }
 
     board.setSelectedWindow(window);
-
-
   }
 
   private Board toEnrichedDto(BoardEntity boardEntity, Long userId) {

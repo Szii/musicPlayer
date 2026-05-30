@@ -3,6 +3,7 @@ package org.dnd.user.rank;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.model.*;
 import org.dnd.board.BoardEntity;
+import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.user.UserEntity;
@@ -27,9 +28,9 @@ public class UserRankEvaluatorService {
     return limits.canCreate(limits.maxGroups(), user.getOwnedGroups().size());
   }
 
-  public boolean canCreateBoard(UserEntity user) {
+  public boolean canCreateBoardForSession(UserEntity user, SessionEntity session) {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
-    return limits.canCreate(limits.maxBoards(), user.getBoards().size());
+    return limits.canCreate(limits.maxBoards(), session.getBoards().size());
   }
 
   public boolean canCreateSession(UserEntity user) {
@@ -53,10 +54,10 @@ public class UserRankEvaluatorService {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
 
     List<TrackEntity> userTracks = user.getOwnedTracks().stream().toList();
+    List<SessionEntity> userSessions = sessionRepository.findByOwner_Id(user.getId());
     List<BoardEntity> userBoards = user.getBoards().stream().toList();
 
     int actualTracks = userTracks.size();
-    int actualBoards = userBoards.size();
     int actualGroups = user.getOwnedGroups().size();
     int actualShares = user.getShares().size();
     int actualSessions = Math.toIntExact(sessionRepository.countByOwner_Id(user.getId()));
@@ -65,11 +66,6 @@ public class UserRankEvaluatorService {
     trackLimits.setActualTracks(actualTracks);
     trackLimits.setMaxTracks(limits.maxTracks());
     trackLimits.setTrackLimitReached(limits.isLimitReached(limits.maxTracks(), actualTracks));
-
-    UserBoardsLimits boardLimits = new UserBoardsLimits();
-    boardLimits.setActualBoards(actualBoards);
-    boardLimits.setMaxBoards(limits.maxBoards());
-    boardLimits.setBoardLimitReached(limits.isLimitReached(limits.maxBoards(), actualBoards));
 
     UserGroupsLimits groupLimits = new UserGroupsLimits();
     groupLimits.setActualGroups(actualGroups);
@@ -102,12 +98,23 @@ public class UserRankEvaluatorService {
             })
             .toList();
 
+    List<UserBoardsLimits> boardLimitsPerSession = userSessions.stream()
+            .map(session -> {
+              int actualBoards = session.getBoards().size();
+              System.out.println("ACTUAL boards" + actualBoards);
+              UserBoardsLimits boardLimits = new UserBoardsLimits();
+              boardLimits.setActualBoards(actualBoards);
+              boardLimits.setMaxBoards(limits.maxBoards());
+              boardLimits.setBoardLimitReached(limits.isLimitReached(limits.maxBoards(), actualBoards));
+              boardLimits.setSessionId(Math.toIntExact(session.getId()));
+              return boardLimits;
+            }).toList();
 
     return new UserLimits()
             .level(UserRankLevel.valueOf(user.getRank().name()))
             .tracks(trackLimits)
             .groups(groupLimits)
-            .boards(boardLimits)
+            .boards(boardLimitsPerSession)
             .sessions(sessionLimits)
             .subscribes(subscriptionLimits)
             .windows(trackWindowsLimits);
