@@ -13,6 +13,8 @@ import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
+import org.dnd.track.TrackWindowEntity;
+import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -28,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -59,12 +62,16 @@ class BoardControllerTest extends DatabaseBase {
   private SessionEntity testSession;
 
   private UserEntity testUser;
+  private UserEntity anotherUser;
   private String authToken;
 
   @BeforeEach
   void setUp() {
     testUser = UserHelper.createValidatedUser("testUser", "password", "email@email.cz");
     testUser = userRepository.save(testUser);
+
+    anotherUser = UserHelper.createValidatedUser("anotherUser", "password", "anotheremail@email.cz");
+    anotherUser = userRepository.save(anotherUser);
 
     testSession = new SessionEntity();
     testSession.setName("Test Session");
@@ -344,6 +351,123 @@ class BoardControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.availableTracks.length()").value(1))
             .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()));
 
+  }
+
+  @Test
+  void updateBoard_SuccessForSharedTrack() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setOwner(testUser);
+    board.setName("Test Board");
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setSession(testSession);
+    board.setOverplay(false);
+
+    TrackShareEntity share = new TrackShareEntity();
+    share.setShareCode("abcd");
+    share.getUsers().add(testUser);
+
+    TrackEntity trackInGroup = new TrackEntity();
+    trackInGroup.setTrackName("Track In Group");
+    trackInGroup.setTrackLink("https://example.com/test.mp3");
+    trackInGroup.setDuration(180);
+    trackInGroup.setTrackOriginalName("original name");
+    trackInGroup.setOwner(anotherUser);
+    trackInGroup.setTrackShare(share);
+
+    TrackWindowEntity trackWindow = new TrackWindowEntity();
+    trackWindow.setPositionFrom(0L);
+    trackWindow.setPositionTo(20L);
+    trackWindow.setFadeIn(false);
+    trackWindow.setFadeOut(false);
+    trackWindow.setName("trackWindow");
+
+    trackInGroup.addTrackWindow(trackWindow);
+
+    GroupEntity group = new GroupEntity();
+    group.setListName("Test Group");
+    group.setOwner(testUser);
+    group.setTracks(Set.of(trackInGroup));
+    group = groupRepository.save(group);
+    board.setSelectedGroup(group);
+
+    boardRepository.save(board);
+
+    System.out.println(group.getId());
+    System.out.println(trackInGroup.getId());
+    System.out.println(trackWindow.getId());
+
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .selectedGroupId(group.getId())
+            .selectedTrackId(trackInGroup.getId())
+            .selectedWindowId(trackWindow.getId())
+            .repeat(true)
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.availableTracks.length()").value(1))
+            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()))
+            .andExpect(jsonPath("$.selectedTrack.trackName").value(trackInGroup.getTrackName()))
+            .andExpect(jsonPath("$.selectedWindow.name").value(trackWindow.getName()));
+
+  }
+
+  @Test
+  void updateBoard_FailForNotExistingWindowForTrack() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setOwner(testUser);
+    board.setName("Test Board");
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setSession(testSession);
+    board.setOverplay(false);
+
+    TrackEntity trackWithWindow = new TrackEntity();
+    trackWithWindow.setTrackName("Track1");
+    trackWithWindow.setTrackLink("https://example.com/test.mp3");
+    trackWithWindow.setDuration(180);
+    trackWithWindow.setTrackOriginalName("original name");
+    trackWithWindow.setOwner(testUser);
+
+    TrackEntity trackWithoutWindow = new TrackEntity();
+    trackWithoutWindow.setTrackName("Track2");
+    trackWithoutWindow.setTrackLink("https://example.com/test.mp3");
+    trackWithoutWindow.setDuration(180);
+    trackWithoutWindow.setTrackOriginalName("original name");
+    trackWithoutWindow.setOwner(testUser);
+
+    TrackWindowEntity trackWindow = new TrackWindowEntity();
+    trackWindow.setPositionFrom(0L);
+    trackWindow.setPositionTo(20L);
+    trackWindow.setFadeIn(false);
+    trackWindow.setFadeOut(false);
+    trackWindow.setName("trackWindow");
+
+    trackWithWindow.addTrackWindow(trackWindow);
+
+    trackRepository.saveAll(List.of(trackWithWindow, trackWithoutWindow));
+
+    boardRepository.save(board);
+
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .selectedTrackId(trackWithoutWindow.getId())
+            .selectedWindowId(trackWindow.getId())
+            .repeat(true)
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isNotFound());
   }
 
   @Test
