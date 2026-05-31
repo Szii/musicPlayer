@@ -25,11 +25,11 @@ public class AudioPlayerConfiguration {
 
     YoutubeAudioSourceManager youtube = new YoutubeAudioSourceManager(
             true,
+            new Tv(),
+            new MWeb(),
             new Music(),
             new AndroidVr(),
-            new Ios(),
-            new MWeb(),
-            new Tv()
+            new Ios()
     );
 
     if (youtubeOauthRefreshToken != null && !youtubeOauthRefreshToken.isBlank()) {
