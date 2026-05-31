@@ -12,6 +12,12 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class AudioPlayerConfiguration {
 
+  @Value("${youtube.pot.token:}")
+  private String youtubePoToken;
+
+  @Value("${youtube.pot.visitor-data:}")
+  private String youtubeVisitorData;
+
   @Value("${youtube.oauth.refresh-token:}")
   private String youtubeOauthRefreshToken;
 
@@ -23,6 +29,13 @@ public class AudioPlayerConfiguration {
     AudioPlayerManager mgr = new DefaultAudioPlayerManager();
     mgr.getConfiguration().setOutputFormat(StandardAudioDataFormats.COMMON_PCM_S16_LE);
 
+    boolean hasPoToken = youtubePoToken != null && !youtubePoToken.isBlank()
+            && youtubeVisitorData != null && !youtubeVisitorData.isBlank();
+
+    if (hasPoToken) {
+      Web.setPoTokenAndVisitorData(youtubePoToken, youtubeVisitorData);
+    }
+
     YoutubeAudioSourceManager youtube = new YoutubeAudioSourceManager(
             true,
             new Tv(),
@@ -31,6 +44,17 @@ public class AudioPlayerConfiguration {
             new AndroidVr(),
             new Ios()
     );
+
+    if (!hasPoToken) {
+      if (youtubeOauthRefreshToken != null && !youtubeOauthRefreshToken.isBlank()) {
+        youtube.useOauth2(youtubeOauthRefreshToken, true);
+      } else if (youtubeOauthInteractive) {
+        youtube.useOauth2(null, false);
+      }
+    }
+
+    mgr.registerSourceManager(youtube);
+    ;
 
     if (youtubeOauthRefreshToken != null && !youtubeOauthRefreshToken.isBlank()) {
       youtube.useOauth2(youtubeOauthRefreshToken, true);
