@@ -23,7 +23,7 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
           update BoardEntity b
-          set b.selectedTrack = null
+          set b.selectedTrack = null, b.selectedWindow = null
           where b.selectedTrack.id = :trackId
           """)
   void clearSelectedTrackFromAllBoards(@Param("trackId") Long trackId);
@@ -31,11 +31,23 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
           update BoardEntity b
-          set b.selectedTrack = null
+          set b.selectedTrack = null, b.selectedWindow = null
           where b.selectedTrack.id = :trackId
             and b.owner.id = :ownerId
           """)
   void clearSelectedTrackFromBoardsOwnedByUser(@Param("trackId") Long trackId,
                                                @Param("ownerId") Long ownerId);
+
+  @Modifying(clearAutomatically = true, flushAutomatically = true)
+  @Query("""
+          update BoardEntity b
+          set b.selectedTrack = null, b.selectedWindow = null
+          where b.selectedTrack.id = :trackId
+            and b.owner.id != :ownerId
+          """)
+  void clearSelectedTrackFromAllBoardsNotOwnedByUser(
+          @Param("trackId") Long trackId,
+          @Param("ownerId") Long ownerId
+  );
 
 }

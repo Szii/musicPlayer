@@ -5,11 +5,14 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.api.model.UserAuthDTO;
+import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
+import org.dnd.session.SessionEntity;
+import org.dnd.session.SessionRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -25,7 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -37,19 +40,27 @@ class TrackControllerTest extends DatabaseBase {
 
   @Autowired
   private MockMvc mockMvc;
+
   @Autowired
   private ObjectMapper objectMapper;
 
   @Autowired
   private UserRepository userRepository;
+
   @Autowired
   private TrackRepository trackRepository;
+
   @Autowired
   private GroupRepository groupRepository;
+
   @Autowired
   private TrackWindowRepository trackWindowRepository;
+
   @Autowired
   private BoardRepository boardRepository;
+
+  @Autowired
+  private SessionRepository sessionRepository;
 
   @Autowired
   private JwtService jwtService;
@@ -87,7 +98,6 @@ class TrackControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.trackName").value("New Track"));
-
   }
 
   @Test
@@ -106,7 +116,6 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackName").value("UpdatedName"));
   }
 
-
   @Test
   void updateTrack_Forbidden_WhenNotOwner() throws Exception {
     UserEntity owner = createUser("owner3");
@@ -123,7 +132,6 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(status().isForbidden());
   }
 
-
   @Test
   void deleteTrack_Success() throws Exception {
     TrackEntity t = createTrackEntity("Del", testUser, null);
@@ -133,6 +141,79 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(status().isNoContent());
 
     assertFalse(trackRepository.existsById(t.getId()));
+  }
+
+  @Test
+  void deleteTrack_RemovesTrackAndSelectedWindowFromAllBoardsAndGroupsButKeepsUnrelatedBoards() throws Exception {
+    UserEntity otherUser = createUser("otherUserDeleteCleanup");
+
+    TrackEntity track = createTrackEntity("Track To Delete", testUser, null);
+    TrackWindowEntity window = createTrackWindow(track, "Deleted Track Window", 0L, 10L, false, false);
+
+    TrackEntity unrelatedTrack = createTrackEntity("Unrelated Track", testUser, null);
+    TrackWindowEntity unrelatedWindow = createTrackWindow(unrelatedTrack, "Unrelated Window", 0L, 10L, false, false);
+
+    SessionEntity ownerSession = createSession("Owner Session", testUser);
+    SessionEntity otherUserSession = createSession("Other User Session", otherUser);
+
+    BoardEntity ownerBoard = createBoard(
+            "Owner Board",
+            testUser,
+            ownerSession,
+            track,
+            window
+    );
+
+    BoardEntity otherUserBoard = createBoard(
+            "Other User Board",
+            otherUser,
+            otherUserSession,
+            track,
+            window
+    );
+
+    BoardEntity unrelatedBoard = createBoard(
+            "Unrelated Board",
+            testUser,
+            ownerSession,
+            unrelatedTrack,
+            unrelatedWindow
+    );
+
+    GroupEntity ownerGroup = createGroup("Owner Group", testUser);
+    GroupEntity otherUserGroup = createGroup("Other User Group", otherUser);
+    GroupEntity unrelatedGroup = createGroup("Unrelated Group", testUser);
+
+    groupRepository.addTrackToGroup(ownerGroup.getId(), track.getId());
+    groupRepository.addTrackToGroup(otherUserGroup.getId(), track.getId());
+    groupRepository.addTrackToGroup(unrelatedGroup.getId(), unrelatedTrack.getId());
+
+    mockMvc.perform(delete("/api/v1/tracks/{trackId}", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
+
+    assertFalse(trackRepository.existsById(track.getId()));
+
+    BoardEntity updatedOwnerBoard = boardRepository.findById(ownerBoard.getId()).orElseThrow();
+    assertNull(updatedOwnerBoard.getSelectedTrack());
+    assertNull(updatedOwnerBoard.getSelectedWindow());
+
+    BoardEntity updatedOtherUserBoard = boardRepository.findById(otherUserBoard.getId()).orElseThrow();
+    assertNull(updatedOtherUserBoard.getSelectedTrack());
+    assertNull(updatedOtherUserBoard.getSelectedWindow());
+
+    BoardEntity updatedUnrelatedBoard = boardRepository.findById(unrelatedBoard.getId()).orElseThrow();
+    assertNotNull(updatedUnrelatedBoard.getSelectedTrack());
+    assertEquals(unrelatedTrack.getId(), updatedUnrelatedBoard.getSelectedTrack().getId());
+
+    assertNotNull(updatedUnrelatedBoard.getSelectedWindow());
+    assertEquals(unrelatedWindow.getId(), updatedUnrelatedBoard.getSelectedWindow().getId());
+
+    assertTrue(groupRepository.findAllContainingTrack(track.getId()).isEmpty());
+
+    assertTrue(groupRepository.findAllContainingTrack(unrelatedTrack.getId())
+            .stream()
+            .anyMatch(group -> group.getId().equals(unrelatedGroup.getId())));
   }
 
   @Test
@@ -310,15 +391,15 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   private UserEntity createUser(String name) {
-    UserEntity u = UserHelper.createValidatedUser(name, "password", "user@email.com");
-    return userRepository.save(u);
+    UserEntity u = UserHelper.createValidatedUser(name, "password", name + "@email.com");
+    return userRepository.saveAndFlush(u);
   }
 
   private GroupEntity createGroup(String name, UserEntity owner) {
     GroupEntity g = new GroupEntity();
     g.setListName(name);
     g.setOwner(owner);
-    return groupRepository.save(g);
+    return groupRepository.saveAndFlush(g);
   }
 
   private TrackEntity createTrackEntity(String name, UserEntity owner, GroupEntity group) {
@@ -328,15 +409,21 @@ class TrackControllerTest extends DatabaseBase {
     t.setTrackLink("https://example.com/" + name + ".mp3");
     t.setDuration(120);
     t.setOwner(owner);
-    TrackEntity saved = trackRepository.save(t);
+    TrackEntity saved = trackRepository.saveAndFlush(t);
 
     if (group != null) {
       groupRepository.addTrackToGroup(group.getId(), saved.getId());
     }
+
     return saved;
   }
 
-  private TrackWindowEntity createTrackWindow(TrackEntity track, String name, Long positionFrom, Long positionTo, boolean fadeIn, boolean fadeOut) {
+  private TrackWindowEntity createTrackWindow(TrackEntity track,
+                                              String name,
+                                              Long positionFrom,
+                                              Long positionTo,
+                                              boolean fadeIn,
+                                              boolean fadeOut) {
     TrackWindowEntity p = new TrackWindowEntity();
     p.setTrack(track);
     p.setName(name);
@@ -344,7 +431,32 @@ class TrackControllerTest extends DatabaseBase {
     p.setPositionTo(positionTo);
     p.setFadeIn(fadeIn);
     p.setFadeOut(fadeOut);
-    return trackWindowRepository.save(p);
+    return trackWindowRepository.saveAndFlush(p);
+  }
+
+  private SessionEntity createSession(String name, UserEntity owner) {
+    SessionEntity session = new SessionEntity();
+    session.setName(name);
+    session.setDescription(name + " description");
+    session.setOwner(owner);
+    return sessionRepository.saveAndFlush(session);
+  }
+
+  private BoardEntity createBoard(String name,
+                                  UserEntity owner,
+                                  SessionEntity session,
+                                  TrackEntity selectedTrack,
+                                  TrackWindowEntity selectedWindow) {
+    BoardEntity board = new BoardEntity();
+    board.setName(name);
+    board.setOwner(owner);
+    board.setSession(session);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board.setSelectedTrack(selectedTrack);
+    board.setSelectedWindow(selectedWindow);
+    return boardRepository.saveAndFlush(board);
   }
 
   private String getTokenForUser(UserEntity user) {
@@ -355,4 +467,3 @@ class TrackControllerTest extends DatabaseBase {
     return jwtService.generateToken(dto);
   }
 }
-
