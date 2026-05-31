@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.UsersApi;
 import org.dnd.api.model.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -19,6 +20,9 @@ import static org.dnd.configuration.limiting.RateLimitNames.*;
 @Validated
 @RequiredArgsConstructor
 public class UserController implements UsersApi {
+
+  @Value("${app.email-use}")
+  private boolean emailUse;
 
   private final UserService userService;
 
@@ -50,6 +54,9 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> verifyUserToken(String verificationToken) {
+    if (!emailUse) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
     userService.verifyEmail(verificationToken);
     return ResponseEntity.ok().build();
   }
@@ -61,6 +68,9 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> resendVerificationEmail(UserLoginRequest request) throws Exception {
+    if (!emailUse) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
     userService.resendVerificationEmailToSameEmail(request);
     return ResponseEntity.ok().build();
   }
@@ -72,6 +82,10 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> changeUnverifiedEmail(UserRegisterRequest userAuthDTO) {
+    if (!emailUse) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
+
     userService.sendVerificationEmailToNewEmail(
             userAuthDTO.getName(),
             userAuthDTO.getPassword(),
@@ -90,6 +104,9 @@ public class UserController implements UsersApi {
   public ResponseEntity<Void> changeUnverifiedPassword(
           UserChangePasswordWithTokenRequest userChangePasswordWithTokenRequest
   ) {
+    if (!emailUse) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
     userService.changePasswordByToken(userChangePasswordWithTokenRequest);
     return ResponseEntity.ok().build();
   }
@@ -125,6 +142,10 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> changeVerifiedEmail(UserRegisterRequest userAuthDTO) {
+    if (!emailUse) {
+      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
+    }
+
     userService.changeVerifiedEmail(
             userAuthDTO.getName(),
             userAuthDTO.getPassword(),
