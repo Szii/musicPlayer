@@ -1092,10 +1092,7 @@ paths:
       operationId: changeVerifiedPassword
       requestBody:
         required: true
-        c
-
-
-        ontent:
+        content:
           application/json:
             schema:
               $ref: '#/components/schemas/UserChangePasswordRequest'
