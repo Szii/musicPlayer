@@ -8,11 +8,18 @@ import dev.lavalink.youtube.clients.AndroidVr;
 import dev.lavalink.youtube.clients.Ios;
 import dev.lavalink.youtube.clients.MWeb;
 import dev.lavalink.youtube.clients.Music;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AudioPlayerConfiguration {
+
+  @Value("${youtube.oauth.refresh-token:}")
+  private String youtubeOauthRefreshToken;
+
+  @Value("${youtube.oauth.interactive:false}")
+  private boolean youtubeOauthInteractive;
 
   @Bean
   public AudioPlayerManager audioPlayerManager() {
@@ -24,7 +31,14 @@ public class AudioPlayerConfiguration {
             new Music(),
             new AndroidVr(),
             new Ios(),
-            new MWeb());
+            new MWeb()
+    );
+
+    if (youtubeOauthRefreshToken != null && !youtubeOauthRefreshToken.isBlank()) {
+      youtube.useOauth2(youtubeOauthRefreshToken, true);
+    } else if (youtubeOauthInteractive) {
+      youtube.useOauth2(null, false);
+    }
 
     mgr.registerSourceManager(youtube);
 
