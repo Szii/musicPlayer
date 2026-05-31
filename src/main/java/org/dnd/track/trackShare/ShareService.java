@@ -8,7 +8,6 @@ import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
-import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackMapper;
@@ -105,7 +104,7 @@ public class ShareService {
     user.getShares().remove(share);
     share.getUsers().remove(user);
 
-    removeTrackFromGroupsOwnedByUser(trackId, userId);
+    groupRepository.removeTrackFromGroupsOwnedByUser(trackId, userId);
     boardRepository.clearSelectedTrackFromBoardsOwnedByUser(trackId, userId);
 
     log.info("User {} unsubscribed from track {}", userId, trackId);
@@ -128,25 +127,10 @@ public class ShareService {
     detachShareFromAllUsers(share);
     track.setTrackShare(null);
 
-    removeTrackFromAllGroups(trackId);
-    boardRepository.clearSelectedTrackFromAllBoards(trackId);
+    boardRepository.clearSelectedTrackFromAllBoardsNotOwnedByUser(trackId, track.getOwner().getId());
+    groupRepository.removeFromAllGroupsNotOwnedByUser(trackId, track.getOwner().getId());
 
     log.info("Track {} unpublished", trackId);
-  }
-
-
-  private void removeTrackFromAllGroups(Long trackId) {
-    List<GroupEntity> groups = groupRepository.findAllContainingTrack(trackId);
-    for (GroupEntity group : groups) {
-      group.getTracks().removeIf(t -> t.getId().equals(trackId));
-    }
-  }
-
-  private void removeTrackFromGroupsOwnedByUser(Long trackId, Long ownerId) {
-    List<GroupEntity> groups = groupRepository.findAllContainingTrackOwnedByUser(trackId, ownerId);
-    for (GroupEntity group : groups) {
-      group.getTracks().removeIf(t -> t.getId().equals(trackId));
-    }
   }
 
   private void detachShareFromAllUsers(TrackShareEntity share) {

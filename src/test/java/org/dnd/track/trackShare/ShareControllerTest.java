@@ -5,9 +5,16 @@ import org.dnd.DatabaseBase;
 import org.dnd.api.model.PublishTrackRequest;
 import org.dnd.api.model.SubscribeRequest;
 import org.dnd.api.model.UserAuthDTO;
+import org.dnd.board.BoardEntity;
+import org.dnd.board.BoardRepository;
+import org.dnd.group.GroupEntity;
+import org.dnd.group.GroupRepository;
 import org.dnd.security.JwtService;
+import org.dnd.session.SessionEntity;
+import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
+import org.dnd.track.TrackWindowEntity;
 import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
@@ -53,6 +60,15 @@ class ShareControllerTest extends DatabaseBase {
 
   @Autowired
   private TrackWindowRepository trackWindowRepository;
+
+  @Autowired
+  private BoardRepository boardRepository;
+
+  @Autowired
+  private GroupRepository groupRepository;
+
+  @Autowired
+  private SessionRepository sessionRepository;
 
   @Autowired
   private JwtService jwtService;
@@ -119,6 +135,91 @@ class ShareControllerTest extends DatabaseBase {
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
             .andExpect(status().isNoContent());
+
+    assertNull(trackRepository.findById(track.getId()).orElseThrow().getTrackShare());
+  }
+
+  @Test
+  void unpublishTrack_RemovesTrackFromSubscriberBoardsAndGroupsButKeepsOwnerStateAndUnrelatedBoards() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", testUser);
+    TrackShareEntity share = createTrackShare(track, "Published track");
+
+    TrackEntity unrelatedTrack = createTrackEntity("Unrelated Subscriber Track", otherUser);
+
+    TrackWindowEntity ownerWindow = createTrackWindow(track, "Owner Window");
+    TrackWindowEntity subscriberWindow = createTrackWindow(track, "Subscriber Window");
+    TrackWindowEntity unrelatedSubscriberWindow = createTrackWindow(unrelatedTrack, "Unrelated Subscriber Window");
+
+    SessionEntity ownerSession = createSession("Owner Session", testUser);
+    SessionEntity subscriberSession = createSession("Subscriber Session", otherUser);
+
+    BoardEntity ownerBoard = createBoard(
+            "Owner Board",
+            testUser,
+            ownerSession,
+            track,
+            ownerWindow
+    );
+
+    BoardEntity subscriberBoard = createBoard(
+            "Subscriber Board",
+            otherUser,
+            subscriberSession,
+            track,
+            subscriberWindow
+    );
+
+    BoardEntity unrelatedSubscriberBoard = createBoard(
+            "Unrelated Subscriber Board",
+            otherUser,
+            subscriberSession,
+            unrelatedTrack,
+            unrelatedSubscriberWindow
+    );
+
+    GroupEntity ownerGroup = createGroup("Owner Group", testUser);
+    GroupEntity subscriberGroup = createGroup("Subscriber Group", otherUser);
+
+    groupRepository.addTrackToGroup(ownerGroup.getId(), track.getId());
+    groupRepository.addTrackToGroup(subscriberGroup.getId(), track.getId());
+
+    UserEntity subscriber = userRepository.findById(otherUser.getId()).orElseThrow();
+    subscriber.getShares().add(share);
+    share.getUsers().add(subscriber);
+    userRepository.saveAndFlush(subscriber);
+
+    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
+
+    BoardEntity updatedSubscriberBoard = boardRepository.findById(subscriberBoard.getId()).orElseThrow();
+
+    assertNull(updatedSubscriberBoard.getSelectedTrack());
+    assertNull(updatedSubscriberBoard.getSelectedWindow());
+
+    BoardEntity updatedUnrelatedSubscriberBoard = boardRepository.findById(unrelatedSubscriberBoard.getId()).orElseThrow();
+
+    assertNotNull(updatedUnrelatedSubscriberBoard.getSelectedTrack());
+    assertEquals(unrelatedTrack.getId(), updatedUnrelatedSubscriberBoard.getSelectedTrack().getId());
+
+    assertNotNull(updatedUnrelatedSubscriberBoard.getSelectedWindow());
+    assertEquals(unrelatedSubscriberWindow.getId(), updatedUnrelatedSubscriberBoard.getSelectedWindow().getId());
+
+    assertTrue(groupRepository.findAllContainingTrackOwnedByUser(track.getId(), otherUser.getId())
+            .stream()
+            .noneMatch(group -> group.getId().equals(subscriberGroup.getId())));
+
+    BoardEntity updatedOwnerBoard = boardRepository.findById(ownerBoard.getId()).orElseThrow();
+
+    assertNotNull(updatedOwnerBoard.getSelectedTrack());
+    assertEquals(track.getId(), updatedOwnerBoard.getSelectedTrack().getId());
+
+    assertNotNull(updatedOwnerBoard.getSelectedWindow());
+    assertEquals(ownerWindow.getId(), updatedOwnerBoard.getSelectedWindow().getId());
+
+    assertTrue(groupRepository.findAllContainingTrackOwnedByUser(track.getId(), testUser.getId())
+            .stream()
+            .anyMatch(group -> group.getId().equals(ownerGroup.getId())));
 
     assertNull(trackRepository.findById(track.getId()).orElseThrow().getTrackShare());
   }
@@ -227,6 +328,89 @@ class ShareControllerTest extends DatabaseBase {
   }
 
   @Test
+  void unsubscribeFromTrack_RemovesTrackFromUserBoardsAndGroupsButKeepsOwnerStateAndUnrelatedBoards() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    TrackShareEntity share = createTrackShare(track, "Popular track");
+
+    TrackEntity unrelatedTrack = createTrackEntity("Unrelated Track", testUser);
+
+    TrackWindowEntity userWindow = createTrackWindow(track, "User Window");
+    TrackWindowEntity ownerWindow = createTrackWindow(track, "Owner Window");
+    TrackWindowEntity unrelatedWindow = createTrackWindow(unrelatedTrack, "Unrelated Window");
+
+    SessionEntity userSession = createSession("User Session", testUser);
+    SessionEntity ownerSession = createSession("Owner Session", otherUser);
+
+    BoardEntity userBoard = createBoard(
+            "User Board",
+            testUser,
+            userSession,
+            track,
+            userWindow
+    );
+
+    BoardEntity unrelatedUserBoard = createBoard(
+            "Unrelated User Board",
+            testUser,
+            userSession,
+            unrelatedTrack,
+            unrelatedWindow
+    );
+
+    BoardEntity ownerBoard = createBoard(
+            "Owner Board",
+            otherUser,
+            ownerSession,
+            track,
+            ownerWindow
+    );
+
+    GroupEntity userGroup = createGroup("User Group", testUser);
+    GroupEntity ownerGroup = createGroup("Owner Group", otherUser);
+
+    groupRepository.addTrackToGroup(userGroup.getId(), track.getId());
+    groupRepository.addTrackToGroup(ownerGroup.getId(), track.getId());
+
+    UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
+    user.getShares().add(share);
+    share.getUsers().add(user);
+    userRepository.saveAndFlush(user);
+
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isNoContent());
+
+    BoardEntity updatedUserBoard = boardRepository.findById(userBoard.getId()).orElseThrow();
+
+    assertNull(updatedUserBoard.getSelectedTrack());
+    assertNull(updatedUserBoard.getSelectedWindow());
+
+    BoardEntity updatedUnrelatedUserBoard = boardRepository.findById(unrelatedUserBoard.getId()).orElseThrow();
+
+    assertNotNull(updatedUnrelatedUserBoard.getSelectedTrack());
+    assertEquals(unrelatedTrack.getId(), updatedUnrelatedUserBoard.getSelectedTrack().getId());
+
+    assertNotNull(updatedUnrelatedUserBoard.getSelectedWindow());
+    assertEquals(unrelatedWindow.getId(), updatedUnrelatedUserBoard.getSelectedWindow().getId());
+
+    assertTrue(groupRepository.findAllContainingTrackOwnedByUser(track.getId(), testUser.getId())
+            .stream()
+            .noneMatch(group -> group.getId().equals(userGroup.getId())));
+
+    BoardEntity updatedOwnerBoard = boardRepository.findById(ownerBoard.getId()).orElseThrow();
+
+    assertNotNull(updatedOwnerBoard.getSelectedTrack());
+    assertEquals(track.getId(), updatedOwnerBoard.getSelectedTrack().getId());
+
+    assertNotNull(updatedOwnerBoard.getSelectedWindow());
+    assertEquals(ownerWindow.getId(), updatedOwnerBoard.getSelectedWindow().getId());
+
+    assertTrue(groupRepository.findAllContainingTrackOwnedByUser(track.getId(), otherUser.getId())
+            .stream()
+            .anyMatch(group -> group.getId().equals(ownerGroup.getId())));
+  }
+
+  @Test
   void unsubscribeFromTrack_NotSubscribed() throws Exception {
     TrackEntity track = createTrackEntity("Shared Track", otherUser);
 
@@ -266,6 +450,49 @@ class ShareControllerTest extends DatabaseBase {
 
     TrackEntity savedTrack = trackRepository.saveAndFlush(track);
     return savedTrack.getTrackShare();
+  }
+
+  private TrackWindowEntity createTrackWindow(TrackEntity track, String name) {
+    TrackWindowEntity window = new TrackWindowEntity();
+    window.setTrack(track);
+    window.setName(name);
+    window.setPositionFrom(0L);
+    window.setPositionTo(10L);
+    window.setFadeIn(false);
+    window.setFadeOut(false);
+    return trackWindowRepository.saveAndFlush(window);
+  }
+
+  private SessionEntity createSession(String name, UserEntity owner) {
+    SessionEntity session = new SessionEntity();
+    session.setName(name);
+    session.setDescription(name + " description");
+    session.setOwner(owner);
+    return sessionRepository.saveAndFlush(session);
+  }
+
+  private BoardEntity createBoard(String name,
+                                  UserEntity owner,
+                                  SessionEntity session,
+                                  TrackEntity selectedTrack,
+                                  TrackWindowEntity selectedWindow) {
+    BoardEntity board = new BoardEntity();
+    board.setName(name);
+    board.setOwner(owner);
+    board.setSession(session);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board.setSelectedTrack(selectedTrack);
+    board.setSelectedWindow(selectedWindow);
+    return boardRepository.saveAndFlush(board);
+  }
+
+  private GroupEntity createGroup(String name, UserEntity owner) {
+    GroupEntity group = new GroupEntity();
+    group.setListName(name);
+    group.setOwner(owner);
+    return groupRepository.saveAndFlush(group);
   }
 
   private String getTokenForUser(UserEntity user) {

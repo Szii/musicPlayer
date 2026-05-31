@@ -101,7 +101,6 @@ public class UserRankEvaluatorService {
     List<UserBoardsLimits> boardLimitsPerSession = userSessions.stream()
             .map(session -> {
               int actualBoards = session.getBoards().size();
-              System.out.println("ACTUAL boards" + actualBoards);
               UserBoardsLimits boardLimits = new UserBoardsLimits();
               boardLimits.setActualBoards(actualBoards);
               boardLimits.setMaxBoards(limits.maxBoards());
