@@ -38,11 +38,11 @@ public class AudioPlayerConfiguration {
 
     YoutubeAudioSourceManager youtube = new YoutubeAudioSourceManager(
             true,
-            new Web(),
+            new Tv(),
             new MWeb(),
+            new Music(),
             new AndroidVr(),
-            new Ios(),
-            new Music()
+            new Ios()
     );
 
     if (!hasPoToken) {
