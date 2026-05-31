@@ -14,6 +14,7 @@ import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenService;
 import org.dnd.token.TokenType;
 import org.dnd.user.rank.UserRankEvaluatorService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +26,9 @@ import java.util.regex.Pattern;
 @Slf4j
 @RequiredArgsConstructor
 public class UserService {
+
+  @Value("${app.email-use}")
+  private boolean emailUse;
 
   private static final Pattern EMAIL_PATTERN = Pattern.compile(
           "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
@@ -60,22 +64,25 @@ public class UserService {
 
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setPassword(passwordEncoder.encode(request.getPassword()));
-    user.setEmailVerified(false);
+    //set to false if email should be used
+    user.setEmailVerified(!emailUse);
     user.setPendingEmail(null);
 
     user = userRepository.save(user);
 
-    TokenEntity verificationToken = tokenService.create(
-            user,
-            TokenType.REGISTRATION,
-            user.getEmail()
-    );
+    if (emailUse) {
+      TokenEntity verificationToken = tokenService.create(
+              user,
+              TokenType.REGISTRATION,
+              user.getEmail()
+      );
 
-    emailService.sendVerificationEmail(
-            user.getName(),
-            user.getEmail(),
-            verificationToken.getToken()
-    );
+      emailService.sendVerificationEmail(
+              user.getName(),
+              user.getEmail(),
+              verificationToken.getToken()
+      );
+    }
 
     return userMapper.toDto(user);
   }
