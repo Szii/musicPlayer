@@ -38,6 +38,7 @@ public class AudioPlayerConfiguration {
 
     YoutubeAudioSourceManager youtube = new YoutubeAudioSourceManager(
             true,
+            new Web(),
             new Tv(),
             new MWeb(),
             new Music(),
@@ -51,15 +52,6 @@ public class AudioPlayerConfiguration {
       } else if (youtubeOauthInteractive) {
         youtube.useOauth2(null, false);
       }
-    }
-
-    mgr.registerSourceManager(youtube);
-    ;
-
-    if (youtubeOauthRefreshToken != null && !youtubeOauthRefreshToken.isBlank()) {
-      youtube.useOauth2(youtubeOauthRefreshToken, true);
-    } else if (youtubeOauthInteractive) {
-      youtube.useOauth2(null, false);
     }
 
     mgr.registerSourceManager(youtube);

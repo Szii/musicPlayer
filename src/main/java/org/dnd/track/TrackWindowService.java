@@ -42,6 +42,7 @@ public class TrackWindowService {
                     "Track point with id %d not found for track %d".formatted(windowId, trackId)));
 
     track.getTrackWindows().remove(point);
+    trackWindowRepository.clearSelectedWindowFromAllBoards(point.getId());
 
     return trackMapper.toDto(trackRepository.save(track), userId);
   }

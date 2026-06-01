@@ -390,6 +390,47 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows", is(empty())));
   }
 
+  @Test
+  void deleteTrackWindow_Deletes_FromAllBoards() throws Exception {
+    TrackEntity track = createTrackEntity("My Track", testUser, null);
+    TrackWindowEntity window = createTrackWindow(track, "Intro", 10L, 20L, true, false);
+
+    UserEntity otherUser = createUser("otherUserDeleteCleanup");
+
+    SessionEntity ownerSession = createSession("Owner Session", testUser);
+    SessionEntity otherUserSession = createSession("Other User Session", otherUser);
+
+    BoardEntity ownerBoard = createBoard(
+            "Owner Board",
+            testUser,
+            ownerSession,
+            track,
+            window
+    );
+
+    BoardEntity otherUserBoard = createBoard(
+            "Other User Board",
+            otherUser,
+            otherUserSession,
+            track,
+            window
+    );
+
+    mockMvc.perform(delete("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), window.getId())
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.trackWindows").isArray())
+            .andExpect(jsonPath("$.trackWindows", is(empty())));
+
+    BoardEntity updatedOwnerBoard = boardRepository.findById(ownerBoard.getId()).orElseThrow();
+    assertNotNull(updatedOwnerBoard.getSelectedTrack());
+    assertNull(updatedOwnerBoard.getSelectedWindow());
+
+    BoardEntity updatedOtherUserBoard = boardRepository.findById(otherUserBoard.getId()).orElseThrow();
+    assertNotNull(updatedOtherUserBoard.getSelectedTrack());
+    assertNull(updatedOtherUserBoard.getSelectedWindow());
+  }
+
   private UserEntity createUser(String name) {
     UserEntity u = UserHelper.createValidatedUser(name, "password", name + "@email.com");
     return userRepository.saveAndFlush(u);
