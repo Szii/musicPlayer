@@ -70,7 +70,6 @@ public class AudioPlayerConfiguration {
             new Ios()
     );
 
-    // Important: configure proxy before OAuth init / any YouTube requests.
     configureYoutubeProxy(youtube);
 
     if (!hasPoToken) {
