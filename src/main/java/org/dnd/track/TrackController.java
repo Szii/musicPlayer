@@ -53,6 +53,11 @@ public class TrackController implements MusicTracksApi {
   }
 
   @Override
+  @RateLimiting(
+          name = CREATE_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
   public ResponseEntity<Track> createTrackV2(CreateTrackRequestV2 createTrackRequestV2) throws Exception {
     return null;
   }
