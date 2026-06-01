@@ -24,4 +24,11 @@ public interface TrackWindowRepository extends JpaRepository<TrackWindowEntity, 
           """)
   void clearSelectedWindowFromAllBoards(@Param("windowId") Long windowId);
 
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query("""
+          delete from TrackWindowEntity tw
+          where tw.track.id = :trackId
+          """)
+  int deleteAllByTrackId(@Param("trackId") Long trackId);
+
 }

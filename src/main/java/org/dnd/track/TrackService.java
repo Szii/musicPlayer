@@ -2,6 +2,7 @@ package org.dnd.track;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.board.BoardRepository;
@@ -33,6 +34,7 @@ public class TrackService {
   private final BoardRepository boardRepository;
   private final GroupRepository groupRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final TrackWindowRepository trackWindowRepository;
 
   @Transactional
   public void deleteTrack(Long trackId) {
@@ -70,6 +72,22 @@ public class TrackService {
     return mapper.toDto(trackRepository.save(track), userId);
   }
 
+  @Transactional
+  public Track addTrackV2(CreateTrackRequestV2 trackRequest) {
+    log.debug("Adding track {}", trackRequest);
+    Long userId = SecurityUtils.getCurrentUserId();
+    UserEntity owner = userRepository.getReferenceById(userId);
+
+    if (!userRankEvaluatorService.canCreateTrack(owner)) {
+      throw new LimitReachedException("Track limit reached");
+    }
+
+    TrackEntity track = mapper.toEntity(trackRequest);
+    track.setOwner(owner);
+
+    return mapper.toDto(trackRepository.save(track), userId);
+  }
+
 
   private void setTrackMetadata(TrackEntity track, TrackRequest trackRequest) {
     TrackMetadata meta = trackMetadataService.resolveMetadata(trackRequest.getTrackLink());
@@ -94,8 +112,14 @@ public class TrackService {
       throw new ForbiddenException("You can only update tracks you own");
     }
 
+    boardRepository.clearSelectedWindowForTrack(trackId);
+
+    trackWindowRepository.deleteAllByTrackId(trackId);
+
     mapper.updateTrackFromRequest(request, entity);
-    return mapper.toDto(entity, userId);
+
+    TrackEntity saved = trackRepository.save(entity);
+    return mapper.toDto(saved, userId);
   }
 
   @Transactional(readOnly = true)

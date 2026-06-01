@@ -1,5 +1,6 @@
 package org.dnd.track;
 
+import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.track.trackShare.ShareMapper;
@@ -24,6 +25,12 @@ public interface TrackMapper {
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
   TrackEntity toEntity(TrackRequest request);
+
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "groups", ignore = true)
+  @Mapping(target = "owner", ignore = true)
+  @Mapping(target = "trackWindows", ignore = true)
+  TrackEntity toEntity(CreateTrackRequestV2 request);
 
   @Mapping(
           target = "groupIds",

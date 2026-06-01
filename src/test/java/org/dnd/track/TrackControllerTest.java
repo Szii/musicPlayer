@@ -101,19 +101,91 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
-  void updateTrack_Success() throws Exception {
-    TrackEntity t = createTrackEntity("OldName", testUser, null);
+  void updateTrack_Success_RemovesTrackWindowsFromAllBoardsButKeepsTrackSelected() throws Exception {
+    UserEntity otherUser = createUser("otherUserUpdateCleanup");
+
+    TrackEntity track = createTrackEntity("OldName", testUser, null);
+    TrackWindowEntity window1 = createTrackWindow(track, "Intro", 0L, 10L, false, false);
+    TrackWindowEntity window2 = createTrackWindow(track, "Loop", 10L, 20L, false, false);
+
+    TrackEntity unrelatedTrack = createTrackEntity("Unrelated Track", testUser, null);
+    TrackWindowEntity unrelatedWindow = createTrackWindow(unrelatedTrack, "Unrelated Window", 0L, 10L, false, false);
+
+    SessionEntity ownerSession = createSession("Owner Session Update", testUser);
+    SessionEntity otherUserSession = createSession("Other User Session Update", otherUser);
+
+    BoardEntity ownerBoardWithWindow1 = createBoard(
+            "Owner Board Window 1",
+            testUser,
+            ownerSession,
+            track,
+            window1
+    );
+
+    BoardEntity ownerBoardWithWindow2 = createBoard(
+            "Owner Board Window 2",
+            testUser,
+            ownerSession,
+            track,
+            window2
+    );
+
+    BoardEntity otherUserBoard = createBoard(
+            "Other User Board",
+            otherUser,
+            otherUserSession,
+            track,
+            window1
+    );
+
+    BoardEntity unrelatedBoard = createBoard(
+            "Unrelated Board",
+            testUser,
+            ownerSession,
+            unrelatedTrack,
+            unrelatedWindow
+    );
 
     TrackRequest req = new TrackRequest()
             .trackName("UpdatedName")
             .trackLink("https://example.com/u.mp3");
 
-    mockMvc.perform(put("/api/v1/tracks/{trackId}", t.getId())
+    mockMvc.perform(put("/api/v1/tracks/{trackId}", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.trackName").value("UpdatedName"));
+            .andExpect(jsonPath("$.trackName").value("UpdatedName"))
+            .andExpect(jsonPath("$.trackWindows").isArray())
+            .andExpect(jsonPath("$.trackWindows", is(empty())));
+
+    TrackEntity updatedTrack = trackRepository.findById(track.getId()).orElseThrow();
+    assertEquals("UpdatedName", updatedTrack.getTrackName());
+
+    assertFalse(trackWindowRepository.existsById(window1.getId()));
+    assertFalse(trackWindowRepository.existsById(window2.getId()));
+
+    BoardEntity updatedOwnerBoardWithWindow1 = boardRepository.findById(ownerBoardWithWindow1.getId()).orElseThrow();
+    assertNotNull(updatedOwnerBoardWithWindow1.getSelectedTrack());
+    assertEquals(track.getId(), updatedOwnerBoardWithWindow1.getSelectedTrack().getId());
+    assertNull(updatedOwnerBoardWithWindow1.getSelectedWindow());
+
+    BoardEntity updatedOwnerBoardWithWindow2 = boardRepository.findById(ownerBoardWithWindow2.getId()).orElseThrow();
+    assertNotNull(updatedOwnerBoardWithWindow2.getSelectedTrack());
+    assertEquals(track.getId(), updatedOwnerBoardWithWindow2.getSelectedTrack().getId());
+    assertNull(updatedOwnerBoardWithWindow2.getSelectedWindow());
+
+    BoardEntity updatedOtherUserBoard = boardRepository.findById(otherUserBoard.getId()).orElseThrow();
+    assertNotNull(updatedOtherUserBoard.getSelectedTrack());
+    assertEquals(track.getId(), updatedOtherUserBoard.getSelectedTrack().getId());
+    assertNull(updatedOtherUserBoard.getSelectedWindow());
+
+    BoardEntity updatedUnrelatedBoard = boardRepository.findById(unrelatedBoard.getId()).orElseThrow();
+    assertNotNull(updatedUnrelatedBoard.getSelectedTrack());
+    assertEquals(unrelatedTrack.getId(), updatedUnrelatedBoard.getSelectedTrack().getId());
+
+    assertNotNull(updatedUnrelatedBoard.getSelectedWindow());
+    assertEquals(unrelatedWindow.getId(), updatedUnrelatedBoard.getSelectedWindow().getId());
   }
 
   @Test
