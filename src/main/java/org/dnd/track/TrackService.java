@@ -117,7 +117,6 @@ public class TrackService {
     trackWindowRepository.deleteAllByTrackId(trackId);
 
     mapper.updateTrackFromRequest(request, entity);
-    entity.getTrackWindows().clear();
 
     TrackEntity saved = trackRepository.save(entity);
     return mapper.toDto(saved, userId);
