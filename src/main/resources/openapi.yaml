@@ -338,6 +338,29 @@ components:
           format: email
           example: user@example.com
 
+    CreateTrackRequestV2:
+      type: object
+      required:
+        - name
+        - trackOriginalName
+        - trackLink
+        - duration
+      properties:
+        trackName:
+          type: string
+          example: "My custom track name"
+        trackOriginalName:
+          type: string
+          example: "Original YouTube video title"
+        trackLink:
+          type: string
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        duration:
+          type: integer
+          format: int32
+          description: Track duration in seconds
+          example: 213
+
     UserChangePasswordRequest:
       type: object
       description: Request to change password as verified user
@@ -1159,11 +1182,36 @@ paths:
         '401':
           description: User not authenticated
 
+  /v2/tracks:
+    post:
+      tags:
+        - MusicTracks
+      summary: Create a new track
+      operationId: createTrackV2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTrackRequestV2'
+      responses:
+        '201':
+          description: Track created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+        '400':
+          description: Invalid input
+        '409':
+          description: Conflict (e.g., duplicate track link)
+
   /tracks:
     post:
       tags:
         - MusicTracks
       summary: Create a new track
+      deprecated: true
       operationId: createTrack
       requestBody:
         required: true

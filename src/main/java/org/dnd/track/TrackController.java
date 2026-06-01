@@ -4,10 +4,7 @@ import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.dnd.api.MusicTracksApi;
-import org.dnd.api.model.Track;
-import org.dnd.api.model.TrackRequest;
-import org.dnd.api.model.TrackWindowRequest;
-import org.dnd.api.model.WaveformResponse;
+import org.dnd.api.model.*;
 import org.dnd.playback.PlaybackService;
 import org.dnd.track.trackShare.ShareService;
 import org.springframework.http.ResponseEntity;
@@ -53,6 +50,11 @@ public class TrackController implements MusicTracksApi {
   )
   public ResponseEntity<Track> createTrack(TrackRequest trackRequest) throws Exception {
     return ResponseEntity.ok().body(trackService.addTrack(trackRequest));
+  }
+
+  @Override
+  public ResponseEntity<Track> createTrackV2(CreateTrackRequestV2 createTrackRequestV2) throws Exception {
+    return null;
   }
 
   @Override

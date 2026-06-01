@@ -50,4 +50,16 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
           @Param("ownerId") Long ownerId
   );
 
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query("""
+          update BoardEntity b
+          set b.selectedWindow = null
+          where b.selectedWindow.id in (
+            select tw.id
+            from TrackWindowEntity tw
+            where tw.track.id = :trackId
+          )
+          """)
+  int clearSelectedWindowForTrack(@Param("trackId") Long trackId);
+
 }
