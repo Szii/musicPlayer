@@ -648,6 +648,10 @@ components:
           type: boolean
           description: Play whole group instead of single track
           example: false
+        sequenceMode:
+          type: boolean
+          description: Play the windows of track in the sequence
+          example: false
         sessionId:
           type: integer
           format: int64
@@ -729,7 +733,10 @@ components:
           type: boolean
           description: Play whole group instead of single track
           example: false
-
+        sequenceMode:
+          type: boolean
+          description: Play the windows of track in the sequence
+          example: false
     PlayRequest:
       type: object
       description: >
