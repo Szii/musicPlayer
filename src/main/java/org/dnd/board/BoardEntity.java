@@ -59,5 +59,8 @@ public class BoardEntity {
 
   @Column(nullable = false)
   private boolean playlistMode = false;
+
+  @Column(nullable = false)
+  private boolean sequenceMode = false;
 }
 
