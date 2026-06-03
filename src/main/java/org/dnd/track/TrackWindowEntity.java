@@ -1,11 +1,9 @@
 package org.dnd.track;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
+@Builder
 @Entity
 @Table(name = "track_windows")
 @Getter
@@ -31,8 +29,8 @@ public class TrackWindowEntity {
   private Long positionTo;
 
   @Column(nullable = false)
-  private boolean fadeIn;
+  private int fadeInDurationMs;
 
   @Column(nullable = false)
-  private boolean fadeOut;
+  private int fadeOutDurationMs;
 }

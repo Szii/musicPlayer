@@ -409,8 +409,8 @@ class BoardControllerTest extends DatabaseBase {
     TrackWindowEntity trackWindow = new TrackWindowEntity();
     trackWindow.setPositionFrom(0L);
     trackWindow.setPositionTo(20L);
-    trackWindow.setFadeIn(false);
-    trackWindow.setFadeOut(false);
+    trackWindow.setFadeOutDurationMs(1000);
+    trackWindow.setFadeInDurationMs(1000);
     trackWindow.setName("trackWindow");
 
     trackInGroup.addTrackWindow(trackWindow);
@@ -474,8 +474,8 @@ class BoardControllerTest extends DatabaseBase {
     TrackWindowEntity trackWindow = new TrackWindowEntity();
     trackWindow.setPositionFrom(0L);
     trackWindow.setPositionTo(20L);
-    trackWindow.setFadeIn(false);
-    trackWindow.setFadeOut(false);
+    trackWindow.setFadeOutDurationMs(1000);
+    trackWindow.setFadeInDurationMs(1000);
     trackWindow.setName("trackWindow");
 
     trackWithWindow.addTrackWindow(trackWindow);

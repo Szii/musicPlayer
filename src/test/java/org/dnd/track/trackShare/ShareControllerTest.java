@@ -458,8 +458,8 @@ class ShareControllerTest extends DatabaseBase {
     window.setName(name);
     window.setPositionFrom(0L);
     window.setPositionTo(10L);
-    window.setFadeIn(false);
-    window.setFadeOut(false);
+    window.setFadeInDurationMs(1000);
+    window.setFadeOutDurationMs(1000);
     return trackWindowRepository.saveAndFlush(window);
   }
 

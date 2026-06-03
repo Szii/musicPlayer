@@ -313,8 +313,8 @@ class TrackControllerTest extends DatabaseBase {
             .name("Intro")
             .positionFrom(10)
             .positionTo(20)
-            .fadeIn(true)
-            .fadeOut(false);
+            .fadeOutDurationMs(1000)
+            .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
@@ -327,8 +327,8 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows[0].name").value("Intro"))
             .andExpect(jsonPath("$.trackWindows[0].positionFrom").value(10))
             .andExpect(jsonPath("$.trackWindows[0].positionTo").value(20))
-            .andExpect(jsonPath("$.trackWindows[0].fadeIn").value(true))
-            .andExpect(jsonPath("$.trackWindows[0].fadeOut").value(false));
+            .andExpect(jsonPath("$.trackWindows[0].fadeInDurationMs").value(1000))
+            .andExpect(jsonPath("$.trackWindows[0].fadeOutDurationMs").value(1000));
   }
 
   @Test
@@ -340,8 +340,8 @@ class TrackControllerTest extends DatabaseBase {
             .name("Nope")
             .positionFrom(10)
             .positionTo(20)
-            .fadeIn(false)
-            .fadeOut(false);
+            .fadeOutDurationMs(1000)
+            .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
@@ -358,8 +358,8 @@ class TrackControllerTest extends DatabaseBase {
             .name("Too far")
             .positionFrom(999)
             .positionTo(500)
-            .fadeIn(false)
-            .fadeOut(false);
+            .fadeOutDurationMs(1000)
+            .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
@@ -380,8 +380,8 @@ class TrackControllerTest extends DatabaseBase {
             .name("One Too Many")
             .positionFrom(50)
             .positionTo(60)
-            .fadeIn(false)
-            .fadeOut(false);
+            .fadeOutDurationMs(1000)
+            .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
@@ -434,8 +434,8 @@ class TrackControllerTest extends DatabaseBase {
             .name("Intro Updated")
             .positionFrom(20)
             .positionTo(45)
-            .fadeIn(false)
-            .fadeOut(true);
+            .fadeOutDurationMs(1000)
+            .fadeInDurationMs(1000);
 
     mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), point.getId())
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
@@ -446,8 +446,8 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows[0].name").value("Intro Updated"))
             .andExpect(jsonPath("$.trackWindows[0].positionFrom").value(20))
             .andExpect(jsonPath("$.trackWindows[0].positionTo").value(45))
-            .andExpect(jsonPath("$.trackWindows[0].fadeIn").value(false))
-            .andExpect(jsonPath("$.trackWindows[0].fadeOut").value(true));
+            .andExpect(jsonPath("$.trackWindows[0].fadeInDurationMs").value(1000))
+            .andExpect(jsonPath("$.trackWindows[0].fadeOutDurationMs").value(1000));
   }
 
   @Test
@@ -542,8 +542,8 @@ class TrackControllerTest extends DatabaseBase {
     p.setName(name);
     p.setPositionFrom(positionFrom);
     p.setPositionTo(positionTo);
-    p.setFadeIn(fadeIn);
-    p.setFadeOut(fadeOut);
+    p.setFadeOutDurationMs(1000);
+    p.setFadeInDurationMs(1000);
     return trackWindowRepository.saveAndFlush(p);
   }
 

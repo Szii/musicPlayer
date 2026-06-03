@@ -457,6 +457,12 @@ components:
           type: integer
           description: Duration of the track in seconds
           example: 215
+        fadeInDurationMs:
+          type: integer
+          description: fade in duration in ms
+        fadeOutDurationMs:
+          type: integer
+          description: fade out duration in ms
         owner:
           $ref: '#/components/schemas/UserInfoLite'
         groupIds:
@@ -491,12 +497,12 @@ components:
         positionTo:
           type: integer
           description: End of track window
-        fadeIn:
-          type: boolean
-          description: window makes a fade in
-        fadeOut:
-          type: boolean
-          description: window makes a fade out
+        fadeInDurationMs:
+          type: integer
+          description: fade in duration in ms
+        fadeOutDurationMs:
+          type: integer
+          description: fade out duration in ms
 
     TrackRequest:
       type: object
@@ -508,6 +514,12 @@ components:
           type: string
           description: Name or title of the track. If not set, default is used
           example: "Sample Song"
+        fadeInDurationMs:
+          type: integer
+          description: fade in duration in ms
+        fadeOutDurationMs:
+          type: integer
+          description: fade out duration in ms
         trackLink:
           type: string
           description: URL or link to the track audio
@@ -526,12 +538,13 @@ components:
         name:
           type: string
           description: name for window
-        fadeIn:
-          type: boolean
-          description: window makes a fade in
-        fadeOut:
-          type: boolean
-          description: window makes a fade out
+        fadeInDurationMs:
+          type: integer
+          description: fade in duration in ms
+        fadeOutDurationMs:
+          type: integer
+          description: fade out duration in ms
+
 
     PublishTrackRequest:
       type: object
