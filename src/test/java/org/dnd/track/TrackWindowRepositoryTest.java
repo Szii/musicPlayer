@@ -46,8 +46,8 @@ class TrackWindowRepositoryTest extends DatabaseBase {
     window.setName("Intro");
     window.setPositionFrom(10L);
     window.setPositionTo(10L);
-    window.setFadeIn(true);
-    window.setFadeOut(false);
+    window.setFadeOutDurationMs(1000);
+    window.setFadeInDurationMs(1000);
     window = trackWindowRepository.save(window);
 
     List<TrackWindowEntity> windows = trackWindowRepository.findByTrack_Id(track.getId());
