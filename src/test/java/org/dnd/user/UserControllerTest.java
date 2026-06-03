@@ -9,6 +9,8 @@ import org.dnd.security.JwtService;
 import org.dnd.token.TokenEntity;
 import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenType;
+import org.dnd.user.rank.UserRankLimitProvider;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -637,7 +639,7 @@ class UserControllerTest extends DatabaseBase {
             loginResult.getResponse().getContentAsString(),
             AuthResponse.class
     );
-
+    UserRankLimits limits = new UserRankLimitProvider().getLimits(UserRank.NORMAL);
     mockMvc.perform(get("/api/v1/users/me")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.getToken()))
             .andExpect(status().isOk())
@@ -645,22 +647,22 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.limits.level").value("NORMAL"))
 
             .andExpect(jsonPath("$.limits.tracks.actualTracks").value(0))
-            .andExpect(jsonPath("$.limits.tracks.maxTracks").value(10))
+            .andExpect(jsonPath("$.limits.tracks.maxTracks").value(limits.maxTracks()))
             .andExpect(jsonPath("$.limits.tracks.trackLimitReached").value(false))
 
             .andExpect(jsonPath("$.limits.boards").isArray())
             .andExpect(jsonPath("$.limits.boards").isEmpty())
 
             .andExpect(jsonPath("$.limits.groups.actualGroups").value(0))
-            .andExpect(jsonPath("$.limits.groups.maxGroups").value(5))
+            .andExpect(jsonPath("$.limits.groups.maxGroups").value(limits.maxGroups()))
             .andExpect(jsonPath("$.limits.groups.groupLimitReached").value(false))
 
             .andExpect(jsonPath("$.limits.sessions.actualSessions").value(0))
-            .andExpect(jsonPath("$.limits.sessions.maxSessions").value(5))
+            .andExpect(jsonPath("$.limits.sessions.maxSessions").value(limits.maxSessions()))
             .andExpect(jsonPath("$.limits.sessions.sessionLimitReached").value(false))
 
             .andExpect(jsonPath("$.limits.subscribes.actualSubscribes").value(0))
-            .andExpect(jsonPath("$.limits.subscribes.maxSubscribes").value(10))
+            .andExpect(jsonPath("$.limits.subscribes.maxSubscribes").value(limits.maxShares()))
             .andExpect(jsonPath("$.limits.subscribes.subscribeLimitReached").value(false))
 
             .andExpect(jsonPath("$.limits.windows").isArray())
