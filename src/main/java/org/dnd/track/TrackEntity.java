@@ -37,6 +37,12 @@ public class TrackEntity {
   @Column(nullable = false)
   private int duration;
 
+  @Column(nullable = false)
+  private int fadeInDurationMs;
+
+  @Column(nullable = false)
+  private int fadeOutDurationMs;
+
   @ManyToOne(fetch = FetchType.LAZY, optional = false)
   @JoinColumn(name = "owner_id", nullable = false)
   private UserEntity owner;

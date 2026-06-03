@@ -23,6 +23,8 @@ public interface TrackWindowMapper {
   @Mapping(target = "id", ignore = true)
 
   @Mapping(target = "track", source = "entity")
+  @Mapping(target = "fadeInDurationMs", source = "dto.fadeInDurationMs")
+  @Mapping(target = "fadeOutDurationMs", source = "dto.fadeOutDurationMs")
   TrackWindowEntity fromRequest(TrackWindowRequest dto, TrackEntity entity);
 
   @Mapping(target = "track", ignore = true)
