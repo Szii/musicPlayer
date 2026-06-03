@@ -56,7 +56,9 @@ class UserRankEvaluatorServiceTest {
     UserEntity user = mock(UserEntity.class);
 
     when(user.getRank()).thenReturn(UserRank.NORMAL);
-    when(user.getOwnedTracks()).thenReturn(tracks(10));
+    UserRankLimits limits = new UserRankLimitProvider().getLimits(UserRank.NORMAL);
+
+    when(user.getOwnedTracks()).thenReturn(tracks(limits.maxTracks()));
 
     assertThat(service.canCreateTrack(user)).isFalse();
   }
