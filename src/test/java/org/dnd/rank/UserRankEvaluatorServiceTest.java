@@ -9,6 +9,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRank;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.user.rank.UserRankLimitProvider;
+import org.dnd.user.rank.UserRankLimits;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,7 +56,9 @@ class UserRankEvaluatorServiceTest {
     UserEntity user = mock(UserEntity.class);
 
     when(user.getRank()).thenReturn(UserRank.NORMAL);
-    when(user.getOwnedTracks()).thenReturn(tracks(10));
+    UserRankLimits limits = new UserRankLimitProvider().getLimits(UserRank.NORMAL);
+
+    when(user.getOwnedTracks()).thenReturn(tracks(limits.maxTracks()));
 
     assertThat(service.canCreateTrack(user)).isFalse();
   }
@@ -115,28 +118,30 @@ class UserRankEvaluatorServiceTest {
 
     UserLimits result = service.getLimitsForUser(user);
 
+
+    UserRankLimits limits = new UserRankLimitProvider().getLimits(UserRank.NORMAL);
     assertThat(result.getTracks().getActualTracks()).isEqualTo(1);
-    assertThat(result.getTracks().getMaxTracks()).isEqualTo(10);
+    assertThat(result.getTracks().getMaxTracks()).isEqualTo(limits.maxTracks());
     assertThat(result.getTracks().getTrackLimitReached()).isFalse();
 
     assertThat(result.getBoards().getFirst().getActualBoards()).isEqualTo(1);
-    assertThat(result.getBoards().getFirst().getMaxBoards()).isEqualTo(3);
+    assertThat(result.getBoards().getFirst().getMaxBoards()).isEqualTo(limits.maxBoards());
     assertThat(result.getBoards().getFirst().getBoardLimitReached()).isFalse();
 
     assertThat(result.getGroups().getActualGroups()).isEqualTo(2);
-    assertThat(result.getGroups().getMaxGroups()).isEqualTo(5);
+    assertThat(result.getGroups().getMaxGroups()).isEqualTo(limits.maxGroups());
     assertThat(result.getGroups().getGroupLimitReached()).isFalse();
 
     assertThat(result.getSubscribes().getActualSubscribes()).isEqualTo(10);
-    assertThat(result.getSubscribes().getMaxSubscribes()).isEqualTo(10);
+    assertThat(result.getSubscribes().getMaxSubscribes()).isEqualTo(limits.maxShares());
     assertThat(result.getSubscribes().getSubscribeLimitReached()).isTrue();
 
     assertThat(result.getSessions().getActualSessions()).isEqualTo(5);
-    assertThat(result.getSessions().getMaxSessions()).isEqualTo(5);
+    assertThat(result.getSessions().getMaxSessions()).isEqualTo(limits.maxSessions());
     assertThat(result.getSessions().getSessionLimitReached()).isTrue();
 
     assertThat(result.getWindows().getFirst().getActualTrackWindows()).isEqualTo(3);
-    assertThat(result.getWindows().getFirst().getMaxTrackWindows()).isEqualTo(3);
+    assertThat(result.getWindows().getFirst().getMaxTrackWindows()).isEqualTo(limits.maxWindows());
     assertThat(result.getWindows().getFirst().getTrackWindowsLimitReached()).isTrue();
   }
 
