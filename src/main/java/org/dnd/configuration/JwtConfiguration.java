@@ -7,9 +7,15 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 @Configuration
 public class JwtConfiguration {
-    @Value("${jwt.secret}")
-    private String secret;
+  @Value("${jwt.secret}")
+  private String secret;
 
-    @Value("${jwt.expiration}")
-    private Long expiration;
+  @Value("${jwt.expiration}")
+  private Long expiration;
+
+  @Value("${jwt.refresh-expiration}")
+  private Long refreshExpiration;
+
+  @Value("${jwt.refresh-cookie-secure}")
+  private boolean refreshCookieSecure;
 }
