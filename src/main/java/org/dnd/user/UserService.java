@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.*;
 import org.dnd.email.EmailService;
 import org.dnd.exception.*;
+import org.dnd.security.AuthenticationResult;
 import org.dnd.security.JwtService;
 import org.dnd.security.LoginThrottleService;
 import org.dnd.security.RegistrationTokenService;
@@ -15,6 +16,7 @@ import org.dnd.token.TokenService;
 import org.dnd.token.TokenType;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -201,7 +203,7 @@ public class UserService {
 
   @Transactional
   public void changePasswordByAuth(UserChangePasswordRequest request) {
-    User user = loginUser(userMapper.fromUserChangePasswordRequest(request)).getUser();
+    User user = loginUser(userMapper.fromUserChangePasswordRequest(request)).authResponse().getUser();
 
     UserEntity userEntity = userRepository.findById(user.getId())
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
@@ -250,7 +252,7 @@ public class UserService {
     );
   }
 
-  public AuthResponse loginUser(UserLoginRequest request) {
+  public AuthenticationResult loginUser(UserLoginRequest request) {
     log.debug("Attempting login for user: {}", request.getName());
 
     UserEntity user = authenticateByNameAndPassword(
@@ -262,7 +264,7 @@ public class UserService {
       throw new EmailNotVerifiedException("Email is not verified");
     }
 
-    return createAuthResponse(user);
+    return createAuthenticationResult(user);
   }
 
   @Transactional
@@ -312,11 +314,33 @@ public class UserService {
     user.setEmailVerified(true);
   }
 
-  private AuthResponse createAuthResponse(UserEntity user) {
+  private AuthenticationResult createAuthenticationResult(UserEntity user) {
+    UserAuthDTO userAuthDTO = userMapper.toAuthDto(user);
+
     AuthResponse response = new AuthResponse();
     response.setUser(userMapper.toDto(user));
-    response.setToken(generateToken(userMapper.toAuthDto(user)));
-    return response;
+    response.setToken(jwtService.generateToken(userAuthDTO));
+
+    String refreshToken = jwtService.generateRefreshToken(userAuthDTO);
+
+    return new AuthenticationResult(response, refreshToken);
+  }
+
+  public AuthenticationResult refreshUserToken(String refreshToken) {
+    if (refreshToken == null || !jwtService.validateRefreshToken(refreshToken)) {
+      throw new UnauthorizedException("Invalid refresh token");
+    }
+
+    Long userId = Long.valueOf(jwtService.getUserIdFromToken(refreshToken));
+
+    UserEntity user = userRepository.findById(userId)
+            .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+    if (!user.isEmailVerified()) {
+      throw new EmailNotVerifiedException("Email is not verified");
+    }
+
+    return createAuthenticationResult(user);
   }
 
   private String generateToken(UserAuthDTO user) {
@@ -357,5 +381,9 @@ public class UserService {
 
     loginThrottleService.recordSuccess(username);
     return user;
+  }
+
+  public ResponseCookie createRefreshCookie(String refreshToken) {
+    return jwtService.createRefreshCookie(refreshToken);
   }
 }

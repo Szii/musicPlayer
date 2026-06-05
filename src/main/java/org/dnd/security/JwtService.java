@@ -10,9 +10,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.configuration.JwtConfiguration;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.time.Duration;
 import java.util.Date;
 import java.util.UUID;
 import java.util.function.Function;
@@ -27,6 +29,7 @@ public class JwtService {
   private static final String CLAIM_TRACK_ID = "trackId";
   private static final String TYPE_ACCESS = "access";
   private static final String TYPE_STREAM = "stream";
+  private static final String TYPE_REFRESH = "refresh";
   private static final String TYPE_TRACK_STREAM = "track_stream";
 
   private final JwtConfiguration jwtConfiguration;
@@ -38,6 +41,17 @@ public class JwtService {
             .claim(CLAIM_TYPE, TYPE_ACCESS)
             .setIssuedAt(new Date())
             .setExpiration(new Date(System.currentTimeMillis() + jwtConfiguration.getExpiration()))
+            .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+            .compact();
+  }
+
+  public String generateRefreshToken(UserAuthDTO user) {
+    return Jwts.builder()
+            .setSubject(user.getId().toString())
+            .claim(CLAIM_TYPE, TYPE_REFRESH)
+            .setId(UUID.randomUUID().toString())
+            .setIssuedAt(new Date())
+            .setExpiration(new Date(System.currentTimeMillis() + jwtConfiguration.getRefreshExpiration()))
             .signWith(getSigningKey(), SignatureAlgorithm.HS256)
             .compact();
   }
@@ -92,6 +106,26 @@ public class JwtService {
       log.error("Invalid JWT token: {}", e.getMessage());
       return false;
     }
+  }
+
+  public boolean validateRefreshToken(String token) {
+    try {
+      Claims claims = getAllClaimsFromToken(token);
+      return TYPE_REFRESH.equals(claims.get(CLAIM_TYPE, String.class));
+    } catch (JwtException | IllegalArgumentException e) {
+      log.error("Invalid refresh JWT token: {}", e.getMessage());
+      return false;
+    }
+  }
+
+  public ResponseCookie createRefreshCookie(String refreshToken) {
+    return ResponseCookie.from("refreshToken", refreshToken)
+            .httpOnly(true)
+            .secure(jwtConfiguration.isRefreshCookieSecure())
+            .sameSite("Strict")
+            .path("/auth/refresh")
+            .maxAge(Duration.ofMillis(jwtConfiguration.getRefreshExpiration()))
+            .build();
   }
 
   public boolean validateStreamToken(String token, Long expectedBoardId) {

@@ -1053,6 +1053,39 @@ paths:
         '403':
           description: Email is not verified
 
+  /auth/refresh:
+    post:
+      tags:
+        - Users
+      summary: Refresh access token
+      description: >
+        Issues a new access token using the refresh token stored in an HttpOnly cookie.
+      operationId: refreshUserToken
+      parameters:
+        - name: refreshToken
+          in: cookie
+          required: true
+          schema:
+            type: string
+          description: HttpOnly refresh token cookie
+      responses:
+        '200':
+          description: Refresh successful
+          headers:
+            Set-Cookie:
+              description: New rotated refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=eyJhbGciOiJIUzI1NiJ9...; HttpOnly; Secure; SameSite=Strict; Path=/auth/refresh; Max-Age=604800
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Missing, expired, invalid, or revoked refresh token
+        '403':
+          description: Email is not verified
+
   /auth/verify/{verificationToken}:
     post:
       tags:
