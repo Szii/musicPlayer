@@ -9,6 +9,7 @@ import org.dnd.security.AuthenticationResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,8 +55,21 @@ public class UserController implements UsersApi {
   }
 
   @Override
+  public ResponseEntity<Void> logoutUser() {
+    ResponseCookie clearCookie = userService.logoutUser();
+
+    return ResponseEntity.noContent()
+            .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
+            .build();
+  }
+
+  @Override
   public ResponseEntity<AuthResponse> refreshUserToken(String refreshToken) {
-    return null;
+    AuthenticationResult result = userService.refreshUserToken(refreshToken);
+
+    return ResponseEntity.ok()
+            .header(HttpHeaders.SET_COOKIE, userService.createRefreshCookie(result.refreshToken()).toString())
+            .body(result.authResponse());
   }
 
   @Override

@@ -122,9 +122,19 @@ public class JwtService {
     return ResponseCookie.from("refreshToken", refreshToken)
             .httpOnly(true)
             .secure(jwtConfiguration.isRefreshCookieSecure())
-            .sameSite("Strict")
-            .path("/auth/refresh")
+            .sameSite(jwtConfiguration.getRefreshCookieSameSite())
+            .path("/api/v1/auth")
             .maxAge(Duration.ofMillis(jwtConfiguration.getRefreshExpiration()))
+            .build();
+  }
+
+  public ResponseCookie clearRefreshCookie() {
+    return ResponseCookie.from("refreshToken", "")
+            .httpOnly(true)
+            .secure(jwtConfiguration.isRefreshCookieSecure())
+            .sameSite(jwtConfiguration.getRefreshCookieSameSite())
+            .path("/api/v1/auth")
+            .maxAge(0)
             .build();
   }
 

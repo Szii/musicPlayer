@@ -383,6 +383,10 @@ public class UserService {
     return user;
   }
 
+  public ResponseCookie logoutUser() {
+    return jwtService.clearRefreshCookie();
+  }
+
   public ResponseCookie createRefreshCookie(String refreshToken) {
     return jwtService.createRefreshCookie(refreshToken);
   }
