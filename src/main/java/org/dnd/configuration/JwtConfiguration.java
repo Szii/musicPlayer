@@ -18,4 +18,7 @@ public class JwtConfiguration {
 
   @Value("${jwt.refresh-cookie-secure}")
   private boolean refreshCookieSecure;
+
+  @Value("${jwt.refresh-cookie-same-site}")
+  private String refreshCookieSameSite;
 }

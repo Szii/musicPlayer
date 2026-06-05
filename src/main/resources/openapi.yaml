@@ -1029,6 +1029,25 @@ paths:
         '409':
           description: Username or email already exists
 
+  /auth/logout:
+    post:
+      tags:
+        - Users
+      summary: Log out current user
+      description: >
+        Clears the HttpOnly refresh token cookie. The frontend should also remove
+        the access token from memory.
+      operationId: logoutUser
+      responses:
+        '204':
+          description: Logout successful
+          headers:
+            Set-Cookie:
+              description: Expired refresh token cookie
+              schema:
+                type: string
+                example: refreshToken=; HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth; Max-Age=0
+
   /auth/login:
     post:
       tags:
