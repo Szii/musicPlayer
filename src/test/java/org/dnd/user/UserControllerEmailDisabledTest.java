@@ -2,12 +2,13 @@ package org.dnd.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
-import org.dnd.api.model.UserAuthDTO;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.UserChangePasswordWithTokenRequest;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.email.EmailService;
-import org.dnd.security.JwtService;
+import org.dnd.keycloak.KeycloakAdminClient;
+import org.dnd.keycloak.KeycloakAuthClient;
 import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenType;
 import org.junit.jupiter.api.BeforeEach;
@@ -15,15 +16,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -46,18 +51,28 @@ class UserControllerEmailDisabledTest extends DatabaseBase {
   private TokenRepository tokenRepository;
 
   @Autowired
-  private JwtService jwtService;
-
-  @Autowired
   private PasswordEncoder passwordEncoder;
 
   @MockitoBean
   private EmailService emailService;
 
+  @MockitoBean
+  private KeycloakAdminClient keycloakAdminClient;
+
+  @MockitoBean
+  private KeycloakAuthClient keycloakAuthClient;
+
   @BeforeEach
   void setUp() {
     tokenRepository.deleteAll();
     userRepository.deleteAll();
+
+    when(keycloakAdminClient.createUser(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyBoolean()
+    )).thenAnswer(invocation -> UUID.randomUUID());
   }
 
   @Test
@@ -111,7 +126,6 @@ class UserControllerEmailDisabledTest extends DatabaseBase {
     );
 
     UserEntity savedUser = userRepository.save(user);
-    String token = getTokenForUser(savedUser);
 
     UserRegisterRequest request = new UserRegisterRequest()
             .name(username)
@@ -119,7 +133,7 @@ class UserControllerEmailDisabledTest extends DatabaseBase {
             .password(password);
 
     mockMvc.perform(post("/api/v1/users/change-email")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .with(TestHelpers.authenticatedAs(savedUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isMethodNotAllowed());
@@ -170,19 +184,12 @@ class UserControllerEmailDisabledTest extends DatabaseBase {
     assertTrue(userRepository.existsByEmail(email));
     assertTrue(user.isEmailVerified());
     assertNull(user.getPendingEmail());
+    assertNotNull(user.getKeycloakId());
 
     assertTrue(tokenRepository
             .findByUserIdAndType(user.getId(), TokenType.REGISTRATION)
             .isEmpty());
 
     verifyNoInteractions(emailService);
-  }
-
-  private String getTokenForUser(UserEntity user) {
-    UserAuthDTO dto = new UserAuthDTO();
-    dto.setId(user.getId());
-    dto.setName(user.getName());
-    dto.setEmail(user.getEmail());
-    return jwtService.generateToken(dto);
   }
 }

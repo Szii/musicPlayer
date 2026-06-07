@@ -2,10 +2,14 @@ package org.dnd.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.*;
 import org.dnd.email.EmailService;
 import org.dnd.exception.ErrorCode;
-import org.dnd.security.JwtService;
+import org.dnd.exception.UnauthorizedException;
+import org.dnd.keycloak.KeycloakAdminClient;
+import org.dnd.keycloak.KeycloakAuthClient;
+import org.dnd.keycloak.KeycloakTokenResponse;
 import org.dnd.token.TokenEntity;
 import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenType;
@@ -16,6 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,11 +30,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -38,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@Import(TestJwtDecoderConfig.class)
 class UserControllerTest extends DatabaseBase {
 
   @Autowired
@@ -52,11 +59,14 @@ class UserControllerTest extends DatabaseBase {
   @Autowired
   private TokenRepository tokenRepository;
 
-  @Autowired
-  private JwtService jwtService;
-
   @MockitoBean
   private EmailService emailService;
+
+  @MockitoBean
+  private KeycloakAdminClient keycloakAdminClient;
+
+  @MockitoBean
+  private KeycloakAuthClient keycloakAuthClient;
 
   @Autowired
   private PasswordEncoder passwordEncoder;
@@ -65,6 +75,37 @@ class UserControllerTest extends DatabaseBase {
   void setUp() {
     tokenRepository.deleteAll();
     userRepository.deleteAll();
+
+    when(keycloakAdminClient.createUser(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyBoolean()
+    )).thenAnswer(invocation -> UUID.randomUUID());
+
+    when(keycloakAuthClient.login(anyString(), anyString()))
+            .thenAnswer(invocation -> {
+              String username = invocation.getArgument(0);
+              String rawPassword = invocation.getArgument(1);
+
+              UserEntity user = userRepository.findByName(username)
+                      .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
+
+              if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+                throw new UnauthorizedException("Invalid username or password");
+              }
+
+              return new KeycloakTokenResponse(
+                      TestHelpers.getKeycloakAccessTokenForUser(user),
+                      300,
+                      1800,
+                      "test-refresh-token",
+                      "Bearer",
+                      0,
+                      UUID.randomUUID().toString(),
+                      "profile email"
+              );
+            });
   }
 
   @Test
@@ -88,6 +129,7 @@ class UserControllerTest extends DatabaseBase {
     assertTrue(userRepository.existsByEmail(request.getEmail()));
     assertFalse(user.isEmailVerified());
     assertNull(user.getPendingEmail());
+    assertNotNull(user.getKeycloakId());
 
     TokenEntity token = tokenRepository
             .findByUserIdAndType(user.getId(), TokenType.REGISTRATION)
@@ -178,6 +220,9 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.user.name").value(username))
             .andExpect(jsonPath("$.user.email").value(email))
             .andExpect(jsonPath("$.token").exists());
+
+    UserEntity migratedUser = userRepository.findByName(username).orElseThrow();
+    assertNotNull(migratedUser.getKeycloakId());
   }
 
   @Test
@@ -313,7 +358,7 @@ class UserControllerTest extends DatabaseBase {
             oldEmail
     );
 
-    String token = getTokenForUser(userRepository.save(user));
+    UserEntity savedUser = userRepository.save(user);
 
     UserRegisterRequest request = new UserRegisterRequest()
             .name(username)
@@ -321,7 +366,7 @@ class UserControllerTest extends DatabaseBase {
             .password(password);
 
     mockMvc.perform(post("/api/v1/users/change-email")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .with(TestHelpers.authenticatedAs(user))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk());
@@ -368,10 +413,10 @@ class UserControllerTest extends DatabaseBase {
             .password(password);
 
     mockMvc.perform(post("/api/v1/users/change-email")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer invalidToken")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer: invalidToken")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
 
     UserEntity unchangedUser = userRepository.findByName(username).orElseThrow();
 
@@ -424,7 +469,6 @@ class UserControllerTest extends DatabaseBase {
 
     UserEntity verifiedUser = userRepository.findByName(username).orElseThrow();
 
-
     assertTrue(verifiedUser.isEmailVerified());
     assertTrue(tokenRepository
             .findByUserIdAndType(verifiedUser.getId(), TokenType.REGISTRATION).isEmpty());
@@ -455,7 +499,7 @@ class UserControllerTest extends DatabaseBase {
             oldEmail
     );
 
-    String authToken = getTokenForUser(userRepository.save(user));
+    userRepository.save(user);
 
     UserRegisterRequest request = new UserRegisterRequest()
             .name(username)
@@ -463,7 +507,7 @@ class UserControllerTest extends DatabaseBase {
             .password(password);
 
     mockMvc.perform(post("/api/v1/users/change-email")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(user))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk());
@@ -512,7 +556,6 @@ class UserControllerTest extends DatabaseBase {
 
     ForgotPasswordRequest request = new ForgotPasswordRequest()
             .email(email);
-
 
     mockMvc.perform(post("/api/v1/auth/forgot-password")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -565,7 +608,6 @@ class UserControllerTest extends DatabaseBase {
     ForgotPasswordRequest request = new ForgotPasswordRequest()
             .email(email);
 
-
     mockMvc.perform(post("/api/v1/auth/forgot-password")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
@@ -595,14 +637,13 @@ class UserControllerTest extends DatabaseBase {
   @Test
   void changePassword_verifiedUser_success() throws Exception {
     UserEntity user = UserHelper.createValidatedUser("franta", passwordEncoder.encode("lala"), "email@email.com");
+    user.setKeycloakId(TestHelpers.withKeycloakId(user).getKeycloakId());
     UserEntity managedUser = userRepository.save(user);
-    String token = getTokenForUser(managedUser);
 
     UserChangePasswordRequest request = new UserChangePasswordRequest("franta", "lala", "lala1");
 
-
     mockMvc.perform(post("/api/v1/verify/change-password")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
+                    .with(TestHelpers.authenticatedAs(user))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk());
@@ -623,6 +664,7 @@ class UserControllerTest extends DatabaseBase {
             email
     );
 
+    user.setKeycloakId(TestHelpers.withKeycloakId(user).getKeycloakId());
     userRepository.save(user);
 
     UserLoginRequest loginRequest = new UserLoginRequest()
@@ -639,7 +681,9 @@ class UserControllerTest extends DatabaseBase {
             loginResult.getResponse().getContentAsString(),
             AuthResponse.class
     );
+
     UserRankLimits limits = new UserRankLimitProvider().getLimits(UserRank.NORMAL);
+
     mockMvc.perform(get("/api/v1/users/me")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + authResponse.getToken()))
             .andExpect(status().isOk())
@@ -667,13 +711,5 @@ class UserControllerTest extends DatabaseBase {
 
             .andExpect(jsonPath("$.limits.windows").isArray())
             .andExpect(jsonPath("$.limits.windows").isEmpty());
-  }
-
-  private String getTokenForUser(UserEntity user) {
-    UserAuthDTO dto = new UserAuthDTO();
-    dto.setId(user.getId());
-    dto.setName(user.getName());
-    dto.setEmail(user.getEmail());
-    return jwtService.generateToken(dto);
   }
 }

@@ -2,14 +2,13 @@ package org.dnd.track.trackShare;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.PublishTrackRequest;
 import org.dnd.api.model.SubscribeRequest;
-import org.dnd.api.model.UserAuthDTO;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.security.JwtService;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
@@ -25,7 +24,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -70,18 +68,13 @@ class ShareControllerTest extends DatabaseBase {
   @Autowired
   private SessionRepository sessionRepository;
 
-  @Autowired
-  private JwtService jwtService;
-
   private UserEntity testUser;
   private UserEntity otherUser;
-  private String authToken;
 
   @BeforeEach
   void setUp() {
     testUser = createUser("testUser_" + UUID.randomUUID());
     otherUser = createUser("otherUser_" + UUID.randomUUID());
-    authToken = getTokenForUser(testUser);
   }
 
   @Test
@@ -92,7 +85,7 @@ class ShareControllerTest extends DatabaseBase {
     request.setDescription("Great track for studying");
 
     mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated())
@@ -109,7 +102,7 @@ class ShareControllerTest extends DatabaseBase {
     request.setDescription("Try to publish");
 
     mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden());
@@ -121,7 +114,7 @@ class ShareControllerTest extends DatabaseBase {
     request.setDescription("Non-existent track");
 
     mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", 999999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isNotFound());
@@ -133,7 +126,7 @@ class ShareControllerTest extends DatabaseBase {
     createTrackShare(track, "Published track");
 
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     assertNull(trackRepository.findById(track.getId()).orElseThrow().getTrackShare());
@@ -189,7 +182,7 @@ class ShareControllerTest extends DatabaseBase {
     userRepository.saveAndFlush(subscriber);
 
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     BoardEntity updatedSubscriberBoard = boardRepository.findById(subscriberBoard.getId()).orElseThrow();
@@ -230,7 +223,7 @@ class ShareControllerTest extends DatabaseBase {
     createTrackShare(track, "Published track");
 
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isForbidden());
   }
 
@@ -239,7 +232,7 @@ class ShareControllerTest extends DatabaseBase {
     TrackEntity track = createTrackEntity("My Track", testUser);
 
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -263,7 +256,7 @@ class ShareControllerTest extends DatabaseBase {
     request.setShareCode(share.getShareCode());
 
     mockMvc.perform(post("/api/v1/share/subscribe")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden());
@@ -272,7 +265,7 @@ class ShareControllerTest extends DatabaseBase {
   @Test
   void unpublishTrack_TrackNotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", 999999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -285,7 +278,7 @@ class ShareControllerTest extends DatabaseBase {
     request.setShareCode(share.getShareCode());
 
     mockMvc.perform(post("/api/v1/share/subscribe")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isCreated());
@@ -301,7 +294,7 @@ class ShareControllerTest extends DatabaseBase {
     request.setShareCode("invalid-code-12345");
 
     mockMvc.perform(post("/api/v1/share/subscribe")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isNotFound());
@@ -319,7 +312,7 @@ class ShareControllerTest extends DatabaseBase {
     userRepository.save(user);
 
     mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     UserEntity updatedUser = userRepository.findById(testUser.getId()).orElseThrow();
@@ -377,7 +370,7 @@ class ShareControllerTest extends DatabaseBase {
     userRepository.saveAndFlush(user);
 
     mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     BoardEntity updatedUserBoard = boardRepository.findById(userBoard.getId()).orElseThrow();
@@ -415,20 +408,20 @@ class ShareControllerTest extends DatabaseBase {
     TrackEntity track = createTrackEntity("Shared Track", otherUser);
 
     mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
   @Test
   void unsubscribeFromTrack_TrackNotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", 999999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
   private UserEntity createUser(String name) {
     UserEntity u = UserHelper.createValidatedUser(name, "password", name + "user@email.com");
-    return userRepository.saveAndFlush(u);
+    return userRepository.saveAndFlush(TestHelpers.withKeycloakId(u));
   }
 
   private TrackEntity createTrackEntity(String name, UserEntity owner) {
@@ -493,13 +486,5 @@ class ShareControllerTest extends DatabaseBase {
     group.setListName(name);
     group.setOwner(owner);
     return groupRepository.saveAndFlush(group);
-  }
-
-  private String getTokenForUser(UserEntity user) {
-    UserAuthDTO dto = new UserAuthDTO();
-    dto.setId(user.getId());
-    dto.setName(user.getName());
-    dto.setEmail(user.getEmail());
-    return jwtService.generateToken(dto);
   }
 }

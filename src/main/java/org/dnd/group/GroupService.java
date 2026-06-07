@@ -30,17 +30,18 @@ public class GroupService {
   private final TrackRepository trackRepository;
   private final BoardRepository boardRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final SecurityUtils securityUtils;
 
   @Transactional(readOnly = true)
   public List<Group> getUserGroups() {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     log.debug("Getting groups for user with id {}", userId);
     return groupMapper.toDtos(groupRepository.findAccessibleGroupsForUser(userId));
   }
 
   @Transactional
   public Group createGroup(GroupRequest request) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     log.debug("Creating group with name {}", request.getListName());
     UserEntity owner = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
@@ -64,7 +65,7 @@ public class GroupService {
             .orElseThrow(() -> new NotFoundException(
                     String.format("Group with id %d not found", groupId)));
 
-    if (!group.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only delete your own groups");
     }
 
@@ -81,7 +82,7 @@ public class GroupService {
     GroupEntity group = groupRepository.findById(groupId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
 
-    if (!group.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only update your own groups");
     }
 
@@ -99,9 +100,9 @@ public class GroupService {
   }
 
   private boolean validateTrackAccessForCurrentUser(TrackEntity track) {
-    UserEntity user = userRepository.findById(SecurityUtils.getCurrentUserId())
-            .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", SecurityUtils.getCurrentUserId())));
-    return track.getOwner().getId().equals(SecurityUtils.getCurrentUserId()) ||
+    UserEntity user = userRepository.findById(securityUtils.getCurrentUserId())
+            .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", securityUtils.getCurrentUserId())));
+    return track.getOwner().getId().equals(securityUtils.getCurrentUserId()) ||
             (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(user));
   }
 }

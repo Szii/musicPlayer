@@ -28,6 +28,7 @@ public class UserController implements UsersApi {
   private boolean emailUse;
 
   private final UserService userService;
+  private final UserAuthService userAuthService;
 
   @Override
   @RateLimiting(
@@ -37,7 +38,7 @@ public class UserController implements UsersApi {
   )
   public ResponseEntity<User> registerUser(UserRegisterRequest userRegisterRequest) {
     return ResponseEntity.status(HttpStatus.CREATED)
-            .body(userService.registerUser(userRegisterRequest));
+            .body(userAuthService.registerUser(userRegisterRequest));
   }
 
   @Override
@@ -47,16 +48,16 @@ public class UserController implements UsersApi {
           ratePerMethod = true
   )
   public ResponseEntity<AuthResponse> loginUser(UserLoginRequest userLoginRequest) {
-    AuthenticationResult result = userService.loginUser(userLoginRequest);
+    AuthenticationResult result = userAuthService.loginUser(userLoginRequest);
 
     return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, userService.createRefreshCookie(result.refreshToken()).toString())
+            .header(HttpHeaders.SET_COOKIE, userAuthService.createRefreshCookie(result.refreshToken()).toString())
             .body(result.authResponse());
   }
 
   @Override
-  public ResponseEntity<Void> logoutUser() {
-    ResponseCookie clearCookie = userService.logoutUser();
+  public ResponseEntity<Void> logoutUser(String refreshToken) {
+    ResponseCookie clearCookie = userAuthService.logoutUser(refreshToken);
 
     return ResponseEntity.noContent()
             .header(HttpHeaders.SET_COOKIE, clearCookie.toString())
@@ -65,10 +66,10 @@ public class UserController implements UsersApi {
 
   @Override
   public ResponseEntity<AuthResponse> refreshUserToken(String refreshToken) {
-    AuthenticationResult result = userService.refreshUserToken(refreshToken);
+    AuthenticationResult result = userAuthService.refreshUserToken(refreshToken);
 
     return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, userService.createRefreshCookie(result.refreshToken()).toString())
+            .header(HttpHeaders.SET_COOKIE, userAuthService.createRefreshCookie(result.refreshToken()).toString())
             .body(result.authResponse());
   }
 
@@ -82,7 +83,8 @@ public class UserController implements UsersApi {
     if (!emailUse) {
       return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
-    userService.verifyEmail(verificationToken);
+
+    userAuthService.verifyEmail(verificationToken);
     return ResponseEntity.ok().build();
   }
 
@@ -96,6 +98,7 @@ public class UserController implements UsersApi {
     if (!emailUse) {
       return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
+
     userService.resendVerificationEmailToSameEmail(request);
     return ResponseEntity.ok().build();
   }
@@ -132,7 +135,8 @@ public class UserController implements UsersApi {
     if (!emailUse) {
       return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
-    userService.changePasswordByToken(userChangePasswordWithTokenRequest);
+
+    userAuthService.changePasswordByToken(userChangePasswordWithTokenRequest);
     return ResponseEntity.ok().build();
   }
 
@@ -145,7 +149,7 @@ public class UserController implements UsersApi {
   public ResponseEntity<Void> changeVerifiedPassword(
           UserChangePasswordRequest userChangePasswordRequest
   ) {
-    userService.changePasswordByAuth(userChangePasswordRequest);
+    userAuthService.changePasswordByAuth(userChangePasswordRequest);
     return ResponseEntity.ok().build();
   }
 
@@ -171,11 +175,7 @@ public class UserController implements UsersApi {
       return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
 
-    userService.changeVerifiedEmail(
-            userAuthDTO.getName(),
-            userAuthDTO.getPassword(),
-            userAuthDTO.getEmail()
-    );
+    userAuthService.changeEmailByAuth(userAuthDTO);
 
     return ResponseEntity.ok().build();
   }

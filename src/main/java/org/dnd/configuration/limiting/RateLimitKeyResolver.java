@@ -3,7 +3,6 @@ package org.dnd.configuration.limiting;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.model.*;
-import org.dnd.security.JwtService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -21,7 +20,7 @@ public class RateLimitKeyResolver {
 
   private static final String ANONYMOUS = "anonymous";
 
-  private final JwtService jwtService;
+  private final SecurityUtils securityUtils;
 
   @Value("${rate-limit.key-secret}")
   private String keySecret;
@@ -35,7 +34,7 @@ public class RateLimitKeyResolver {
   }
 
   public String currentUserKey() {
-    Object currentUserId = SecurityUtils.getCurrentUserId();
+    Object currentUserId = securityUtils.getCurrentUserId();
 
     if (currentUserId == null) {
       return "user:" + ANONYMOUS + ":" + clientIp();

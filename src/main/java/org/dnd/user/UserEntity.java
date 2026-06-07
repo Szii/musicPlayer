@@ -11,6 +11,7 @@ import org.dnd.track.trackShare.TrackShareEntity;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Builder
 @Entity
@@ -30,6 +31,10 @@ public class UserEntity {
 
   @Column(nullable = false)
   private String password;
+
+  //keep nullable due to existing users
+  @Column(name = "keycloak_id", unique = true)
+  private UUID keycloakId;
 
   @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default

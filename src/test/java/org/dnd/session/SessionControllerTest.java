@@ -2,10 +2,10 @@ package org.dnd.session;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.SessionRequest;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.exception.ErrorCode;
-import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -44,31 +44,25 @@ class SessionControllerTest extends DatabaseBase {
   @Autowired
   private SessionRepository sessionRepository;
 
-  @Autowired
-  private JwtService jwtService;
-
   private UserEntity testUser;
-  private String authToken;
 
   @BeforeEach
   void setUp() {
     testUser = UserHelper.createValidatedUser("testUser", "password", "email@email.com");
     testUser.setName("testUser");
     testUser.setPassword("password");
-    testUser = userRepository.save(testUser);
+    testUser = userRepository.save(TestHelpers.withKeycloakId(testUser));
 
     UserAuthDTO userAuth = new UserAuthDTO();
     userAuth.setId(testUser.getId());
     userAuth.setName(testUser.getName());
     userAuth.setEmail(testUser.getEmail());
-
-    authToken = jwtService.generateToken(userAuth);
   }
 
   @Test
   void getSessions_EmptyList() throws Exception {
     mockMvc.perform(get("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
   }
 
@@ -78,7 +72,7 @@ class SessionControllerTest extends DatabaseBase {
     createSession("Session Two", "Second session");
 
     mockMvc.perform(get("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessions").isArray())
             .andExpect(jsonPath("$.sessions", hasSize(2)))
@@ -100,7 +94,7 @@ class SessionControllerTest extends DatabaseBase {
             .sessionDescription("My session description");
 
     mockMvc.perform(post("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden())
@@ -114,7 +108,7 @@ class SessionControllerTest extends DatabaseBase {
             .sessionDescription("My session description");
 
     mockMvc.perform(post("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -136,7 +130,7 @@ class SessionControllerTest extends DatabaseBase {
             .sessionDescription("Updated description");
 
     mockMvc.perform(post("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -152,7 +146,7 @@ class SessionControllerTest extends DatabaseBase {
     SessionEntity session = createSession("Session to Delete", "Will be deleted");
 
     mockMvc.perform(delete("/api/v1/sessions/{sessionId}", session.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessions").isArray())
             .andExpect(jsonPath("$.sessions").isEmpty());
@@ -168,7 +162,7 @@ class SessionControllerTest extends DatabaseBase {
             .sessionDescription("Updated description");
 
     mockMvc.perform(post("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isNotFound());
@@ -177,7 +171,7 @@ class SessionControllerTest extends DatabaseBase {
   @Test
   void deleteSession_NotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/sessions/{sessionId}", 999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -198,7 +192,7 @@ class SessionControllerTest extends DatabaseBase {
             .sessionDescription("Hacked description");
 
     mockMvc.perform(post("/api/v1/sessions")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isNotFound());
@@ -218,7 +212,7 @@ class SessionControllerTest extends DatabaseBase {
     otherUserSession = sessionRepository.save(otherUserSession);
 
     mockMvc.perform(delete("/api/v1/sessions/{sessionId}", otherUserSession.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -232,7 +226,7 @@ class SessionControllerTest extends DatabaseBase {
   void getSessions_InvalidToken() throws Exception {
     mockMvc.perform(get("/api/v1/sessions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
   }
 
   private SessionEntity createSession(String name, String description) {

@@ -37,10 +37,11 @@ public class BoardService {
   private final SessionRepository sessionRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final TrackWindowRepository trackWindowRepository;
+  private final SecurityUtils securityUtils;
 
   @Transactional(readOnly = true)
   public List<Board> getUserBoards() {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     log.debug("Getting boards for user with id {}", userId);
 
@@ -51,7 +52,7 @@ public class BoardService {
 
   @Transactional(readOnly = true)
   public Board getUserBoard(Long boardId) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     log.debug("Getting single board {} for user {}", boardId, userId);
 
@@ -65,7 +66,7 @@ public class BoardService {
 
   @Transactional
   public Long createUserBoard(BoardCreateRequest request) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     log.debug("Creating board for user with id {}", userId);
 
@@ -100,7 +101,7 @@ public class BoardService {
 
   @Transactional
   public Long deleteUserBoard(Long boardId) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     log.debug("Deleting board {} for user {}", boardId, userId);
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
             .orElseThrow(() -> new NotFoundException(
@@ -112,7 +113,7 @@ public class BoardService {
 
   @Transactional
   public Board updateUserBoard(Long boardId, BoardUpdateRequest request) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     log.debug("Updating board {} for user {}", boardId, userId);
 
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
@@ -136,7 +137,7 @@ public class BoardService {
       return;
     }
 
-    Long currentUserId = SecurityUtils.getCurrentUserId();
+    Long currentUserId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findAccessibleByIdAndUserId(selectedTrackId, currentUserId)
             .orElseThrow(() -> new NotFoundException(
@@ -151,7 +152,7 @@ public class BoardService {
       board.setSelectedGroup(null);
       return;
     }
-    GroupEntity group = groupRepository.findByIdAndOwner_Id(selectedGroupId, SecurityUtils.getCurrentUserId())
+    GroupEntity group = groupRepository.findByIdAndOwner_Id(selectedGroupId, securityUtils.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", selectedGroupId)));
     board.setSelectedGroup(group);
 

@@ -2,15 +2,14 @@ package org.dnd.track;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
-import org.dnd.api.model.UserAuthDTO;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.security.JwtService;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.user.UserEntity;
@@ -22,7 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -62,16 +60,11 @@ class TrackControllerTest extends DatabaseBase {
   @Autowired
   private SessionRepository sessionRepository;
 
-  @Autowired
-  private JwtService jwtService;
-
   private UserEntity testUser;
-  private String authToken;
 
   @BeforeEach
   void setUp() {
     testUser = createUser("testUser");
-    authToken = getTokenForUser(testUser);
   }
 
   @Test
@@ -80,7 +73,7 @@ class TrackControllerTest extends DatabaseBase {
     TrackEntity t2 = createTrackEntity("T2", testUser, null);
 
     mockMvc.perform(get("/api/v1/tracks")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("T1", "T2")))
             .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(testUser.getId().intValue()))));
@@ -93,7 +86,7 @@ class TrackControllerTest extends DatabaseBase {
             .trackLink("https://www.youtube.com/watch?v=gbFGnw2JYe0&list=PLDtPBNsaMdk-M7oRThTgSQm--LuxMUW4S");
 
     mockMvc.perform(post("/api/v1/tracks")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
@@ -151,7 +144,7 @@ class TrackControllerTest extends DatabaseBase {
             .trackLink("https://example.com/u.mp3");
 
     mockMvc.perform(put("/api/v1/tracks/{trackId}", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
@@ -198,7 +191,7 @@ class TrackControllerTest extends DatabaseBase {
             .trackLink("https://example.com/x.mp3");
 
     mockMvc.perform(put("/api/v1/tracks/{trackId}", t.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isForbidden());
@@ -209,7 +202,7 @@ class TrackControllerTest extends DatabaseBase {
     TrackEntity t = createTrackEntity("Del", testUser, null);
 
     mockMvc.perform(delete("/api/v1/tracks/{trackId}", t.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     assertFalse(trackRepository.existsById(t.getId()));
@@ -261,7 +254,7 @@ class TrackControllerTest extends DatabaseBase {
     groupRepository.addTrackToGroup(unrelatedGroup.getId(), unrelatedTrack.getId());
 
     mockMvc.perform(delete("/api/v1/tracks/{trackId}", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     assertFalse(trackRepository.existsById(track.getId()));
@@ -291,7 +284,7 @@ class TrackControllerTest extends DatabaseBase {
   @Test
   void deleteTrack_NotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/tracks/{trackId}", 999999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -301,7 +294,7 @@ class TrackControllerTest extends DatabaseBase {
     TrackEntity t = createTrackEntity("Del2", owner, null);
 
     mockMvc.perform(delete("/api/v1/tracks/{trackId}", t.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isForbidden());
   }
 
@@ -317,7 +310,7 @@ class TrackControllerTest extends DatabaseBase {
             .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
@@ -344,7 +337,7 @@ class TrackControllerTest extends DatabaseBase {
             .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isForbidden());
@@ -362,7 +355,7 @@ class TrackControllerTest extends DatabaseBase {
             .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isBadRequest());
@@ -384,7 +377,7 @@ class TrackControllerTest extends DatabaseBase {
             .fadeInDurationMs(1000);
 
     mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isForbidden())
@@ -402,7 +395,7 @@ class TrackControllerTest extends DatabaseBase {
             .trackLink("https://example.com/too.mp3");
 
     mockMvc.perform(post("/api/v1/tracks")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isForbidden())
@@ -418,7 +411,7 @@ class TrackControllerTest extends DatabaseBase {
     createTrackWindow(track, "C", 90L, 100L, false, false);
 
     mockMvc.perform(get("/api/v1/tracks")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$", hasSize(1)))
@@ -438,7 +431,7 @@ class TrackControllerTest extends DatabaseBase {
             .fadeInDurationMs(1000);
 
     mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), point.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(update)))
             .andExpect(status().isOk())
@@ -456,7 +449,7 @@ class TrackControllerTest extends DatabaseBase {
     TrackWindowEntity window = createTrackWindow(track, "Intro", 10L, 20L, true, false);
 
     mockMvc.perform(delete("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), window.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", is(empty())));
@@ -489,7 +482,7 @@ class TrackControllerTest extends DatabaseBase {
     );
 
     mockMvc.perform(delete("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), window.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", is(empty())));
@@ -505,7 +498,7 @@ class TrackControllerTest extends DatabaseBase {
 
   private UserEntity createUser(String name) {
     UserEntity u = UserHelper.createValidatedUser(name, "password", name + "@email.com");
-    return userRepository.saveAndFlush(u);
+    return userRepository.saveAndFlush(TestHelpers.withKeycloakId(u));
   }
 
   private GroupEntity createGroup(String name, UserEntity owner) {
@@ -570,13 +563,5 @@ class TrackControllerTest extends DatabaseBase {
     board.setSelectedTrack(selectedTrack);
     board.setSelectedWindow(selectedWindow);
     return boardRepository.saveAndFlush(board);
-  }
-
-  private String getTokenForUser(UserEntity user) {
-    UserAuthDTO dto = new UserAuthDTO();
-    dto.setId(user.getId());
-    dto.setName(user.getName());
-    dto.setEmail(user.getEmail());
-    return jwtService.generateToken(dto);
   }
 }
