@@ -24,6 +24,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       DB_URL: jdbc:postgresql://db:5432/musicplayer
       DB_USER: musicuser
@@ -31,6 +33,17 @@ services:
 
       JWT_SECRET: cOUtd+iZ5rwAF7aOoB3FGFz8y+rvCTEdJbKqek8EjSw=
       JWT_EXPIRATION: 86400000
+
+      KEYCLOAK_REALM: music-player
+      KEYCLOAK_INTERNAL_URL: http://host.docker.internal:8081
+      KEYCLOAK_ISSUER_URI: http://localhost:8081/realms/music-player
+      KEYCLOAK_JWK_SET_URI: http://host.docker.internal:8081/realms/music-player/protocol/openid-connect/certs
+
+      KEYCLOAK_CLIENT_ID: music-player-backend
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET}
+
+      KEYCLOAK_ADMIN_CLIENT_ID: music-player-admin
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
 
       MAIL_HOST: smtp.seznam.cz
       MAIL_PORT: 465
