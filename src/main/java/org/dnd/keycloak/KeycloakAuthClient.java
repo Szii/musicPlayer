@@ -47,25 +47,22 @@ public class KeycloakAuthClient {
   }
 
   public void logout(String refreshToken) {
-    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-    body.add("client_id", keycloakProperties.getClientId());
-    body.add("client_secret", keycloakProperties.getClientSecret());
-    body.add("refresh_token", refreshToken);
-
-    try {
-      restClient.post()
-              .uri(keycloakProperties.getLogoutUri())
-              .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-              .body(body)
-              .retrieve()
-              .toBodilessEntity();
-    } catch (RestClientResponseException exception) {
-      log.warn(
-              "Keycloak logout failed. status={}, body={}",
-              exception.getStatusCode(),
-              exception.getResponseBodyAsString()
-      );
+    if (refreshToken == null || refreshToken.isBlank()) {
+      return;
     }
+
+    MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+    form.add("client_id", keycloakProperties.getClientId());
+    form.add("client_secret", keycloakProperties.getClientSecret());
+    form.add("token", refreshToken);
+    form.add("token_type_hint", "refresh_token");
+
+    restClient.post()
+            .uri(keycloakProperties.getRevokeUri())
+            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+            .body(form)
+            .retrieve()
+            .toBodilessEntity();
   }
 
   private KeycloakTokenResponse requestToken(

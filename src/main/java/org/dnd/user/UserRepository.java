@@ -3,6 +3,7 @@ package org.dnd.user;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,13 +13,13 @@ public interface UserRepository extends JpaRepository<UserEntity, Long> {
 
   Optional<UserEntity> findByEmail(String email);
 
+  Optional<UserEntity> findByKeycloakId(UUID keycloakId);
+
   boolean existsByName(String name);
 
   boolean existsByEmail(String email);
 
-  Optional<UserEntity> findByKeycloakId(UUID keycloakId);
-
   boolean existsByKeycloakId(UUID keycloakId);
 
-  int deleteByEmailVerifiedFalseAndCreatedAtBefore(LocalDateTime threshold);
+  List<UserEntity> findAllByEmailVerifiedFalseAndCreatedAtBefore(LocalDateTime threshold);
 }

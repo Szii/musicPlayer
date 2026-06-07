@@ -5,6 +5,7 @@ import org.dnd.configuration.KeycloakProperties;
 import org.dnd.exception.ConflictException;
 import org.dnd.exception.UnauthorizedException;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -119,6 +120,36 @@ public class KeycloakAdminClient {
       }
 
       throw new UnauthorizedException("Could not create Keycloak user");
+    }
+  }
+
+  public void deleteUser(UUID keycloakUserId) {
+    if (keycloakUserId == null) {
+      return;
+    }
+
+    String adminAccessToken = getAdminAccessToken();
+
+    try {
+      restClient.delete()
+              .uri(keycloakProperties.getAdminUsersUri() + "/{userId}", keycloakUserId)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .retrieve()
+              .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      if (exception.getStatusCode() == HttpStatus.NOT_FOUND) {
+        log.warn("Keycloak user {} was already deleted", keycloakUserId);
+        return;
+      }
+
+      log.error(
+              "Failed to delete Keycloak user {}. status={}, body={}",
+              keycloakUserId,
+              exception.getStatusCode(),
+              exception.getResponseBodyAsString()
+      );
+
+      throw exception;
     }
   }
 
