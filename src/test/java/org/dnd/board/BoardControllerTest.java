@@ -2,6 +2,7 @@ package org.dnd.board;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.UserAuthDTO;
@@ -64,15 +65,14 @@ class BoardControllerTest extends DatabaseBase {
 
   private UserEntity testUser;
   private UserEntity anotherUser;
-  private String authToken;
 
   @BeforeEach
   void setUp() {
     testUser = UserHelper.createValidatedUser("testUser", "password", "email@email.cz");
-    testUser = userRepository.save(testUser);
+    testUser = userRepository.save(TestHelpers.withKeycloakId(testUser));
 
     anotherUser = UserHelper.createValidatedUser("anotherUser", "password", "anotheremail@email.cz");
-    anotherUser = userRepository.save(anotherUser);
+    anotherUser = userRepository.save(TestHelpers.withKeycloakId(anotherUser));
 
     testSession = new SessionEntity();
     testSession.setName("Test Session");
@@ -90,7 +90,6 @@ class BoardControllerTest extends DatabaseBase {
     userAuth.setId(testUser.getId());
     userAuth.setName(testUser.getName());
     userAuth.setName(testUser.getEmail());
-    authToken = jwtService.generateToken(userAuth);
   }
 
   @Test
@@ -105,7 +104,7 @@ class BoardControllerTest extends DatabaseBase {
     boardRepository.save(board);
 
     mockMvc.perform(get("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].volume").value(50))
             .andExpect(jsonPath("$[0].name").value("Test name"))
@@ -123,7 +122,7 @@ class BoardControllerTest extends DatabaseBase {
             .name("Test Board");
 
     mockMvc.perform(post("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
@@ -155,7 +154,7 @@ class BoardControllerTest extends DatabaseBase {
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
@@ -175,7 +174,7 @@ class BoardControllerTest extends DatabaseBase {
     board = boardRepository.save(board);
 
     mockMvc.perform(delete("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.boards").isEmpty());
 
@@ -185,7 +184,7 @@ class BoardControllerTest extends DatabaseBase {
   @Test
   void getUserBoards_EmptyList() throws Exception {
     mockMvc.perform(get("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
   }
 
@@ -199,7 +198,7 @@ class BoardControllerTest extends DatabaseBase {
   void getUserBoards_InvalidToken() throws Exception {
     mockMvc.perform(get("/api/v1/boards")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer invalid.token.here"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -217,7 +216,7 @@ class BoardControllerTest extends DatabaseBase {
 
     mockMvc.perform(get("/api/v1/boards")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + "wrongUserToken"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
   }
 
 
@@ -228,7 +227,7 @@ class BoardControllerTest extends DatabaseBase {
             .repeat(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", 999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound());
@@ -253,7 +252,7 @@ class BoardControllerTest extends DatabaseBase {
             .name("Excess Board");
 
     mockMvc.perform(post("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isForbidden())
@@ -279,7 +278,7 @@ class BoardControllerTest extends DatabaseBase {
             .name("Board to another session");
 
     mockMvc.perform(post("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk());
@@ -288,14 +287,14 @@ class BoardControllerTest extends DatabaseBase {
   @Test
   void getUserBoards_NoBoards() throws Exception {
     mockMvc.perform(get("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
   }
 
   @Test
   void deleteUserBoard_NotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/boards/{boardId}", 999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -308,7 +307,7 @@ class BoardControllerTest extends DatabaseBase {
             .name("Invalid Board");
 
     mockMvc.perform(post("/api/v1/boards")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isBadRequest());
@@ -329,7 +328,7 @@ class BoardControllerTest extends DatabaseBase {
             .volume(150); // Invalid volume
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isBadRequest());
@@ -376,7 +375,7 @@ class BoardControllerTest extends DatabaseBase {
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
@@ -436,7 +435,7 @@ class BoardControllerTest extends DatabaseBase {
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
@@ -493,7 +492,7 @@ class BoardControllerTest extends DatabaseBase {
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound());
@@ -540,7 +539,7 @@ class BoardControllerTest extends DatabaseBase {
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())

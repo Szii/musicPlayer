@@ -2,8 +2,8 @@ package org.dnd.group;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
+import org.dnd.TestHelpers;
 import org.dnd.api.model.GroupRequest;
-import org.dnd.api.model.UserAuthDTO;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
 import org.dnd.security.JwtService;
@@ -51,7 +51,6 @@ class GroupControllerTest extends DatabaseBase {
   private BoardRepository boardRepository;
 
   private UserEntity testUser;
-  private String authToken;
 
   @BeforeEach
   void setUp() {
@@ -59,9 +58,7 @@ class GroupControllerTest extends DatabaseBase {
             "testUser",
             "password",
             "user@email.com");
-    userRepository.save(testUser);
-
-    authToken = getTokenForUser(testUser);
+    userRepository.save(TestHelpers.withKeycloakId(testUser));
   }
 
   @Test
@@ -72,7 +69,7 @@ class GroupControllerTest extends DatabaseBase {
     groupRepository.save(group);
 
     mockMvc.perform(get("/api/v1/groups")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$[0].listName").value("Test Group"));
@@ -88,7 +85,7 @@ class GroupControllerTest extends DatabaseBase {
 
     mockMvc.perform(get("/api/v1/groups")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + "invalidToken"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isUnauthorized());
   }
 
   @Test
@@ -97,7 +94,7 @@ class GroupControllerTest extends DatabaseBase {
             .listName("New Group");
 
     mockMvc.perform(post("/api/v1/groups")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(groupRequest)))
             .andExpect(status().isOk())
@@ -119,7 +116,7 @@ class GroupControllerTest extends DatabaseBase {
             .listName("Updated Name");
 
     mockMvc.perform(put("/api/v1/groups/{groupId}", group.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
@@ -135,7 +132,7 @@ class GroupControllerTest extends DatabaseBase {
             .listName("Updated Name");
 
     mockMvc.perform(put("/api/v1/groups/{groupId}", 999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound());
@@ -154,7 +151,7 @@ class GroupControllerTest extends DatabaseBase {
             .listName("New Group");
 
     mockMvc.perform(post("/api/v1/groups")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(groupRequest)))
             .andExpect(status().isForbidden())
@@ -170,7 +167,7 @@ class GroupControllerTest extends DatabaseBase {
     group = groupRepository.save(group);
 
     mockMvc.perform(delete("/api/v1/groups/{groupId}", group.getId())
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNoContent());
 
     assertFalse(groupRepository.existsById(group.getId()));
@@ -179,7 +176,7 @@ class GroupControllerTest extends DatabaseBase {
   @Test
   void deleteGroup_NotFound() throws Exception {
     mockMvc.perform(delete("/api/v1/groups/{groupId}", 999L)
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken))
+                    .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
 
@@ -188,7 +185,7 @@ class GroupControllerTest extends DatabaseBase {
     GroupRequest groupRequest = new GroupRequest();
 
     mockMvc.perform(post("/api/v1/groups")
-                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + authToken)
+                    .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(groupRequest)))
             .andExpect(status().isBadRequest());
@@ -222,14 +219,4 @@ class GroupControllerTest extends DatabaseBase {
 
     return saved;
   }
-
-
-  private String getTokenForUser(UserEntity user) {
-    UserAuthDTO userAuth = new UserAuthDTO();
-    userAuth.setId(user.getId());
-    userAuth.setEmail(user.getEmail());
-    userAuth.setName(user.getName());
-    return jwtService.generateToken(userAuth);
-  }
-
 }

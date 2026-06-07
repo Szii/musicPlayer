@@ -29,10 +29,11 @@ public class SessionService {
   private final BoardEnricher boardEnricher;
   private final UserRepository userRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final SecurityUtils securityUtils;
 
   @Transactional(readOnly = true)
   public SessionsResponse getSessions() {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     List<SessionResponse> sessionResponses = sessionRepository.findByOwner_Id(userId).stream()
             .map(sessionEntity -> toEnrichedResponse(sessionEntity, userId))
@@ -45,7 +46,7 @@ public class SessionService {
 
   @Transactional
   public SessionsResponse deleteSession(Long sessionId) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     SessionEntity sessionEntity = sessionRepository.findByIdAndOwner_Id(sessionId, userId)
             .orElseThrow(() -> new NotFoundException(
@@ -58,7 +59,7 @@ public class SessionService {
 
   @Transactional
   public SessionsResponse createSession(SessionRequest sessionRequest) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     SessionEntity sessionEntity = new SessionEntity();
 
     UserEntity user = userRepository.findById(userId)
@@ -78,7 +79,7 @@ public class SessionService {
   }
 
   public SessionsResponse updateSession(SessionRequest sessionRequest) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     SessionEntity existingSession = sessionRepository.findByIdAndOwner_Id(sessionRequest.getSessionId(), userId)
             .orElseThrow(() -> new NotFoundException(
@@ -95,7 +96,7 @@ public class SessionService {
 
   @Transactional(readOnly = true)
   public SessionResponse getSession(Long sessionId) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     SessionEntity sessionEntity = sessionRepository.findByIdAndOwner_Id(sessionId, userId)
             .orElseThrow(() -> new NotFoundException(

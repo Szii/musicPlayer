@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -45,6 +44,9 @@ class SessionServiceTest {
   @Mock
   private UserRankEvaluatorService userRankEvaluatorService;
 
+  @Mock
+  private SecurityUtils securityUtils;
+
   @InjectMocks
   private SessionService sessionService;
 
@@ -52,7 +54,7 @@ class SessionServiceTest {
   void setUp() {
     lenient().when(userRankEvaluatorService.canCreateSession(any())).thenReturn(true);
   }
-  
+
   @Test
   void getSession_whenNotFound_throwsNotFoundException() {
     Long userId = 1L;
@@ -61,13 +63,12 @@ class SessionServiceTest {
     when(sessionRepository.findByIdAndOwner_Id(sessionId, userId))
             .thenReturn(Optional.empty());
 
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
+    when(securityUtils.getCurrentUserId()).thenReturn(userId);
 
-      assertThrows(NotFoundException.class, () -> sessionService.getSession(sessionId));
+    assertThrows(NotFoundException.class, () -> sessionService.getSession(sessionId));
 
-      verify(sessionRepository).findByIdAndOwner_Id(sessionId, userId);
-    }
+    verify(sessionRepository).findByIdAndOwner_Id(sessionId, userId);
+
   }
 
   @Test
@@ -88,17 +89,16 @@ class SessionServiceTest {
     when(sessionRepository.findByOwner_Id(userId))
             .thenReturn(List.of());
 
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
 
-      sessionService.createSession(request);
+    when(securityUtils.getCurrentUserId()).thenReturn(userId);
 
-      verify(sessionRepository).save(argThat(session ->
-              session.getOwner().equals(user)
-                      && session.getName().equals("New Session")
-                      && session.getDescription().equals("Description")
-      ));
-    }
+    sessionService.createSession(request);
+
+    verify(sessionRepository).save(argThat(session ->
+            session.getOwner().equals(user)
+                    && session.getName().equals("New Session")
+                    && session.getDescription().equals("Description")
+    ));
   }
 
   @Test
@@ -131,17 +131,16 @@ class SessionServiceTest {
     when(sessionMapper.toResponse(existingSession))
             .thenReturn(mappedResponse);
 
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
+    when(securityUtils.getCurrentUserId()).thenReturn(userId);
 
-      SessionsResponse response = sessionService.updateSession(request);
+    SessionsResponse response = sessionService.updateSession(request);
 
-      assertEquals("Updated Name", existingSession.getName());
-      assertEquals("Updated Description", existingSession.getDescription());
-      assertEquals(1, response.getSessions().size());
+    assertEquals("Updated Name", existingSession.getName());
+    assertEquals("Updated Description", existingSession.getDescription());
+    assertEquals(1, response.getSessions().size());
 
-      verify(sessionRepository).save(existingSession);
-    }
+    verify(sessionRepository).save(existingSession);
+
   }
 
   @Test
@@ -158,15 +157,14 @@ class SessionServiceTest {
     when(sessionRepository.findByOwner_Id(userId))
             .thenReturn(List.of());
 
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
+    when(securityUtils.getCurrentUserId()).thenReturn(userId);
 
-      SessionsResponse response = sessionService.deleteSession(sessionId);
+    SessionsResponse response = sessionService.deleteSession(sessionId);
 
-      assertTrue(response.getSessions().isEmpty());
+    assertTrue(response.getSessions().isEmpty());
 
-      verify(sessionRepository).delete(session);
-    }
+    verify(sessionRepository).delete(session);
+
   }
 
   @Test
@@ -198,14 +196,13 @@ class SessionServiceTest {
     when(boardEnricher.enrich(boardDto, boardEntity, userId))
             .thenReturn(boardDto);
 
-    try (MockedStatic<SecurityUtils> securityUtils = mockStatic(SecurityUtils.class)) {
-      securityUtils.when(SecurityUtils::getCurrentUserId).thenReturn(userId);
+    when(securityUtils.getCurrentUserId()).thenReturn(userId);
 
-      SessionResponse response = sessionService.getSession(sessionId);
+    SessionResponse response = sessionService.getSession(sessionId);
 
-      assertEquals(sessionId, response.getSessionId());
+    assertEquals(sessionId, response.getSessionId());
 
-      verify(boardEnricher).enrich(boardDto, boardEntity, userId);
-    }
+    verify(boardEnricher).enrich(boardDto, boardEntity, userId);
   }
+
 }

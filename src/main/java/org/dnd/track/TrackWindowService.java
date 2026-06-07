@@ -23,12 +23,13 @@ public class TrackWindowService {
   private final TrackWindowRepository trackWindowRepository;
   private final TrackMapper trackMapper;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final SecurityUtils securityUtils;
 
   @Transactional
   public Track deleteTrackWindow(Long trackId, Long windowId) {
     log.debug("Deleting track point {} from track {}", windowId, trackId);
 
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track with id %d not found".formatted(trackId)));
@@ -49,7 +50,7 @@ public class TrackWindowService {
 
   @Transactional
   public Track updateTrackWindow(Long trackId, Long windowId, TrackWindowRequest trackWindowRequest) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
@@ -70,7 +71,7 @@ public class TrackWindowService {
 
   @Transactional
   public Track createTrackWindow(Long trackId, TrackWindowRequest trackWindowRequest) throws BadRequestException {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
 
@@ -101,7 +102,7 @@ public class TrackWindowService {
   public TrackWindow getTrackWindow(Long trackId, Long windowId) {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %d not found", trackId)));
-    if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only get track points for your own tracks");
     }
     TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)

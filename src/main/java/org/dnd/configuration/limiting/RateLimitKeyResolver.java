@@ -22,6 +22,7 @@ public class RateLimitKeyResolver {
   private static final String ANONYMOUS = "anonymous";
 
   private final JwtService jwtService;
+  private final SecurityUtils securityUtils;
 
   @Value("${rate-limit.key-secret}")
   private String keySecret;
@@ -35,7 +36,7 @@ public class RateLimitKeyResolver {
   }
 
   public String currentUserKey() {
-    Object currentUserId = SecurityUtils.getCurrentUserId();
+    Object currentUserId = securityUtils.getCurrentUserId();
 
     if (currentUserId == null) {
       return "user:" + ANONYMOUS + ":" + clientIp();

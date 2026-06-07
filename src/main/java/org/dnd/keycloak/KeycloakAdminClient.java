@@ -162,4 +162,41 @@ public class KeycloakAdminClient {
 
     return UUID.fromString(id);
   }
+
+  public void updatePassword(UUID keycloakUserId, String newPassword) {
+    String adminAccessToken = getAdminAccessToken();
+
+    setPassword(adminAccessToken, keycloakUserId, newPassword);
+  }
+
+  public void updateEmail(
+          UUID keycloakUserId,
+          String email,
+          boolean emailVerified
+  ) {
+    String adminAccessToken = getAdminAccessToken();
+
+    Map<String, Object> body = Map.of(
+            "email", email,
+            "emailVerified", emailVerified
+    );
+
+    try {
+      restClient.put()
+              .uri(keycloakProperties.getAdminUsersUri() + "/" + keycloakUserId)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(body)
+              .retrieve()
+              .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      log.error(
+              "Keycloak update email failed. status={}, body={}",
+              exception.getStatusCode(),
+              exception.getResponseBodyAsString()
+      );
+
+      throw new UnauthorizedException("Could not update Keycloak user email");
+    }
+  }
 }

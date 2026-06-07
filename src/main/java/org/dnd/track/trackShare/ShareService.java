@@ -37,6 +37,7 @@ public class ShareService {
   private final TrackMapper trackMapper;
   private final ShareMapper shareMapper;
   private final UserRankEvaluatorService userRankEvaluatorService;
+  private final SecurityUtils securityUtils;
 
 
   @Transactional
@@ -44,7 +45,7 @@ public class ShareService {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-    if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only publish tracks you own");
     }
     if (track.getTrackShare() != null) {
@@ -64,7 +65,7 @@ public class ShareService {
 
   @Transactional
   public void subscribe(String shareCode) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     TrackShareEntity trackShare = trackShareRepository.findByShareCode(shareCode)
             .orElseThrow(() -> new NotFoundException("Invalid share code: " + shareCode));
 
@@ -84,7 +85,7 @@ public class ShareService {
 
   @Transactional
   public void unsubscribe(Long trackId) {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     UserEntity user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
@@ -115,7 +116,7 @@ public class ShareService {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-    if (!track.getOwner().getId().equals(SecurityUtils.getCurrentUserId())) {
+    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only unpublish tracks you own");
     }
 
@@ -142,7 +143,7 @@ public class ShareService {
 
   @Transactional(readOnly = true)
   public List<Track> getSubscribedTracks() {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
     UserEntity user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
@@ -158,14 +159,14 @@ public class ShareService {
 
     return allShares.stream()
             .map(TrackShareEntity::getTrack)
-            .map(entity -> trackMapper.toDto(entity, SecurityUtils.getCurrentUserId()))
+            .map(entity -> trackMapper.toDto(entity, securityUtils.getCurrentUserId()))
             .toList();
 
   }
 
   @Transactional(readOnly = true)
   public List<Track> getTracksPublishedByCurrentUser() {
-    Long userId = SecurityUtils.getCurrentUserId();
+    Long userId = securityUtils.getCurrentUserId();
 
     Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
 
