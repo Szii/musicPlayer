@@ -6,7 +6,6 @@ import org.dnd.TestHelpers;
 import org.dnd.api.model.SessionRequest;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.exception.ErrorCode;
-import org.dnd.security.JwtService;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -44,9 +43,6 @@ class SessionControllerTest extends DatabaseBase {
 
   @Autowired
   private SessionRepository sessionRepository;
-
-  @Autowired
-  private JwtService jwtService;
 
   private UserEntity testUser;
 

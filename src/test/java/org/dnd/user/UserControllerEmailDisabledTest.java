@@ -9,7 +9,6 @@ import org.dnd.api.model.UserRegisterRequest;
 import org.dnd.email.EmailService;
 import org.dnd.keycloak.KeycloakAdminClient;
 import org.dnd.keycloak.KeycloakAuthClient;
-import org.dnd.security.JwtService;
 import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenType;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,9 +49,6 @@ class UserControllerEmailDisabledTest extends DatabaseBase {
 
   @Autowired
   private TokenRepository tokenRepository;
-
-  @Autowired
-  private JwtService jwtService;
 
   @Autowired
   private PasswordEncoder passwordEncoder;

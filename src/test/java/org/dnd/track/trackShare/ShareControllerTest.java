@@ -9,7 +9,6 @@ import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.security.JwtService;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
@@ -68,9 +67,6 @@ class ShareControllerTest extends DatabaseBase {
 
   @Autowired
   private SessionRepository sessionRepository;
-
-  @Autowired
-  private JwtService jwtService;
 
   private UserEntity testUser;
   private UserEntity otherUser;

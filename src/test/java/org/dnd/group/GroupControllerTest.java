@@ -6,7 +6,6 @@ import org.dnd.TestHelpers;
 import org.dnd.api.model.GroupRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
-import org.dnd.security.JwtService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
@@ -43,8 +42,6 @@ class GroupControllerTest extends DatabaseBase {
   private UserRepository userRepository;
   @Autowired
   private GroupRepository groupRepository;
-  @Autowired
-  private JwtService jwtService;
   @Autowired
   private TrackRepository trackRepository;
   @Autowired

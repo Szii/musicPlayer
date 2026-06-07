@@ -9,7 +9,6 @@ import org.dnd.api.model.UserAuthDTO;
 import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.security.JwtService;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
@@ -51,8 +50,6 @@ class BoardControllerTest extends DatabaseBase {
   private UserRepository userRepository;
   @Autowired
   private BoardRepository boardRepository;
-  @Autowired
-  private JwtService jwtService;
   @Autowired
   private TrackRepository trackRepository;
   @Autowired

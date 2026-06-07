@@ -10,7 +10,6 @@ import org.dnd.exception.UnauthorizedException;
 import org.dnd.keycloak.KeycloakAdminClient;
 import org.dnd.keycloak.KeycloakAuthClient;
 import org.dnd.keycloak.KeycloakTokenResponse;
-import org.dnd.security.JwtService;
 import org.dnd.token.TokenEntity;
 import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenType;
@@ -59,9 +58,6 @@ class UserControllerTest extends DatabaseBase {
 
   @Autowired
   private TokenRepository tokenRepository;
-
-  @Autowired
-  private JwtService jwtService;
 
   @MockitoBean
   private EmailService emailService;

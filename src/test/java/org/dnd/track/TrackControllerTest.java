@@ -10,7 +10,6 @@ import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
-import org.dnd.security.JwtService;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.user.UserEntity;
@@ -60,9 +59,6 @@ class TrackControllerTest extends DatabaseBase {
 
   @Autowired
   private SessionRepository sessionRepository;
-
-  @Autowired
-  private JwtService jwtService;
 
   private UserEntity testUser;
 
