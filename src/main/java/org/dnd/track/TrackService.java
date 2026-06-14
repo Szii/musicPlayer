@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
+import org.dnd.api.model.UpdateTrackRequestV2;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
@@ -103,7 +104,7 @@ public class TrackService {
   }
 
   @Transactional
-  public Track updateTrack(Long trackId, CreateTrackRequestV2 request) {
+  public Track updateTrack(Long trackId, UpdateTrackRequestV2 request) {
     log.debug("Updating track with id {}", trackId);
     Long userId = securityUtils.getCurrentUserId();
     TrackEntity entity = trackRepository.findById(trackId)

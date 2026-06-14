@@ -3,6 +3,7 @@ package org.dnd.track;
 import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
+import org.dnd.api.model.UpdateTrackRequestV2;
 import org.dnd.track.trackShare.ShareMapper;
 import org.dnd.user.UserMapper;
 import org.mapstruct.*;
@@ -50,5 +51,5 @@ public interface TrackMapper {
   @Mapping(target = "groups", ignore = true)
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
-  void updateTrackFromRequest(CreateTrackRequestV2 request, @MappingTarget TrackEntity entity);
+  void updateTrackFromRequest(UpdateTrackRequestV2 request, @MappingTarget TrackEntity entity);
 }
