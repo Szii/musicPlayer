@@ -337,7 +337,7 @@ components:
     CreateTrackRequestV2:
       type: object
       required:
-        - name
+        - trackName
         - trackOriginalName
         - trackLink
         - duration
@@ -356,6 +356,34 @@ components:
           format: int32
           description: Track duration in seconds
           example: 213
+
+    UpdateTrackRequestV2:
+      type: object
+      properties:
+        trackName:
+          type: string
+          example: "My custom track name"
+        trackOriginalName:
+          type: string
+          example: "Original YouTube video title"
+        trackLink:
+          type: string
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        duration:
+          type: integer
+          format: int32
+          description: Track duration in seconds
+          example: 213
+        fadeInDurationMs:
+          type: integer
+          format: int32
+          description: Track fade in in milliseconds
+          example: 1000
+        fadeOutDurationMs:
+          type: integer
+          format: int32
+          description: Track fade out in milliseconds
+          example: 1000
 
     UserChangePasswordRequest:
       type: object
@@ -1362,7 +1390,7 @@ paths:
           description: User not found
 
   /tracks/{trackId}:
-    put:
+    patch:
       tags:
         - MusicTracks
       summary: Update an existing track
@@ -1374,7 +1402,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateTrackRequestV2'   # changed to use create DTO for updates
+              $ref: '#/components/schemas/UpdateTrackRequestV2'
       responses:
         '200':
           description: Track updated successfully

@@ -3,9 +3,9 @@ package org.dnd.track;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
-import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
+import org.dnd.api.model.UpdateTrackRequestV2;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
@@ -140,13 +140,13 @@ class TrackControllerTest extends DatabaseBase {
             unrelatedWindow
     );
 
-    CreateTrackRequestV2 req = new CreateTrackRequestV2()
+    UpdateTrackRequestV2 req = new UpdateTrackRequestV2()
             .trackName("UpdatedName")
             .trackOriginalName("aa")
             .duration(20)
             .trackLink("https://example-updated.com/x.mp3");
 
-    mockMvc.perform(put("/api/v1/tracks/{trackId}", track.getId())
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}", track.getId())
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
@@ -191,13 +191,13 @@ class TrackControllerTest extends DatabaseBase {
     UserEntity owner = createUser("owner3");
     TrackEntity t = createTrackEntity("O", owner, null);
 
-    CreateTrackRequestV2 req = new CreateTrackRequestV2()
+    UpdateTrackRequestV2 req = new UpdateTrackRequestV2()
             .trackName("Hack")
             .trackOriginalName("aa")
             .duration(20)
             .trackLink("https://example.com/x.mp3");
 
-    mockMvc.perform(put("/api/v1/tracks/{trackId}", t.getId())
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}", t.getId())
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))

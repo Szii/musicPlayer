@@ -4,10 +4,7 @@ import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.dnd.api.MusicTracksApi;
-import org.dnd.api.model.CreateTrackRequestV2;
-import org.dnd.api.model.Track;
-import org.dnd.api.model.TrackRequest;
-import org.dnd.api.model.TrackWindowRequest;
+import org.dnd.api.model.*;
 import org.dnd.track.trackShare.ShareService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -79,7 +76,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> updateTrack(Long trackId, CreateTrackRequestV2 trackRequest) throws Exception {
+  public ResponseEntity<Track> updateTrack(Long trackId, UpdateTrackRequestV2 trackRequest) throws Exception {
     return ResponseEntity.ok().body(trackService.updateTrack(trackId, trackRequest));
   }
 
