@@ -103,7 +103,7 @@ public class TrackService {
   }
 
   @Transactional
-  public Track updateTrack(Long trackId, TrackRequest request) {
+  public Track updateTrack(Long trackId, CreateTrackRequestV2 request) {
     log.debug("Updating track with id {}", trackId);
     Long userId = securityUtils.getCurrentUserId();
     TrackEntity entity = trackRepository.findById(trackId)

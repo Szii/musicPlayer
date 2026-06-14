@@ -50,8 +50,5 @@ public interface TrackMapper {
   @Mapping(target = "groups", ignore = true)
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
-  void updateTrackFromRequest(TrackRequest request, @MappingTarget TrackEntity entity);
+  void updateTrackFromRequest(CreateTrackRequestV2 request, @MappingTarget TrackEntity entity);
 }
-
-
-

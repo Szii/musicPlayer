@@ -79,7 +79,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> updateTrack(Long trackId, TrackRequest trackRequest) throws Exception {
+  public ResponseEntity<Track> updateTrack(Long trackId, CreateTrackRequestV2 trackRequest) throws Exception {
     return ResponseEntity.ok().body(trackService.updateTrack(trackId, trackRequest));
   }
 
