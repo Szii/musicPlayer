@@ -144,6 +144,7 @@ class TrackControllerTest extends DatabaseBase {
             .trackName("UpdatedName")
             .trackOriginalName("aa")
             .duration(20)
+            .fadeInDurationMs(5000)
             .trackLink("https://example-updated.com/x.mp3");
 
     mockMvc.perform(patch("/api/v1/tracks/{trackId}", track.getId())
@@ -154,6 +155,8 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackName").value("UpdatedName"))
             .andExpect(jsonPath("$.duration").value(20))
             .andExpect(jsonPath("$.trackLink").value("https://example-updated.com/x.mp3"))
+            .andExpect(jsonPath("$.fadeInDurationMs").value(5000))
+            .andExpect(jsonPath("$.fadeOutDurationMs").value(1000))
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", is(empty())));
 
@@ -522,6 +525,8 @@ class TrackControllerTest extends DatabaseBase {
     t.setTrackLink("https://example.com/" + name + ".mp3");
     t.setDuration(120);
     t.setOwner(owner);
+    t.setFadeInDurationMs(1000);
+    t.setFadeOutDurationMs(1000);
     TrackEntity saved = trackRepository.saveAndFlush(t);
 
     if (group != null) {
