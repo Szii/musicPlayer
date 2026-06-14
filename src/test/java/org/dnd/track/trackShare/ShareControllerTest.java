@@ -453,6 +453,7 @@ class ShareControllerTest extends DatabaseBase {
     window.setPositionTo(10L);
     window.setFadeInDurationMs(1000);
     window.setFadeOutDurationMs(1000);
+    window.setPositionWithinTrack(nextWindowPosition(track));
     return trackWindowRepository.saveAndFlush(window);
   }
 
@@ -486,5 +487,11 @@ class ShareControllerTest extends DatabaseBase {
     group.setListName(name);
     group.setOwner(owner);
     return groupRepository.saveAndFlush(group);
+  }
+
+  private int nextWindowPosition(TrackEntity track) {
+    return trackWindowRepository
+            .findMaxPositionWithinTrack(track.getId())
+            .orElse(0) + 1;
   }
 }

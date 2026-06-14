@@ -157,7 +157,7 @@ class UserRankEvaluatorServiceTest {
 
   private static TrackEntity trackWithWindows(int windowCount) {
     TrackEntity track = mock(TrackEntity.class);
-    when(track.getTrackWindows()).thenReturn(rawSet(windowCount));
+    when(track.getTrackWindows()).thenReturn(rawList(windowCount));
     return track;
   }
 

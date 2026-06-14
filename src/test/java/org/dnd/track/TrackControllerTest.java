@@ -3,6 +3,7 @@ package org.dnd.track;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
+import org.dnd.api.model.ReorderTrackWindowsRequest;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.api.model.UpdateTrackRequestV2;
@@ -25,6 +26,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -329,6 +332,7 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows", hasSize(1)))
             .andExpect(jsonPath("$.trackWindows[0].name").value("Intro"))
             .andExpect(jsonPath("$.trackWindows[0].positionFrom").value(10))
+            .andExpect(jsonPath("$.trackWindows[0].positionWithinTrack").value(1))
             .andExpect(jsonPath("$.trackWindows[0].positionTo").value(20))
             .andExpect(jsonPath("$.trackWindows[0].fadeInDurationMs").value(1000))
             .andExpect(jsonPath("$.trackWindows[0].fadeOutDurationMs").value(1000));
@@ -412,8 +416,9 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.code").value(ErrorCode.LIMIT_EXCEEDED.getCode()));
   }
 
+
   @Test
-  void getUserTracks_TrackWindowsAreOrderedAscending() throws Exception {
+  void getUserTracks_TrackWindowsAreOrderedByPositionAscending() throws Exception {
     TrackEntity track = createTrackEntity("Ordered Track", testUser, null);
 
     createTrackWindow(track, "B", 50L, 100L, false, false);
@@ -425,7 +430,7 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$", hasSize(1)))
-            .andExpect(jsonPath("$[0].trackWindows[*].name", contains("A", "B", "C")));
+            .andExpect(jsonPath("$[0].trackWindows[*].name", contains("B", "A", "C")));
   }
 
   @Test
@@ -506,9 +511,160 @@ class TrackControllerTest extends DatabaseBase {
     assertNull(updatedOtherUserBoard.getSelectedWindow());
   }
 
+  @Test
+  void reorderTrackWindows_Owner_Success() throws Exception {
+    TrackEntity track = createTrackEntity("Reorder Track", testUser, null);
+
+    TrackWindowEntity first = createTrackWindow(track, "First", 10L, 20L, false, false);
+    TrackWindowEntity second = createTrackWindow(track, "Second", 30L, 40L, false, false);
+    TrackWindowEntity third = createTrackWindow(track, "Third", 50L, 60L, false, false);
+
+    ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
+            .windowIds(List.of(third.getId(), first.getId(), second.getId()));
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.trackWindows").isArray())
+            .andExpect(jsonPath("$.trackWindows", hasSize(3)))
+            .andExpect(jsonPath("$.trackWindows[*].id", contains(
+                    third.getId().intValue(),
+                    first.getId().intValue(),
+                    second.getId().intValue()
+            )))
+            .andExpect(jsonPath("$.trackWindows[*].positionWithinTrack", contains(1, 2, 3)));
+
+    TrackWindowEntity updatedFirst = trackWindowRepository.findById(first.getId()).orElseThrow();
+    TrackWindowEntity updatedSecond = trackWindowRepository.findById(second.getId()).orElseThrow();
+    TrackWindowEntity updatedThird = trackWindowRepository.findById(third.getId()).orElseThrow();
+
+    assertEquals(2, updatedFirst.getPositionWithinTrack());
+    assertEquals(3, updatedSecond.getPositionWithinTrack());
+    assertEquals(1, updatedThird.getPositionWithinTrack());
+  }
+
   private UserEntity createUser(String name) {
     UserEntity u = UserHelper.createValidatedUser(name, "password", name + "@email.com");
     return userRepository.saveAndFlush(TestHelpers.withKeycloakId(u));
+  }
+
+  @Test
+  void reorderTrackWindows_Forbidden_WhenNotOwner() throws Exception {
+    UserEntity owner = createUser("windowOwner");
+    TrackEntity track = createTrackEntity("Other User Track", owner, null);
+
+    TrackWindowEntity first = createTrackWindow(track, "First", 10L, 20L, false, false);
+    TrackWindowEntity second = createTrackWindow(track, "Second", 30L, 40L, false, false);
+
+    ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
+            .windowIds(List.of(second.getId(), first.getId()));
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void reorderTrackWindows_BadRequest_WhenDuplicateWindowIds() throws Exception {
+    TrackEntity track = createTrackEntity("Duplicate Reorder Track", testUser, null);
+
+    TrackWindowEntity first = createTrackWindow(track, "First", 10L, 20L, false, false);
+    createTrackWindow(track, "Second", 30L, 40L, false, false);
+
+    ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
+            .windowIds(List.of(first.getId(), first.getId()));
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void deleteTrackWindow_RecalculatesWindowPositions() throws Exception {
+    TrackEntity track = createTrackEntity("Delete Recalculate Track", testUser, null);
+
+    TrackWindowEntity first = createTrackWindow(track, "First", 10L, 20L, false, false);
+    TrackWindowEntity second = createTrackWindow(track, "Second", 30L, 40L, false, false);
+    TrackWindowEntity third = createTrackWindow(track, "Third", 50L, 60L, false, false);
+
+    mockMvc.perform(delete("/api/v1/tracks/{trackId}/windows/{windowId}", track.getId(), second.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.trackWindows").isArray())
+            .andExpect(jsonPath("$.trackWindows", hasSize(2)))
+            .andExpect(jsonPath("$.trackWindows[*].id", contains(
+                    first.getId().intValue(),
+                    third.getId().intValue()
+            )))
+            .andExpect(jsonPath("$.trackWindows[*].positionWithinTrack", contains(1, 2)));
+
+    TrackWindowEntity updatedFirst = trackWindowRepository.findById(first.getId()).orElseThrow();
+    TrackWindowEntity updatedThird = trackWindowRepository.findById(third.getId()).orElseThrow();
+
+    assertFalse(trackWindowRepository.existsById(second.getId()));
+
+    assertEquals(1, updatedFirst.getPositionWithinTrack());
+    assertEquals(2, updatedThird.getPositionWithinTrack());
+  }
+
+  @Test
+  void reorderTrackWindows_BadRequest_WhenMissingWindowId() throws Exception {
+    TrackEntity track = createTrackEntity("Missing Window Reorder Track", testUser, null);
+
+    TrackWindowEntity first = createTrackWindow(track, "First", 10L, 20L, false, false);
+    createTrackWindow(track, "Second", 30L, 40L, false, false);
+
+    ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
+            .windowIds(List.of(first.getId()));
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void reorderTrackWindows_BadRequest_WhenWindowDoesNotBelongToTrack() throws Exception {
+    TrackEntity track = createTrackEntity("Main Reorder Track", testUser, null);
+    TrackEntity otherTrack = createTrackEntity("Other Reorder Track", testUser, null);
+
+    TrackWindowEntity first = createTrackWindow(track, "First", 10L, 20L, false, false);
+    TrackWindowEntity second = createTrackWindow(track, "Second", 30L, 40L, false, false);
+    TrackWindowEntity otherWindow = createTrackWindow(otherTrack, "Other", 50L, 60L, false, false);
+
+    ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
+            .windowIds(List.of(first.getId(), otherWindow.getId()));
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isBadRequest());
+
+    TrackWindowEntity unchangedFirst = trackWindowRepository.findById(first.getId()).orElseThrow();
+    TrackWindowEntity unchangedSecond = trackWindowRepository.findById(second.getId()).orElseThrow();
+
+    assertEquals(1, unchangedFirst.getPositionWithinTrack());
+    assertEquals(2, unchangedSecond.getPositionWithinTrack());
+  }
+
+  @Test
+  void reorderTrackWindows_NotFound_WhenTrackDoesNotExist() throws Exception {
+    ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
+            .windowIds(List.of(1L, 2L));
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", 999999L)
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isNotFound());
   }
 
   private GroupEntity createGroup(String name, UserEntity owner) {
@@ -549,6 +705,7 @@ class TrackControllerTest extends DatabaseBase {
     p.setPositionTo(positionTo);
     p.setFadeOutDurationMs(1000);
     p.setFadeInDurationMs(1000);
+    p.setPositionWithinTrack(nextWindowPosition(track));
     return trackWindowRepository.saveAndFlush(p);
   }
 
@@ -575,5 +732,11 @@ class TrackControllerTest extends DatabaseBase {
     board.setSelectedTrack(selectedTrack);
     board.setSelectedWindow(selectedWindow);
     return boardRepository.saveAndFlush(board);
+  }
+
+  private int nextWindowPosition(TrackEntity track) {
+    return trackWindowRepository
+            .findMaxPositionWithinTrack(track.getId())
+            .orElse(0) + 1;
   }
 }

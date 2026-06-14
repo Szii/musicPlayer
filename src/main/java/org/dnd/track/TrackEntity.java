@@ -10,7 +10,9 @@ import org.dnd.group.GroupEntity;
 import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Entity
@@ -51,8 +53,8 @@ public class TrackEntity {
   private Set<GroupEntity> groups = new HashSet<>();
 
   @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
-  @OrderBy("name ASC")
-  private Set<TrackWindowEntity> trackWindows = new HashSet<>();
+  @OrderBy("positionWithinTrack  ASC, name ASC")
+  private List<TrackWindowEntity> trackWindows = new ArrayList<>();
 
   @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
   @JoinColumn(name = "track_share_id", unique = true)
@@ -62,7 +64,6 @@ public class TrackEntity {
     this.trackWindows.add(window);
     window.setTrack(this);
   }
-
 }
 
 
