@@ -41,6 +41,16 @@ public class TrackController implements MusicTracksApi {
 
   @Override
   @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<Track> reorderTrackWindows(Long trackId, ReorderTrackWindowsRequest reorderTrackWindowsRequest) throws Exception {
+    return ResponseEntity.ok(trackWindowService.reorderTrackWindows(trackId, reorderTrackWindowsRequest));
+  }
+
+  @Override
+  @RateLimiting(
           name = CREATE_API,
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true

@@ -31,4 +31,11 @@ public interface TrackWindowRepository extends JpaRepository<TrackWindowEntity, 
           """)
   int deleteAllByTrackId(@Param("trackId") Long trackId);
 
+  @Query("""
+          select max(w.positionWithinTrack)
+          from TrackWindowEntity w
+          where w.track.id = :trackId
+          """)
+  Optional<Integer> findMaxPositionWithinTrack(@Param("trackId") Long trackId);
+
 }

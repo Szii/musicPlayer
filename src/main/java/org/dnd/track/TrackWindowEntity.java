@@ -5,18 +5,27 @@ import lombok.*;
 
 @Builder
 @Entity
-@Table(name = "track_windows")
+@Table(
+        name = "track_windows",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_track_window_position",
+                        columnNames = {"track_id", "position_within_track"}
+                )
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class TrackWindowEntity {
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   @ManyToOne(fetch = FetchType.LAZY)
-  @JoinColumn(name = "track_id")
+  @JoinColumn(name = "track_id", nullable = false)
   private TrackEntity track;
 
   @Column(nullable = false)
@@ -33,4 +42,7 @@ public class TrackWindowEntity {
 
   @Column(nullable = false)
   private int fadeOutDurationMs;
+
+  @Column(name = "position_within_track", nullable = false)
+  private int positionWithinTrack;
 }

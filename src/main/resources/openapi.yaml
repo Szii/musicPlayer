@@ -527,6 +527,11 @@ components:
         fadeOutDurationMs:
           type: integer
           description: fade out duration in ms
+        positionWithinTrack:
+          type: integer
+          format: int32
+          description: Order of this window inside its track
+          example: 1
 
     TrackRequest:
       type: object
@@ -569,6 +574,22 @@ components:
           type: integer
           description: fade out duration in ms
 
+    ReorderTrackWindowsRequest:
+      type: object
+      required:
+        - windowIds
+      properties:
+        windowIds:
+          type: array
+          description: Window ids in the desired order. The first id receives positionWithinTrack 1.
+          minItems: 1
+          items:
+            type: integer
+            format: int64
+          example:
+            - 12
+            - 8
+            - 15
 
     PublishTrackRequest:
       type: object
@@ -1453,6 +1474,35 @@ paths:
           description: Bad request (validation error, etc.)
         '500':
           description: Server error
+
+  /tracks/{trackId}/windows/reorder:
+    patch:
+      tags:
+        - MusicTracks
+      summary: Reorder track windows
+      description: Updates the order of windows within the specified track. Positions are assigned from 1 based on the order of windowIds in the request.
+      operationId: reorderTrackWindows
+      parameters:
+        - $ref: '#/components/parameters/TrackId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderTrackWindowsRequest'
+      responses:
+        '200':
+          description: Updated track with reordered windows
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+        '400':
+          description: Bad request validation error, duplicate window ids, missing windows, or windows not belonging to the track
+        '403':
+          description: Forbidden, only the track owner can reorder windows
+        '404':
+          description: Track not found
 
   /tracks/{trackId}/windows/{windowId}:
     patch:
