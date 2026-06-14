@@ -1378,7 +1378,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TrackRequest'
+              $ref: '#/components/schemas/CreateTrackRequestV2'   # changed to use create DTO for updates
       responses:
         '200':
           description: Track updated successfully
@@ -1797,3 +1797,4 @@ paths:
                 $ref: '#/components/schemas/SessionsResponse'
         '404':
           description: Session not found
+

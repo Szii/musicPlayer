@@ -3,6 +3,7 @@ package org.dnd.track;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
+import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.board.BoardEntity;
@@ -139,9 +140,11 @@ class TrackControllerTest extends DatabaseBase {
             unrelatedWindow
     );
 
-    TrackRequest req = new TrackRequest()
+    CreateTrackRequestV2 req = new CreateTrackRequestV2()
             .trackName("UpdatedName")
-            .trackLink("https://example.com/u.mp3");
+            .trackOriginalName("aa")
+            .duration(20)
+            .trackLink("https://example-updated.com/x.mp3");
 
     mockMvc.perform(put("/api/v1/tracks/{trackId}", track.getId())
                     .with(TestHelpers.authenticatedAs(testUser))
@@ -149,6 +152,8 @@ class TrackControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.trackName").value("UpdatedName"))
+            .andExpect(jsonPath("$.duration").value(20))
+            .andExpect(jsonPath("$.trackLink").value("https://example-updated.com/x.mp3"))
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", is(empty())));
 
@@ -186,8 +191,10 @@ class TrackControllerTest extends DatabaseBase {
     UserEntity owner = createUser("owner3");
     TrackEntity t = createTrackEntity("O", owner, null);
 
-    TrackRequest req = new TrackRequest()
+    CreateTrackRequestV2 req = new CreateTrackRequestV2()
             .trackName("Hack")
+            .trackOriginalName("aa")
+            .duration(20)
             .trackLink("https://example.com/x.mp3");
 
     mockMvc.perform(put("/api/v1/tracks/{trackId}", t.getId())
