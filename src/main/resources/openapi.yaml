@@ -283,15 +283,18 @@ components:
         name:
           type: string
           description: Desired username (must be unique)
+          maxLength: 30
           example: "user"
         email:
           type: string
           format: email
           description: Unique email address of the user
+          maxLength: 100
           example: "user@email.com"
         password:
           type: string
           format: password
+          maxLength: 150
           description: Plain-text password to be hashed on the server
           example: "secret123"
 
@@ -344,13 +347,16 @@ components:
       properties:
         trackName:
           type: string
+          maxLength: 40
           example: "My custom track name"
         trackOriginalName:
           type: string
           example: "Original YouTube video title"
+          maxLength: 150
         trackLink:
           type: string
           example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+          maxLength: 2048
         duration:
           type: integer
           format: int32
@@ -362,12 +368,15 @@ components:
       properties:
         trackName:
           type: string
+          maxLength: 40
           example: "My custom track name"
         trackOriginalName:
           type: string
+          maxLength: 150
           example: "Original YouTube video title"
         trackLink:
           type: string
+          maxLength: 1000
           example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         duration:
           type: integer
@@ -400,11 +409,13 @@ components:
         password:
           type: string
           format: password
+          maxLength: 150
           description: Plain-text password to be checked on the server
           example: "secret123"
         newPassword:
           type: string
           format: password
+          maxLength: 150
           description: Plain-text password to be checked on the server
           example: "secret123"
 
@@ -422,6 +433,7 @@ components:
         password:
           type: string
           format: password
+          maxLength: 150
           description: Plain-text password to be checked on the server
           example: "secret123"
 
@@ -541,6 +553,7 @@ components:
       properties:
         trackName:
           type: string
+          maxLength: 40
           description: Name or title of the track. If not set, default is used
           example: "Sample Song"
         fadeInDurationMs:
@@ -552,6 +565,7 @@ components:
         trackLink:
           type: string
           description: URL or link to the track audio
+          maxLength: 2048
           example: "https://example.com/track.mp3"
 
     TrackWindowRequest:
@@ -566,6 +580,7 @@ components:
           description: End position of window in seconds
         name:
           type: string
+          maxLength: 30
           description: name for window
         fadeInDurationMs:
           type: integer
@@ -596,6 +611,7 @@ components:
       properties:
         description:
           type: string
+          maxLength: 100
           description: Description of the shared track
           example: "Great track for studying"
 
@@ -652,6 +668,7 @@ components:
       properties:
         listName:
           type: string
+          maxLength: 30
           description: Name of the playlist or group
           example: "My Favorites"
         trackIds:
@@ -726,6 +743,7 @@ components:
       properties:
         name:
           type: string
+          maxLength: 30
           description: Name of the board
           example: "Default Playback"
         selectedTrackId:
@@ -776,6 +794,7 @@ components:
           example: 50
         name:
           type: string
+          maxLength: 30
           description: Name of the board
           example: "Default Playback"
         repeat:
@@ -798,6 +817,7 @@ components:
           type: boolean
           description: Play the windows of track in the sequence
           example: false
+
     PlayRequest:
       type: object
       description: >
@@ -856,10 +876,12 @@ components:
           example: 1
         sessionName:
             type: string
+            maxLength: 30
             description: Name of the session
             example: "My Listening Session"
         sessionDescription:
             type: string
+            maxLength: 100
             description: Description of the session
             example: "A session for my favorite tracks"
 
