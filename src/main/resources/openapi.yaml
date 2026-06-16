@@ -619,6 +619,9 @@ components:
           type: string
         shareCode:
           type: string
+        subscriberCount:
+          type: integer
+          format: int32
 
     Group:
       type: object
