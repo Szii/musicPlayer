@@ -339,6 +339,25 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
+  void createTrackWindow_Owner_Validation_Fail() throws Exception {
+    TrackEntity track = createTrackEntity("My Track", testUser, null);
+
+    TrackWindowRequest req = new TrackWindowRequest()
+            .name("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            .positionFrom(10)
+            .positionTo(20)
+            .fadeOutDurationMs(1000)
+            .fadeInDurationMs(1000);
+
+    mockMvc.perform(post("/api/v1/tracks/{trackId}/windows", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isBadRequest());
+
+  }
+
+  @Test
   void createTrackWindow_NonOwner_Forbidden() throws Exception {
     UserEntity other = createUser("otherUser");
     TrackEntity track = createTrackEntity("Other Track", other, null);

@@ -376,7 +376,7 @@ components:
           example: "Original YouTube video title"
         trackLink:
           type: string
-          maxLength: 1000
+          maxLength: 2048
           example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
         duration:
           type: integer
