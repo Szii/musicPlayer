@@ -31,8 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -286,6 +285,39 @@ class ShareControllerTest extends DatabaseBase {
     UserEntity user = userRepository.findById(testUser.getId()).orElseThrow();
     assertTrue(user.getShares().stream()
             .anyMatch(t -> t.getTrack().getId().equals(track.getId())));
+
+
+  }
+
+  @Test
+  void subscriberCount_updatesAfterUnsubscribe() throws Exception {
+    TrackEntity track = createTrackEntity("Shared Track", otherUser);
+    TrackShareEntity share = createTrackShare(track, "Popular track");
+
+    UserEntity subscriber2 = createUser("subscriber2_" + UUID.randomUUID());
+    UserEntity subscriber3 = createUser("subscriber3_" + UUID.randomUUID());
+
+    subscriber2.getShares().add(share);
+    subscriber3.getShares().add(share);
+
+    userRepository.saveAndFlush(subscriber2);
+    userRepository.saveAndFlush(subscriber3);
+
+    mockMvc.perform(get("/api/v1/tracks/published")
+                    .with(TestHelpers.authenticatedAs(otherUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.id == %d)].trackShare.subscriberCount", track.getId())
+                    .value(2));
+
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
+                    .with(TestHelpers.authenticatedAs(subscriber2)))
+            .andExpect(status().isNoContent());
+
+    mockMvc.perform(get("/api/v1/tracks/published")
+                    .with(TestHelpers.authenticatedAs(otherUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.id == %d)].trackShare.subscriberCount", track.getId())
+                    .value(1));
   }
 
   @Test
