@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -115,8 +116,11 @@ public class TrackService {
       throw new ForbiddenException("You can only update tracks you own");
     }
 
+    String requestTrackLink = request.getTrackLink();
+
     // delete windows only on track link change
-    if (!entity.getTrackLink().equals(request.getTrackLink())) {
+    if (requestTrackLink != null
+            && !Objects.equals(entity.getTrackLink(), requestTrackLink)) {
       boardRepository.clearSelectedWindowForTrack(trackId);
       trackWindowRepository.deleteAllByTrackId(trackId);
     }
