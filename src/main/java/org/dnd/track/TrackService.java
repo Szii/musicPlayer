@@ -115,9 +115,11 @@ public class TrackService {
       throw new ForbiddenException("You can only update tracks you own");
     }
 
-    boardRepository.clearSelectedWindowForTrack(trackId);
-
-    trackWindowRepository.deleteAllByTrackId(trackId);
+    // delete windows only on track link change
+    if (!entity.getTrackLink().equals(request.getTrackLink())) {
+      boardRepository.clearSelectedWindowForTrack(trackId);
+      trackWindowRepository.deleteAllByTrackId(trackId);
+    }
 
     mapper.updateTrackFromRequest(request, entity);
 

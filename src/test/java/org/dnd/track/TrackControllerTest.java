@@ -193,6 +193,65 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
+  void updateTrack_Success_DoNotRemoveTrackWindows_WhenUpdateDoesNotChangeLink() throws Exception {
+    TrackEntity track = createTrackEntity("OldName", testUser, null);
+    TrackWindowEntity window1 = createTrackWindow(track, "Intro", 0L, 10L, false, false);
+    TrackWindowEntity window2 = createTrackWindow(track, "Loop", 10L, 20L, false, false);
+
+    SessionEntity ownerSession = createSession("Owner Session Update", testUser);
+
+    BoardEntity ownerBoardWithWindow1 = createBoard(
+            "Owner Board Window 1",
+            testUser,
+            ownerSession,
+            track,
+            window1
+    );
+
+    BoardEntity ownerBoardWithWindow2 = createBoard(
+            "Owner Board Window 2",
+            testUser,
+            ownerSession,
+            track,
+            window2
+    );
+
+
+    UpdateTrackRequestV2 req = new UpdateTrackRequestV2()
+            .trackName("UpdatedName")
+            .trackOriginalName("aa")
+            .duration(20)
+            .fadeInDurationMs(5000)
+            .trackLink(track.getTrackLink());
+
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}", track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.trackName").value("UpdatedName"))
+            .andExpect(jsonPath("$.duration").value(20))
+            .andExpect(jsonPath("$.trackLink").value(track.getTrackLink()))
+            .andExpect(jsonPath("$.fadeInDurationMs").value(5000))
+            .andExpect(jsonPath("$.fadeOutDurationMs").value(1000))
+            .andExpect(jsonPath("$.trackWindows").isArray())
+            .andExpect(jsonPath("$.trackWindows", hasSize(2)));
+
+    TrackEntity updatedTrack = trackRepository.findById(track.getId()).orElseThrow();
+    assertEquals("UpdatedName", updatedTrack.getTrackName());
+
+    BoardEntity updatedOwnerBoardWithWindow1 = boardRepository.findById(ownerBoardWithWindow1.getId()).orElseThrow();
+    assertNotNull(updatedOwnerBoardWithWindow1.getSelectedTrack());
+    assertEquals(track.getId(), updatedOwnerBoardWithWindow1.getSelectedTrack().getId());
+    assertEquals(window1.getId(), updatedOwnerBoardWithWindow1.getSelectedWindow().getId());
+
+    BoardEntity updatedOwnerBoardWithWindow2 = boardRepository.findById(ownerBoardWithWindow2.getId()).orElseThrow();
+    assertNotNull(updatedOwnerBoardWithWindow2.getSelectedTrack());
+    assertEquals(track.getId(), updatedOwnerBoardWithWindow2.getSelectedTrack().getId());
+    assertEquals(window2.getId(), updatedOwnerBoardWithWindow2.getSelectedWindow().getId());
+  }
+
+  @Test
   void updateTrack_Forbidden_WhenNotOwner() throws Exception {
     UserEntity owner = createUser("owner3");
     TrackEntity t = createTrackEntity("O", owner, null);
