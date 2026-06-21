@@ -134,7 +134,7 @@ class UserRankEvaluatorServiceTest {
 
     assertThat(result.getSubscribes().getActualSubscribes()).isEqualTo(10);
     assertThat(result.getSubscribes().getMaxSubscribes()).isEqualTo(limits.maxShares());
-    assertThat(result.getSubscribes().getSubscribeLimitReached()).isTrue();
+    assertThat(result.getSubscribes().getSubscribeLimitReached()).isFalse();
 
     assertThat(result.getSessions().getActualSessions()).isEqualTo(5);
     assertThat(result.getSessions().getMaxSessions()).isEqualTo(limits.maxSessions());

@@ -12,11 +12,11 @@ public record UserRankLimits(
   public static UserRankLimits normal() {
     return new UserRankLimits(
             3,
-            30,
+            100,
             3,
-            5,
-            5,
-            10
+            7,
+            20,
+            100
     );
   }
 
