@@ -118,7 +118,6 @@ class UserRankEvaluatorServiceTest {
 
     UserLimits result = service.getLimitsForUser(user);
 
-
     UserRankLimits limits = new UserRankLimitProvider().getLimits(UserRank.NORMAL);
     assertThat(result.getTracks().getActualTracks()).isEqualTo(1);
     assertThat(result.getTracks().getMaxTracks()).isEqualTo(limits.maxTracks());
