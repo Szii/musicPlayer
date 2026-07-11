@@ -19,6 +19,7 @@ import org.dnd.token.TokenRepository;
 import org.dnd.token.TokenService;
 import org.dnd.token.TokenType;
 import org.dnd.utils.SecurityUtils;
+import org.dnd.utils.TransactionCompensation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -56,6 +57,7 @@ public class UserAuthService {
   private final ObjectMapper objectMapper;
   private final SecurityUtils securityUtils;
   private final UserIdentifierResolver userIdentifierResolver;
+  private final TransactionCompensation transactionCompensation;
 
   @Transactional
   public User registerUser(UserRegisterRequest request) {
@@ -81,6 +83,8 @@ public class UserAuthService {
             request.getPassword(),
             emailVerified
     );
+
+    transactionCompensation.onRollback(() -> keycloakAdminClient.deleteUser(keycloakId));
 
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setKeycloakId(keycloakId);

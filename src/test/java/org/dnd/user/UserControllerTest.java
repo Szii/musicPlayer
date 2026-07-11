@@ -5,6 +5,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
 import org.dnd.api.model.*;
 import org.dnd.email.EmailService;
+import org.dnd.exception.EmailDeliveryException;
 import org.dnd.exception.ErrorCode;
 import org.dnd.exception.UnauthorizedException;
 import org.dnd.keycloak.KeycloakAdminClient;
@@ -34,6 +35,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -145,6 +147,38 @@ class UserControllerTest extends DatabaseBase {
             eq("user@email.cz"),
             anyString()
     );
+  }
+
+  @Test
+  void registerUser_EmailDeliveryFails_RollsBackUserAndKeycloak() throws Exception {
+    UUID keycloakId = UUID.randomUUID();
+
+    when(keycloakAdminClient.createUser(
+            anyString(),
+            anyString(),
+            anyString(),
+            anyBoolean()
+    )).thenReturn(keycloakId);
+
+    doThrow(new EmailDeliveryException("smtp is down", new RuntimeException()))
+            .when(emailService)
+            .sendVerificationEmail(anyString(), anyString(), anyString());
+
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name("testUser")
+            .email("user@email.cz")
+            .password("password123");
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.code").value(ErrorCode.EMAIL_DELIVERY_FAILED.getCode()));
+
+    assertTrue(userRepository.findByName("testUser").isEmpty());
+    assertFalse(userRepository.existsByEmail("user@email.cz"));
+
+    verify(keycloakAdminClient).deleteUser(keycloakId);
   }
 
   @Test
@@ -343,6 +377,49 @@ class UserControllerTest extends DatabaseBase {
 
     assertTrue(tokenRepository
             .findByUserIdAndType(user.getId(), TokenType.EMAIL_CHANGE).isEmpty());
+  }
+
+  @Test
+  void changeEmail_unverifiedEmailDeliveryFails_RestoresPreviousEmail() throws Exception {
+    String username = "testUser";
+    String password = "password123";
+    String originalEmail = "email@email.com";
+    String newEmail = "changedemail@email.com";
+
+    UserRegisterRequest registerRequest = new UserRegisterRequest()
+            .name(username)
+            .email(originalEmail)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(registerRequest)))
+            .andExpect(status().isCreated());
+
+    UUID keycloakId = userRepository.findByName(username).orElseThrow().getKeycloakId();
+
+    doThrow(new EmailDeliveryException("smtp is down", new RuntimeException()))
+            .when(emailService)
+            .sendVerificationEmail(anyString(), anyString(), anyString());
+
+    UserRegisterRequest changeEmailRequest = new UserRegisterRequest()
+            .name(username)
+            .email(newEmail)
+            .password(password);
+
+    mockMvc.perform(post("/api/v1/auth/verify/change-email")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(changeEmailRequest)))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.code").value(ErrorCode.EMAIL_DELIVERY_FAILED.getCode()));
+
+    UserEntity user = userRepository.findByName(username).orElseThrow();
+
+    assertEquals(originalEmail, user.getEmail());
+    assertFalse(userRepository.existsByEmail(newEmail));
+
+    verify(keycloakAdminClient).updateEmail(keycloakId, newEmail, false);
+    verify(keycloakAdminClient).updateEmail(keycloakId, originalEmail, false);
   }
 
   @Test

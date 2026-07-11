@@ -19,9 +19,11 @@ import org.dnd.token.TokenService;
 import org.dnd.token.TokenType;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.dnd.utils.TransactionCompensation;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
@@ -44,6 +46,7 @@ public class UserService {
   private final KeycloakAuthClient keycloakAuthClient;
   private final KeycloakAdminClient keycloakAdminClient;
   private final UserIdentifierResolver userIdentifierResolver;
+  private final TransactionCompensation transactionCompensation;
 
   @Transactional
   public void resendVerificationEmailToSameEmail(UserLoginRequest request) {
@@ -74,6 +77,8 @@ public class UserService {
     UserEntity user = userIdentifierResolver.find(identifier)
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
 
+    String previousEmail = user.getEmail();
+
     validatePasswordInKeycloakOrForbidden(user, password);
 
     if (user.isEmailVerified()) {
@@ -91,10 +96,16 @@ public class UserService {
       throw new ForbiddenException("User is not linked to Keycloak");
     }
 
+    UUID keycloakId = user.getKeycloakId();
+
     keycloakAdminClient.updateEmail(
-            user.getKeycloakId(),
+            keycloakId,
             normalizedEmail,
             false
+    );
+
+    transactionCompensation.onRollback(
+            () -> keycloakAdminClient.updateEmail(keycloakId, previousEmail, false)
     );
 
     user.setEmail(normalizedEmail);
