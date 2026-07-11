@@ -21,6 +21,7 @@ import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 @Service
@@ -42,10 +43,11 @@ public class UserService {
   private final SecurityUtils securityUtils;
   private final KeycloakAuthClient keycloakAuthClient;
   private final KeycloakAdminClient keycloakAdminClient;
+  private final UserIdentifierResolver userIdentifierResolver;
 
   @Transactional
   public void resendVerificationEmailToSameEmail(UserLoginRequest request) {
-    UserEntity user = authenticateByNameAndPassword(
+    UserEntity user = authenticateByIdentifierAndPassword(
             request.getName(),
             request.getPassword()
     );
@@ -68,8 +70,8 @@ public class UserService {
   }
 
   @Transactional
-  public void sendVerificationEmailToNewEmail(String name, String password, String newEmail) {
-    UserEntity user = userRepository.findByName(name)
+  public void sendVerificationEmailToNewEmail(String identifier, String password, String newEmail) {
+    UserEntity user = userIdentifierResolver.find(identifier)
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
 
     validatePasswordInKeycloakOrForbidden(user, password);
@@ -153,21 +155,27 @@ public class UserService {
     return normalizedEmail;
   }
 
-  private UserEntity authenticateByNameAndPassword(String username, String password) {
-    loginThrottleService.checkAllowed(username);
+  private UserEntity authenticateByIdentifierAndPassword(String identifier, String password) {
+    Optional<UserEntity> resolvedUser = userIdentifierResolver.find(identifier);
 
-    UserEntity user = userRepository.findByName(username)
+    String throttleKey = resolvedUser
+            .map(UserEntity::getName)
+            .orElse(identifier);
+
+    loginThrottleService.checkAllowed(throttleKey);
+
+    UserEntity user = resolvedUser
             .orElseThrow(() -> {
-              loginThrottleService.recordFailure(username);
+              loginThrottleService.recordFailure(throttleKey);
               return new UnauthorizedException("Invalid username or password");
             });
 
     try {
       validatePasswordInKeycloak(user, password);
-      loginThrottleService.recordSuccess(username);
+      loginThrottleService.recordSuccess(throttleKey);
       return user;
     } catch (UnauthorizedException exception) {
-      loginThrottleService.recordFailure(username);
+      loginThrottleService.recordFailure(throttleKey);
       throw exception;
     }
   }
