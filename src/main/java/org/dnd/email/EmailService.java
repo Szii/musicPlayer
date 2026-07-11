@@ -3,6 +3,7 @@ package org.dnd.email;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
+import org.dnd.exception.EmailDeliveryException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.mail.MailException;
@@ -15,6 +16,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -44,107 +46,62 @@ public class EmailService {
   private Resource resetPasswordTemplate;
 
   public void sendVerificationEmail(String username, String email, String verificationToken) {
-    String verificationUrl = UriComponentsBuilder
-            .fromUriString(frontendUrl)
-            .path(frontendPathVerifyEmail)
-            .queryParam("token", verificationToken)
-            .toUriString();
-
-    try {
-      String html = loadVerificationTemplate(username, verificationUrl);
-
-      MimeMessage mimeMessage = mailSender.createMimeMessage();
-      MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
-
-      helper.setFrom(from);
-      helper.setTo(email);
-      helper.setSubject("Verify Your email");
-      helper.setText(html, true);
-
-      mailSender.send(mimeMessage);
-    } catch (MessagingException | IOException | MailException e) {
-      throw new IllegalStateException("Failed to send verification email", e);
-    }
+    send(email, "Verify Your email", verificationEmailTemplate, Map.of(
+            "username", username,
+            "verificationUrl", frontendLink(frontendPathVerifyEmail, verificationToken)
+    ));
   }
 
   public void sendEmailChangeMail(String username, String email, String verificationToken) {
-    String verificationUrl = UriComponentsBuilder
-            .fromUriString(frontendUrl)
-            .path(frontendPathVerifyEmail)
-            .queryParam("token", verificationToken)
-            .toUriString();
-
-    try {
-      String html = loadChangeEmailTemplate(username, verificationUrl);
-
-      MimeMessage mimeMessage = mailSender.createMimeMessage();
-      MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
-
-      helper.setFrom(from);
-      helper.setTo(email);
-      helper.setSubject("Verify Your email");
-      helper.setText(html, true);
-
-      mailSender.send(mimeMessage);
-    } catch (MessagingException | IOException | MailException e) {
-      throw new IllegalStateException("Failed to send verification email", e);
-    }
+    send(email, "Verify Your email", changeEmailTemplate, Map.of(
+            "username", username,
+            "verificationUrl", frontendLink(frontendPathVerifyEmail, verificationToken)
+    ));
   }
 
   public void sendPasswordReset(String email, String passwordResetToken) {
-    String verificationUrl = UriComponentsBuilder
-            .fromUriString(frontendUrl)
-            .path(frontendPathResetPassword)
-            .queryParam("token", passwordResetToken)
-            .toUriString();
+    send(email, "Reset Your password", resetPasswordTemplate, Map.of(
+            "passwordResetUrl", frontendLink(frontendPathResetPassword, passwordResetToken)
+    ));
+  }
 
+  private void send(String email, String subject, Resource template, Map<String, String> placeholders) {
     try {
-      String html = loadForgotPasswordTemplate(verificationUrl);
-
       MimeMessage mimeMessage = mailSender.createMimeMessage();
       MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "UTF-8");
 
       helper.setFrom(from);
       helper.setTo(email);
-      helper.setSubject("Reset Your password");
-      helper.setText(html, true);
+      helper.setSubject(subject);
+      helper.setText(render(template, placeholders), true);
 
       mailSender.send(mimeMessage);
     } catch (MessagingException | IOException | MailException e) {
-      throw new IllegalStateException("Failed to send verification email", e);
+      throw new EmailDeliveryException("Failed to send email to " + email, e);
     }
   }
 
-  private String loadVerificationTemplate(String username, String verificationUrl) throws IOException {
-    String template = StreamUtils.copyToString(
-            verificationEmailTemplate.getInputStream(),
+  private String render(Resource template, Map<String, String> placeholders) throws IOException {
+    String html = StreamUtils.copyToString(
+            template.getInputStream(),
             StandardCharsets.UTF_8
     );
 
-    return template
-            .replace("{{username}}", HtmlUtils.htmlEscape(username))
-            .replace("{{verificationUrl}}", HtmlUtils.htmlEscape(verificationUrl));
+    for (Map.Entry<String, String> placeholder : placeholders.entrySet()) {
+      html = html.replace(
+              "{{" + placeholder.getKey() + "}}",
+              HtmlUtils.htmlEscape(placeholder.getValue())
+      );
+    }
+
+    return html;
   }
 
-  private String loadChangeEmailTemplate(String username, String verificationUrl) throws IOException {
-    String template = StreamUtils.copyToString(
-            changeEmailTemplate.getInputStream(),
-            StandardCharsets.UTF_8
-    );
-
-    return template
-            .replace("{{username}}", HtmlUtils.htmlEscape(username))
-            .replace("{{verificationUrl}}", HtmlUtils.htmlEscape(verificationUrl));
-  }
-
-  private String loadForgotPasswordTemplate(String passwordResetUrl) throws IOException {
-    String template = StreamUtils.copyToString(
-            resetPasswordTemplate.getInputStream(),
-            StandardCharsets.UTF_8
-    );
-
-    return template
-            .replace("{{passwordResetUrl}}", HtmlUtils.htmlEscape(passwordResetUrl));
+  private String frontendLink(String path, String token) {
+    return UriComponentsBuilder
+            .fromUriString(frontendUrl)
+            .path(path)
+            .queryParam("token", token)
+            .toUriString();
   }
 }
-

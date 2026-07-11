@@ -66,6 +66,15 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
   }
 
+  @ExceptionHandler(EmailDeliveryException.class)
+  public ResponseEntity<ErrorResponse> handleEmailDelivery(EmailDeliveryException e) {
+    ErrorResponse response = new ErrorResponse(
+            e.getCode(),
+            "Could not send the email, please try again later"
+    );
+    return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response);
+  }
+
   @ExceptionHandler(RateLimitException.class)
   public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitException e) {
     ErrorResponse response = new ErrorResponse(
