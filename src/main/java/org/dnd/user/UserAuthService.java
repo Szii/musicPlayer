@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -54,6 +55,7 @@ public class UserAuthService {
   private final KeycloakAdminClient keycloakAdminClient;
   private final ObjectMapper objectMapper;
   private final SecurityUtils securityUtils;
+  private final UserIdentifierResolver userIdentifierResolver;
 
   @Transactional
   public User registerUser(UserRegisterRequest request) {
@@ -109,13 +111,19 @@ public class UserAuthService {
   public AuthenticationResult loginUser(UserLoginRequest request) {
     log.debug("Attempting login for user: {}", request.getName());
 
-    String username = request.getName();
+    String identifier = request.getName();
 
-    loginThrottleService.checkAllowed(username);
+    Optional<UserEntity> resolvedUser = userIdentifierResolver.find(identifier);
 
-    UserEntity user = userRepository.findByName(username)
+    String throttleKey = resolvedUser
+            .map(UserEntity::getName)
+            .orElse(identifier);
+
+    loginThrottleService.checkAllowed(throttleKey);
+
+    UserEntity user = resolvedUser
             .orElseThrow(() -> {
-              loginThrottleService.recordFailure(username);
+              loginThrottleService.recordFailure(throttleKey);
               return new UnauthorizedException("Invalid username or password");
             });
 
@@ -135,11 +143,11 @@ public class UserAuthService {
         throw new EmailNotVerifiedException("Email is not verified");
       }
 
-      loginThrottleService.recordSuccess(username);
+      loginThrottleService.recordSuccess(throttleKey);
 
       return createAuthenticationResult(user, keycloakToken);
     } catch (UnauthorizedException exception) {
-      loginThrottleService.recordFailure(username);
+      loginThrottleService.recordFailure(throttleKey);
       throw exception;
     }
   }
@@ -234,11 +242,11 @@ public class UserAuthService {
 
   @Transactional
   public void changeEmailByAuth(UserRegisterRequest request) {
-    String username = request.getName();
+    String identifier = request.getName();
     String password = request.getPassword();
     String newEmail = normalizeEmail(request.getEmail());
 
-    UserEntity user = userRepository.findByName(username)
+    UserEntity user = userIdentifierResolver.find(identifier)
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
 
     if (user.getKeycloakId() == null) {
@@ -293,7 +301,7 @@ public class UserAuthService {
   public void changePasswordByAuth(UserChangePasswordRequest request) {
     UserEntity user = securityUtils.getCurrentUserEntity();
 
-    if (!user.getName().equals(request.getName())) {
+    if (!userIdentifierResolver.matches(user, request.getName())) {
       throw new ForbiddenException("Invalid credentials");
     }
 
