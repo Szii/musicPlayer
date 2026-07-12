@@ -1,7 +1,10 @@
 package org.dnd.keycloak;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.configuration.KeycloakProperties;
+import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ConflictException;
 import org.dnd.exception.UnauthorizedException;
 import org.springframework.http.HttpHeaders;
@@ -25,13 +28,16 @@ public class KeycloakAdminClient {
 
   private final KeycloakProperties keycloakProperties;
   private final RestClient restClient;
+  private final ObjectMapper objectMapper;
 
   public KeycloakAdminClient(
           KeycloakProperties keycloakProperties,
-          RestClient.Builder restClientBuilder
+          RestClient.Builder restClientBuilder,
+          ObjectMapper objectMapper
   ) {
     this.keycloakProperties = keycloakProperties;
     this.restClient = restClientBuilder.build();
+    this.objectMapper = objectMapper;
   }
 
   public UUID createUser(
@@ -51,9 +57,39 @@ public class KeycloakAdminClient {
 
     UUID keycloakUserId = extractUserIdFromLocation(createUserResponse.getHeaders().getLocation());
 
-    setPassword(adminAccessToken, keycloakUserId, password);
+    try {
+      setPassword(adminAccessToken, keycloakUserId, password);
+    } catch (RuntimeException exception) {
+      deleteUser(keycloakUserId);
+      throw exception;
+    }
 
     return keycloakUserId;
+  }
+
+  public void logoutUser(UUID keycloakUserId) {
+    if (keycloakUserId == null) {
+      return;
+    }
+
+    String adminAccessToken = getAdminAccessToken();
+
+    try {
+      restClient.post()
+              .uri(keycloakProperties.getAdminUsersUri() + "/" + keycloakUserId + "/logout")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .retrieve()
+              .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      log.error(
+              "Keycloak logout of all sessions failed for user {}. status={}, body={}",
+              keycloakUserId,
+              exception.getStatusCode(),
+              exception.getResponseBodyAsString()
+      );
+
+      throw new UnauthorizedException("Could not revoke Keycloak sessions");
+    }
   }
 
   private String getAdminAccessToken() {
@@ -173,14 +209,33 @@ public class KeycloakAdminClient {
               .retrieve()
               .toBodilessEntity();
     } catch (RestClientResponseException exception) {
-      log.error(
+      log.warn(
               "Keycloak set password failed. status={}, body={}",
               exception.getStatusCode(),
               exception.getResponseBodyAsString()
       );
 
+      if (exception.getStatusCode().value() == 400) {
+        throw new BadRequestException(extractPasswordPolicyMessage(exception));
+      }
+
       throw new UnauthorizedException("Could not set Keycloak user password");
     }
+  }
+
+  private String extractPasswordPolicyMessage(RestClientResponseException exception) {
+    try {
+      JsonNode body = objectMapper.readTree(exception.getResponseBodyAsString());
+      String description = body.path("error_description").asText(null);
+
+      if (description != null && !description.isBlank()) {
+        return description;
+      }
+    } catch (Exception parseException) {
+      log.debug("Could not parse Keycloak password policy error", parseException);
+    }
+
+    return "Password does not meet the required policy";
   }
 
   private UUID extractUserIdFromLocation(URI location) {
@@ -198,6 +253,30 @@ public class KeycloakAdminClient {
     String adminAccessToken = getAdminAccessToken();
 
     setPassword(adminAccessToken, keycloakUserId, newPassword);
+  }
+
+  public KeycloakBruteForceStatus getBruteForceStatus(UUID keycloakUserId) {
+    if (keycloakUserId == null) {
+      return null;
+    }
+
+    try {
+      String adminAccessToken = getAdminAccessToken();
+
+      return restClient.get()
+              .uri(keycloakProperties.getAdminBruteForceUri() + "/" + keycloakUserId)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .retrieve()
+              .body(KeycloakBruteForceStatus.class);
+    } catch (Exception exception) {
+      log.warn(
+              "Could not read Keycloak brute-force status for user {}",
+              keycloakUserId,
+              exception
+      );
+
+      return null;
+    }
   }
 
   public void updateEmail(

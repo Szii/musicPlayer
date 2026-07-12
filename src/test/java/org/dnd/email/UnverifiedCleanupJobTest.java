@@ -157,11 +157,11 @@ class UnverifiedCleanupJobTest extends DatabaseBase {
   ) {
     TokenEntity token = TokenEntity.builder()
             .user(user)
-            .token(tokenValue)
+            .tokenHash(tokenValue)
             .type(type)
             .targetEmail(targetEmail)
             .createdAt(createdAt)
-            .valid(valid)
+            .expiresAt(createdAt.plusHours(1))
             .build();
 
     return tokenRepository.save(token);

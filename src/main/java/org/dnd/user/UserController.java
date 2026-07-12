@@ -105,26 +105,6 @@ public class UserController implements UsersApi {
 
   @Override
   @RateLimiting(
-          name = RESEND_VERIFICATION_SUBJECT,
-          cacheKey = RESEND_VERIFICATION_REGISTER_KEY,
-          ratePerMethod = true
-  )
-  public ResponseEntity<Void> changeUnverifiedEmail(UserRegisterRequest userAuthDTO) {
-    if (!emailUse) {
-      return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
-    }
-
-    userService.sendVerificationEmailToNewEmail(
-            userAuthDTO.getName(),
-            userAuthDTO.getPassword(),
-            userAuthDTO.getEmail()
-    );
-
-    return ResponseEntity.ok().build();
-  }
-
-  @Override
-  @RateLimiting(
           name = PASSWORD_TOKEN,
           cacheKey = PASSWORD_TOKEN_KEY,
           ratePerMethod = true

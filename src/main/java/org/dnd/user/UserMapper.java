@@ -20,6 +20,7 @@ public interface UserMapper {
   UserLoginRequest fromUserChangePasswordRequest(UserChangePasswordRequest request);
 
   @Mapping(target = "id", ignore = true)
+  @Mapping(target = "password", ignore = true)
   @Mapping(target = "ownedTracks", ignore = true)
   @Mapping(target = "ownedGroups", ignore = true)
   @Mapping(target = "boards", ignore = true)

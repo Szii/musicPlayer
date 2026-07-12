@@ -43,4 +43,7 @@ public class KeycloakProperties {
 
   @Value("${keycloak.admin-users-uri}")
   private String adminUsersUri;
+
+  @Value("${keycloak.admin-brute-force-uri}")
+  private String adminBruteForceUri;
 }

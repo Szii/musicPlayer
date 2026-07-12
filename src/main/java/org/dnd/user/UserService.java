@@ -7,23 +7,16 @@ import org.dnd.api.model.User;
 import org.dnd.api.model.UserLoginRequest;
 import org.dnd.email.EmailService;
 import org.dnd.exception.BadRequestException;
-import org.dnd.exception.ConflictException;
-import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.UnauthorizedException;
-import org.dnd.keycloak.KeycloakAdminClient;
 import org.dnd.keycloak.KeycloakAuthClient;
 import org.dnd.keycloak.KeycloakTokenResponse;
-import org.dnd.security.LoginThrottleService;
-import org.dnd.token.TokenEntity;
+import org.dnd.security.LoginLockoutService;
 import org.dnd.token.TokenService;
 import org.dnd.token.TokenType;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
-import org.dnd.utils.TransactionCompensation;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
@@ -38,15 +31,13 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final UserMapper userMapper;
-  private final LoginThrottleService loginThrottleService;
+  private final LoginLockoutService loginLockoutService;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final EmailService emailService;
   private final TokenService tokenService;
   private final SecurityUtils securityUtils;
   private final KeycloakAuthClient keycloakAuthClient;
-  private final KeycloakAdminClient keycloakAdminClient;
   private final UserIdentifierResolver userIdentifierResolver;
-  private final TransactionCompensation transactionCompensation;
 
   @Transactional
   public void resendVerificationEmailToSameEmail(UserLoginRequest request) {
@@ -59,7 +50,7 @@ public class UserService {
       return;
     }
 
-    TokenEntity verificationToken = tokenService.create(
+    String verificationToken = tokenService.create(
             user,
             TokenType.REGISTRATION,
             user.getEmail()
@@ -68,62 +59,7 @@ public class UserService {
     emailService.sendVerificationEmail(
             user.getName(),
             user.getEmail(),
-            verificationToken.getToken()
-    );
-  }
-
-  @Transactional
-  public void sendVerificationEmailToNewEmail(String identifier, String password, String newEmail) {
-    UserEntity user = userIdentifierResolver.find(identifier)
-            .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
-
-    String previousEmail = user.getEmail();
-
-    validatePasswordInKeycloakOrForbidden(user, password);
-
-    if (user.isEmailVerified()) {
-      throw new BadRequestException("Email is already verified");
-    }
-
-    String normalizedEmail = normalizeEmail(newEmail);
-
-    if (!normalizedEmail.equalsIgnoreCase(user.getEmail())
-            && userRepository.existsByEmail(normalizedEmail)) {
-      throw new ConflictException("Email is already used");
-    }
-
-    if (user.getKeycloakId() == null) {
-      throw new ForbiddenException("User is not linked to Keycloak");
-    }
-
-    UUID keycloakId = user.getKeycloakId();
-
-    keycloakAdminClient.updateEmail(
-            keycloakId,
-            normalizedEmail,
-            false
-    );
-
-    transactionCompensation.onRollback(
-            () -> keycloakAdminClient.updateEmail(keycloakId, previousEmail, false)
-    );
-
-    user.setEmail(normalizedEmail);
-    user.setEmailVerified(false);
-    user.setPendingEmail(null);
-
-    user = userRepository.save(user);
-
-    TokenEntity verificationToken = tokenService.create(
-            user,
-            TokenType.REGISTRATION,
-            user.getEmail()
-    );
-
-    emailService.sendVerificationEmail(
-            user.getName(),
-            user.getEmail(),
-            verificationToken.getToken()
+            verificationToken
     );
   }
 
@@ -133,13 +69,13 @@ public class UserService {
 
     userRepository.findByEmail(normalizedEmail)
             .ifPresent(user -> {
-              TokenEntity resetToken = tokenService.create(
+              String resetToken = tokenService.create(
                       user,
                       TokenType.FORGOT_PASSWORD,
                       user.getEmail()
               );
 
-              emailService.sendPasswordReset(user.getEmail(), resetToken.getToken());
+              emailService.sendPasswordReset(user.getEmail(), resetToken);
             });
   }
 
@@ -167,35 +103,15 @@ public class UserService {
   }
 
   private UserEntity authenticateByIdentifierAndPassword(String identifier, String password) {
-    Optional<UserEntity> resolvedUser = userIdentifierResolver.find(identifier);
-
-    String throttleKey = resolvedUser
-            .map(UserEntity::getName)
-            .orElse(identifier);
-
-    loginThrottleService.checkAllowed(throttleKey);
-
-    UserEntity user = resolvedUser
-            .orElseThrow(() -> {
-              loginThrottleService.recordFailure(throttleKey);
-              return new UnauthorizedException("Invalid username or password");
-            });
+    UserEntity user = userIdentifierResolver.find(identifier)
+            .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
 
     try {
       validatePasswordInKeycloak(user, password);
-      loginThrottleService.recordSuccess(throttleKey);
       return user;
     } catch (UnauthorizedException exception) {
-      loginThrottleService.recordFailure(throttleKey);
+      loginLockoutService.throwIfLockedOut(user);
       throw exception;
-    }
-  }
-
-  private void validatePasswordInKeycloakOrForbidden(UserEntity user, String password) {
-    try {
-      validatePasswordInKeycloak(user, password);
-    } catch (UnauthorizedException exception) {
-      throw new ForbiddenException("Invalid credentials");
     }
   }
 
