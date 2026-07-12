@@ -8,6 +8,7 @@ import org.dnd.api.model.UserLoginRequest;
 import org.dnd.email.EmailService;
 import org.dnd.exception.BadRequestException;
 import org.dnd.exception.UnauthorizedException;
+import org.dnd.keycloak.KeycloakAdminClient;
 import org.dnd.keycloak.KeycloakAuthClient;
 import org.dnd.keycloak.KeycloakTokenResponse;
 import org.dnd.security.LoginLockoutService;
@@ -37,12 +38,12 @@ public class UserService {
   private final TokenService tokenService;
   private final SecurityUtils securityUtils;
   private final KeycloakAuthClient keycloakAuthClient;
-  private final UserIdentifierResolver userIdentifierResolver;
+  private final KeycloakAdminClient keycloakAdminClient;
 
   @Transactional
   public void resendVerificationEmailToSameEmail(UserLoginRequest request) {
-    UserEntity user = authenticateByIdentifierAndPassword(
-            request.getName(),
+    UserEntity user = authenticateByEmailAndPassword(
+            request.getEmail(),
             request.getPassword()
     );
 
@@ -68,6 +69,7 @@ public class UserService {
     String normalizedEmail = normalizeEmail(email);
 
     userRepository.findByEmail(normalizedEmail)
+            .filter(user -> !keycloakAdminClient.hasFederatedIdentity(user.getKeycloakId()))
             .ifPresent(user -> {
               String resetToken = tokenService.create(
                       user,
@@ -85,6 +87,10 @@ public class UserService {
 
     User userResponse = userMapper.toDto(user);
     userResponse.setLimits(userRankEvaluatorService.getLimitsForUser(user));
+    userResponse.setManagedByGoogle(
+            keycloakAdminClient.hasFederatedIdentity(user.getKeycloakId())
+    );
+
     return userResponse;
   }
 
@@ -102,9 +108,9 @@ public class UserService {
     return normalizedEmail;
   }
 
-  private UserEntity authenticateByIdentifierAndPassword(String identifier, String password) {
-    UserEntity user = userIdentifierResolver.find(identifier)
-            .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
+  private UserEntity authenticateByEmailAndPassword(String email, String password) {
+    UserEntity user = userRepository.findByEmail(normalizeEmail(email))
+            .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
     try {
       validatePasswordInKeycloak(user, password);
@@ -117,7 +123,7 @@ public class UserService {
 
   private void validatePasswordInKeycloak(UserEntity user, String password) {
     if (user.getKeycloakId() == null) {
-      throw new UnauthorizedException("Invalid username or password");
+      throw new UnauthorizedException("Invalid email or password");
     }
 
     KeycloakTokenResponse tokenResponse = keycloakAuthClient.login(

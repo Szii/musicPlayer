@@ -32,6 +32,10 @@ public class TestHelpers {
   }
 
   public static String getKeycloakAccessTokenForUser(UserEntity user) throws Exception {
+    return getKeycloakAccessTokenForUser(user, null);
+  }
+
+  public static String getKeycloakAccessTokenForUser(UserEntity user, String givenName) throws Exception {
     if (user.getKeycloakId() == null) {
       throw new IllegalStateException("Test user must have keycloakId");
     }
@@ -46,13 +50,15 @@ public class TestHelpers {
               "preferred_username": "%s",
               "email": "%s",
               "email_verified": %s,
+              "given_name": %s,
               "scope": "profile email"
             }
             """.formatted(
             user.getKeycloakId(),
             user.getName(),
             user.getEmail(),
-            user.isEmailVerified()
+            user.isEmailVerified(),
+            givenName == null ? "null" : "\"" + givenName + "\""
     );
 
     return base64Url(headerJson) + "." + base64Url(payloadJson) + ".test-signature";

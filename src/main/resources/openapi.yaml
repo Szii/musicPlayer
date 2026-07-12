@@ -105,6 +105,22 @@ components:
         example: 1
 
   schemas:
+    ChangeUsernameRequest:
+      type: object
+      description: Request to change the current user's username
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: >
+            Desired username (must be unique, case-insensitively). Letters, digits, dot, underscore
+            and hyphen only, starting and ending with a letter or digit.
+          minLength: 3
+          maxLength: 30
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{1,28}[A-Za-z0-9]$'
+          example: "alice"
+
     ErrorResponse:
       type: object
       description: >
@@ -166,6 +182,14 @@ components:
           type: string
           description: Unique email address of the user
           example: "user@email.com"
+        managedByGoogle:
+          type: boolean
+          description: >
+            True when the account signs in through Google. Such accounts have no password and their
+            email belongs to Google, so `/verify/change-password` and `/users/change-email` refuse
+            them with 403 — hide those options. Only populated on `GET /users/me`; absent elsewhere,
+            because determining it costs a Keycloak lookup and `/auth/refresh` must stay cheap.
+          example: false
         limits:
           $ref: '#/components/schemas/UserLimits'
 
@@ -326,8 +350,13 @@ components:
       properties:
         name:
           type: string
-          description: Desired username (must be unique)
+          description: >
+            Desired username (must be unique, case-insensitively). Letters, digits, dot, underscore
+            and hyphen only, starting and ending with a letter or digit. It may not contain `@`, so
+            a username can never be mistaken for an email address at login.
+          minLength: 3
           maxLength: 30
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{1,28}[A-Za-z0-9]$'
           example: "user"
         email:
           type: string
@@ -346,13 +375,16 @@ components:
       type: object
       description: Request to log in an existing user
       required:
-        - name
+        - email
         - password
       properties:
-        name:
+        email:
           type: string
-          description: Username or email address of the user
-          example: "bruno"
+          format: email
+          description: >
+            Email address of the user. Email is the only login identifier; the username is a
+            display name and cannot be used to sign in.
+          example: "bruno@email.com"
         password:
           type: string
           format: password
@@ -438,18 +470,32 @@ components:
           description: Track fade out in milliseconds
           example: 1000
 
+    ChangeEmailRequest:
+      type: object
+      description: Request to change the email of the currently authenticated user
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: The new email address
+          maxLength: 100
+          example: "new@email.com"
+        password:
+          type: string
+          format: password
+          maxLength: 150
+          description: Current password, to confirm the change
+
     UserChangePasswordRequest:
       type: object
       description: Request to change password as verified user
       required:
-        - name
         - password
         - newPassword
       properties:
-        name:
-          type: string
-          description: Username or email address of the user
-          example: "user"
         password:
           type: string
           format: password
@@ -1520,7 +1566,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserRegisterRequest'
+              $ref: '#/components/schemas/ChangeEmailRequest'
       responses:
         '200':
           description: Confirmation email sent to the new address
@@ -1554,6 +1600,54 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '503':
           description: The confirmation email could not be delivered (`EMAIL_DELIVERY_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me/username:
+    patch:
+      tags:
+        - Users
+      summary: Change the current user's username
+      description: >
+        Google-brokered users are given a derived username at first sign-in, since Google issues no
+        username of its own. This lets them pick a real one. Uniqueness is enforced against both
+        the local database and Keycloak.
+      operationId: changeUsername
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeUsernameRequest'
+      responses:
+        '200':
+          description: Username changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid username (`BAD_REQUEST`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username already taken (`CONFLICT`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many username changes (`TOO_MANY_REQUESTS`)
           content:
             application/json:
               schema:

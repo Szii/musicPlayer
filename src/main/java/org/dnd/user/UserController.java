@@ -147,15 +147,15 @@ public class UserController implements UsersApi {
   @Override
   @RateLimiting(
           name = RESEND_VERIFICATION_SUBJECT,
-          cacheKey = RESEND_VERIFICATION_REGISTER_KEY,
+          cacheKey = CHANGE_EMAIL_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Void> changeVerifiedEmail(UserRegisterRequest userAuthDTO) {
+  public ResponseEntity<Void> changeVerifiedEmail(ChangeEmailRequest changeEmailRequest) {
     if (!emailUse) {
       return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).build();
     }
 
-    userAuthService.changeEmailByAuth(userAuthDTO);
+    userAuthService.changeEmailByAuth(changeEmailRequest);
 
     return ResponseEntity.ok().build();
   }
@@ -168,5 +168,15 @@ public class UserController implements UsersApi {
   )
   public ResponseEntity<User> getCurrentUser() {
     return ResponseEntity.ok(userService.getCurrentUser());
+  }
+
+  @Override
+  @RateLimiting(
+          name = CHANGE_USERNAME,
+          cacheKey = CHANGE_USERNAME_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<User> changeUsername(ChangeUsernameRequest changeUsernameRequest) {
+    return ResponseEntity.ok(userAuthService.changeUsername(changeUsernameRequest.getName()));
   }
 }

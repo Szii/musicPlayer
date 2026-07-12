@@ -7,6 +7,7 @@ import org.dnd.configuration.KeycloakProperties;
 import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ConflictException;
 import org.dnd.exception.UnauthorizedException;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -253,6 +254,87 @@ public class KeycloakAdminClient {
     String adminAccessToken = getAdminAccessToken();
 
     setPassword(adminAccessToken, keycloakUserId, newPassword);
+  }
+
+  public boolean hasFederatedIdentity(UUID keycloakUserId) {
+    if (keycloakUserId == null) {
+      return false;
+    }
+
+    String adminAccessToken = getAdminAccessToken();
+
+    try {
+      List<Map<String, Object>> identities = restClient.get()
+              .uri(keycloakProperties.getAdminUsersUri() + "/" + keycloakUserId + "/federated-identity")
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .retrieve()
+              .body(new ParameterizedTypeReference<>() {
+              });
+
+      return identities != null && !identities.isEmpty();
+    } catch (RestClientResponseException exception) {
+      log.error(
+              "Keycloak federated identity lookup failed for user {}. status={}, body={}",
+              keycloakUserId,
+              exception.getStatusCode(),
+              exception.getResponseBodyAsString()
+      );
+
+      throw new UnauthorizedException("Could not read Keycloak federated identities");
+    }
+  }
+
+  public boolean usernameExists(String username) {
+    String adminAccessToken = getAdminAccessToken();
+
+    try {
+      List<Map<String, Object>> users = restClient.get()
+              .uri(keycloakProperties.getAdminUsersUri() + "?username={username}&exact=true", username)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .retrieve()
+              .body(new ParameterizedTypeReference<>() {
+              });
+
+      return users != null && !users.isEmpty();
+    } catch (RestClientResponseException exception) {
+      log.error(
+              "Keycloak username lookup failed. status={}, body={}",
+              exception.getStatusCode(),
+              exception.getResponseBodyAsString()
+      );
+
+      throw new UnauthorizedException("Could not query Keycloak users");
+    }
+  }
+
+  public void updateUsername(UUID keycloakUserId, String username) {
+    String adminAccessToken = getAdminAccessToken();
+
+    try {
+      restClient.put()
+              .uri(keycloakProperties.getAdminUsersUri() + "/" + keycloakUserId)
+              .header(HttpHeaders.AUTHORIZATION, "Bearer " + adminAccessToken)
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(Map.of("username", username))
+              .retrieve()
+              .toBodilessEntity();
+    } catch (RestClientResponseException exception) {
+      log.warn(
+              "Keycloak update username failed. status={}, body={}",
+              exception.getStatusCode(),
+              exception.getResponseBodyAsString()
+      );
+
+      if (exception.getStatusCode().value() == 409) {
+        throw new ConflictException("Username already exists");
+      }
+
+      if (exception.getStatusCode().value() == 400) {
+        throw new BadRequestException("Invalid username");
+      }
+
+      throw new UnauthorizedException("Could not update Keycloak username");
+    }
   }
 
   public KeycloakBruteForceStatus getBruteForceStatus(UUID keycloakUserId) {

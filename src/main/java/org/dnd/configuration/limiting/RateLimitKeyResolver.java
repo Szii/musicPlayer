@@ -44,7 +44,7 @@ public class RateLimitKeyResolver {
   }
 
   public String loginAccountKey(UserLoginRequest request) {
-    return "login:account:" + normalize(request == null ? null : request.getName());
+    return "login:account:" + normalize(request == null ? null : request.getEmail());
   }
 
   public String registerSubjectKey(UserRegisterRequest request) {
@@ -59,17 +59,12 @@ public class RateLimitKeyResolver {
 
   public String resendVerificationKey(UserLoginRequest request) {
     return "resend-verification:subject:" +
-            normalize(request == null ? null : request.getName());
+            normalize(request == null ? null : request.getEmail());
   }
 
-  public String resendVerificationKey(UserRegisterRequest request) {
-    if (request == null) {
-      return "resend-verification:subject:" + ANONYMOUS;
-    }
-
-    String subject = firstNonBlank(request.getEmail(), request.getName());
-
-    return "resend-verification:subject:" + normalize(subject);
+  public String changeEmailKey(ChangeEmailRequest request) {
+    return "change-email:subject:" +
+            normalize(request == null ? null : request.getEmail());
   }
 
   public String verifyEmailTokenKey(String verificationToken) {
@@ -79,11 +74,6 @@ public class RateLimitKeyResolver {
   public String forgotPasswordEmailKey(ForgotPasswordRequest request) {
     return "forgot-password:email:" +
             normalize(request == null ? null : request.getEmail());
-  }
-
-  public String changePasswordAccountKey(UserChangePasswordRequest request) {
-    return "change-password:account:" +
-            normalize(request == null ? null : request.getName());
   }
 
   public String changePasswordTokenKey(UserChangePasswordWithTokenRequest request) {
