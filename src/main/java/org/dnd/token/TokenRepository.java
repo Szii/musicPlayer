@@ -7,13 +7,11 @@ import java.util.Optional;
 
 public interface TokenRepository extends JpaRepository<TokenEntity, Long> {
 
-  Optional<TokenEntity> findByTokenAndValidTrue(String token);
+  Optional<TokenEntity> findByTokenHash(String tokenHash);
 
   Optional<TokenEntity> findByUserIdAndType(Long userId, TokenType type);
 
-  Optional<TokenEntity> findByUserIdAndTypeAndValidTrue(Long userId, TokenType type);
-
   List<TokenEntity> findAllByUserId(Long userId);
 
-  boolean existsByToken(String token);
+  boolean existsByTokenHash(String tokenHash);
 }

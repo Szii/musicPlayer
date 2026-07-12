@@ -105,6 +105,50 @@ components:
         example: 1
 
   schemas:
+    ErrorResponse:
+      type: object
+      description: >
+        Body returned with every non-2xx response. Clients should branch on `code`, which is
+        stable, and may display `message`, which is human-readable and safe to show.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: >
+            Stable machine-readable error code.
+
+            * `BAD_REQUEST` - malformed input, or a password rejected by the Keycloak password policy
+            * `UNAUTHORIZED` - missing or invalid credentials / refresh token
+            * `FORBIDDEN` - valid caller, refused action; also an invalid or expired email token
+            * `EMAIL_NOT_VERIFIED` - the account exists but its email has not been confirmed
+            * `TOO_MANY_ATTEMPTS` - Keycloak has temporarily locked the account after repeated
+              failed logins; a `Retry-After` header carries the number of seconds
+            * `TOO_MANY_REQUESTS` - API rate limit, unrelated to account lockout
+            * `USER_ALREADY_EXISTS` / `EMAIL_ALREADY_EXISTS` - taken by a verified account
+            * `CONFLICT`, `NOT_FOUND`, `LIMIT_EXCEEDED`, `EMAIL_DELIVERY_FAILED`,
+              `INTERNAL_SERVER_ERROR`
+          enum:
+            - BAD_REQUEST
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - NOT_FOUND
+            - CONFLICT
+            - USER_ALREADY_EXISTS
+            - EMAIL_ALREADY_EXISTS
+            - EMAIL_NOT_VERIFIED
+            - EMAIL_DELIVERY_FAILED
+            - TOO_MANY_REQUESTS
+            - TOO_MANY_ATTEMPTS
+            - LIMIT_EXCEEDED
+            - INTERNAL_SERVER_ERROR
+          example: BAD_REQUEST
+        message:
+          type: string
+          description: Human-readable detail. Safe to display to the end user.
+          example: "Invalid password: minimum length 6."
+
     User:
       type: object
       description: Basic user representation
@@ -1080,6 +1124,11 @@ paths:
       tags:
         - Users
       summary: Register a new user
+      description: >
+        If the requested username or email is currently held by an **unverified** account, that
+        account is deleted and this registration replaces it. An unverified account has never
+        proven mailbox ownership, cannot log in, and therefore owns no data. Only a **verified**
+        account produces a conflict.
       operationId: registerUser
       requestBody:
         required: true
@@ -1095,9 +1144,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
         '400':
-          description: Invalid input
+          description: >
+            Invalid input, or the password was rejected by the Keycloak password policy. The
+            `message` states the reason, e.g. "Invalid password: minimum length 6."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Username or email already exists
+          description: >
+            Username or email already belongs to a verified account
+            (`USER_ALREADY_EXISTS` / `EMAIL_ALREADY_EXISTS`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many registration attempts (`TOO_MANY_REQUESTS`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: The verification email could not be delivered (`EMAIL_DELIVERY_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/logout:
     post:
@@ -1133,6 +1206,9 @@ paths:
       tags:
         - Users
       summary: Log in an existing user
+      description: >
+        Accepts either a username or an email address in `name`. Repeated failures cause Keycloak
+        to lock the account temporarily; the lockout lifts by itself once the window passes.
       operationId: loginUser
       requestBody:
         required: true
@@ -1148,9 +1224,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Invalid username or password
+          description: Invalid username or password (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Email is not verified
+          description: Email is not verified (`EMAIL_NOT_VERIFIED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: >
+            Either Keycloak has temporarily locked the account after repeated failed logins
+            (`TOO_MANY_ATTEMPTS`), or the API rate limit was hit (`TOO_MANY_REQUESTS`).
+          headers:
+            Retry-After:
+              description: Seconds until the lockout lifts. Sent with `TOO_MANY_ATTEMPTS`.
+              schema:
+                type: integer
+                example: 30
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/refresh:
     post:
@@ -1181,25 +1279,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '401':
-          description: Missing, expired, invalid, or revoked refresh token
+          description: Missing, expired, invalid, or revoked refresh token (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Email is not verified
+          description: Email is not verified (`EMAIL_NOT_VERIFIED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/verify/{verificationToken}:
     post:
       tags:
         - Users
-      summary: Verify register user against the token
+      summary: Confirm an email address using the token from a verification email
+      description: >
+        Handles both registration tokens and email-change tokens. Tokens expire: registration
+        links last 1 hour (after which the unverified account is cleaned up anyway), email-change
+        links last 24 hours. An expired link is indistinguishable from an invalid one and returns
+        `FORBIDDEN` - the user must request a new email.
       operationId: verifyUserToken
       parameters:
         - $ref: '#/components/parameters/VerificationToken'
       responses:
         '200':
-          description: Login successful
-        '401':
-          description: Invalid username or password
-        '404':
-          description: User not found
+          description: Email verified
+        '400':
+          description: >
+            The token does not match the account's current or pending email, or is of an
+            unsupported type (`BAD_REQUEST`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Verification token is invalid or has expired (`FORBIDDEN`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Email flows are disabled on this deployment
+        '429':
+          description: Too many verification attempts (`TOO_MANY_REQUESTS`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/verify/resend:
     post:
@@ -1214,38 +1343,45 @@ paths:
             schema:
               $ref: '#/components/schemas/UserLoginRequest'
       responses:
-       '200':
-         description: Verification email resent if the account needs verification
-       '401':
-         description: Invalid username or password
-       '429':
-         description: Too many resend attempts
-
-  /auth/verify/change-email:
-    post:
-      tags:
-        - Users
-      summary: Attempt to change unverified email
-      operationId: changeUnverifiedEmail
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserRegisterRequest'
-      responses:
         '200':
-          description: Email change sent
-        '403':
-          description: Wrong credentials
-        '409':
-          description: Email already registered
+          description: Verification email resent if the account needs verification
+        '401':
+          description: Invalid username or password (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Email flows are disabled on this deployment
+        '429':
+          description: >
+            Either Keycloak has temporarily locked the account (`TOO_MANY_ATTEMPTS`, with a
+            `Retry-After` header), or the resend rate limit was hit (`TOO_MANY_REQUESTS`).
+          headers:
+            Retry-After:
+              description: Seconds until the lockout lifts. Sent with `TOO_MANY_ATTEMPTS`.
+              schema:
+                type: integer
+                example: 30
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: The verification email could not be delivered (`EMAIL_DELIVERY_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/verify/change-password:
     post:
       tags:
         - Users
-      summary: Attempt to change unverified password (in case user forgot it)
+      summary: Set a new password using the token from a password-reset email
+      description: >
+        Reset tokens expire after 30 minutes. On success, **all Keycloak sessions for the account
+        are revoked**, so any refresh token issued before the reset stops working.
       operationId: changeUnverifiedPassword
       requestBody:
         required: true
@@ -1255,15 +1391,41 @@ paths:
               $ref: '#/components/schemas/UserChangePasswordWithTokenRequest'
       responses:
         '200':
-          description: Password change sent
+          description: Password changed
+        '400':
+          description: >
+            The new password was rejected by the Keycloak password policy, or the token is of an
+            unsupported type (`BAD_REQUEST`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Wrong token
+          description: Reset token is invalid or has expired (`FORBIDDEN`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Email flows are disabled on this deployment
+        '429':
+          description: Too many attempts (`TOO_MANY_REQUESTS`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /verify/change-password:
     post:
       tags:
         - Users
-      summary: Attempt to change verified password (if user is already logged in)
+      summary: Change the password of the currently authenticated user
+      description: >
+        Requires the current password. On success, **all Keycloak sessions are revoked, including
+        the caller's own**: the refresh cookie stops working, so the next `/auth/refresh` returns
+        401. Clients should send the user to the login screen straight after a 200 rather than
+        waiting to discover this. The access token already in memory keeps working until it
+        expires, since it is a stateless JWT.
       operationId: changeVerifiedPassword
       requestBody:
         required: true
@@ -1273,15 +1435,43 @@ paths:
               $ref: '#/components/schemas/UserChangePasswordRequest'
       responses:
         '200':
-          description: Password change sent
+          description: Password changed; every session has been revoked
+        '400':
+          description: >
+            The new password was rejected by the Keycloak password policy (`BAD_REQUEST`). The
+            `message` states the reason.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Wrong credentials
+          description: The supplied current password is wrong (`FORBIDDEN`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Too many attempts (`TOO_MANY_REQUESTS`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /auth/forgot-password:
     post:
       tags:
         - Users
       summary: Send password reset email if account exists
+      description: >
+        Always answers 200 for a well-formed email, whether or not an account exists. This is
+        deliberate: a distinguishable response would let anyone test which addresses are
+        registered. The emailed link is valid for 30 minutes.
       operationId: forgotPassword
       requestBody:
         required: true
@@ -1291,11 +1481,27 @@ paths:
               $ref: '#/components/schemas/ForgotPasswordRequest'
       responses:
         '200':
-          description: If an account exists for this email, a password reset email was sent
+          description: >
+            Accepted. A reset email was sent only if an account exists for this address; the
+            response is identical either way.
         '400':
-          description: Invalid email format
+          description: Invalid email format (`BAD_REQUEST`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '429':
-          description: Too many password reset requests
+          description: Too many password reset requests (`TOO_MANY_REQUESTS`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: The reset email could not be delivered (`EMAIL_DELIVERY_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 
   /users/change-email:
@@ -1303,6 +1509,11 @@ paths:
       tags:
         - Users
       summary: Attempt to change verified email
+      description: >
+        Requires the current password. The new address is staged in `pendingEmail` and only becomes
+        the account's email once the link sent to it is confirmed, so the account is never left
+        pointing at an unconfirmed address. A warning is also sent to the previous address. The
+        confirmation link is valid for 24 hours.
       operationId: changeVerifiedEmail
       requestBody:
         required: true
@@ -1312,11 +1523,41 @@ paths:
               $ref: '#/components/schemas/UserRegisterRequest'
       responses:
         '200':
-          description: Email change sent
+          description: Confirmation email sent to the new address
+        '400':
+          description: >
+            Invalid email, the new email matches the current one, or the current email is not
+            verified (`BAD_REQUEST`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
-          description: Wrong credentials
+          description: Wrong credentials (`FORBIDDEN`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Email flows are disabled on this deployment
         '409':
-          description: Email already registered
+          description: Email already registered to another account (`CONFLICT`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: The confirmation email could not be delivered (`EMAIL_DELIVERY_FAILED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /users/me:
     get:
@@ -1332,7 +1573,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/User'
         '401':
-          description: User not authenticated
+          description: User not authenticated (`UNAUTHORIZED`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /v2/tracks:
     post:

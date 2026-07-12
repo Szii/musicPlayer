@@ -12,7 +12,7 @@ import org.dnd.keycloak.KeycloakAdminClient;
 import org.dnd.keycloak.KeycloakAuthClient;
 import org.dnd.keycloak.KeycloakTokenResponse;
 import org.dnd.security.AuthenticationResult;
-import org.dnd.security.LoginThrottleService;
+import org.dnd.security.LoginLockoutService;
 import org.dnd.security.RefreshCookieService;
 import org.dnd.token.TokenEntity;
 import org.dnd.token.TokenRepository;
@@ -47,7 +47,7 @@ public class UserAuthService {
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
-  private final LoginThrottleService loginThrottleService;
+  private final LoginLockoutService loginLockoutService;
   private final EmailService emailService;
   private final TokenRepository tokenRepository;
   private final TokenService tokenService;
@@ -63,11 +63,14 @@ public class UserAuthService {
   public User registerUser(UserRegisterRequest request) {
     log.debug("Registering new user with name: {}", request.getName());
 
+    String normalizedEmail = normalizeEmail(request.getEmail());
+
+    releaseUnverifiedClaim(userRepository.findByName(request.getName()));
+    releaseUnverifiedClaim(userRepository.findByEmail(normalizedEmail));
+
     if (userRepository.existsByName(request.getName())) {
       throw new UserAlreadyExistsException("Username already exists");
     }
-
-    String normalizedEmail = normalizeEmail(request.getEmail());
 
     if (userRepository.existsByEmail(normalizedEmail)) {
       throw new EmailAlreadyExistsException("Email already exists");
@@ -88,14 +91,14 @@ public class UserAuthService {
 
     UserEntity user = userMapper.fromRegisterRequest(request);
     user.setKeycloakId(keycloakId);
-    user.setPassword(passwordEncoder.encode(request.getPassword()));
+    user.setPassword(null);
     user.setEmailVerified(emailVerified);
     user.setPendingEmail(null);
 
     user = userRepository.save(user);
 
     if (emailUse) {
-      TokenEntity verificationToken = tokenService.create(
+      String verificationToken = tokenService.create(
               user,
               TokenType.REGISTRATION,
               user.getEmail()
@@ -104,11 +107,30 @@ public class UserAuthService {
       emailService.sendVerificationEmail(
               user.getName(),
               user.getEmail(),
-              verificationToken.getToken()
+              verificationToken
       );
     }
 
     return userMapper.toDto(user);
+  }
+
+  private void releaseUnverifiedClaim(Optional<UserEntity> existingUser) {
+    existingUser
+            .filter(user -> !user.isEmailVerified())
+            .ifPresent(user -> {
+              log.info(
+                      "Replacing unverified registration. userId={}, username={}",
+                      user.getId(),
+                      user.getName()
+              );
+
+              if (user.getKeycloakId() != null) {
+                keycloakAdminClient.deleteUser(user.getKeycloakId());
+              }
+
+              userRepository.delete(user);
+              userRepository.flush();
+            });
   }
 
   @Transactional
@@ -117,19 +139,8 @@ public class UserAuthService {
 
     String identifier = request.getName();
 
-    Optional<UserEntity> resolvedUser = userIdentifierResolver.find(identifier);
-
-    String throttleKey = resolvedUser
-            .map(UserEntity::getName)
-            .orElse(identifier);
-
-    loginThrottleService.checkAllowed(throttleKey);
-
-    UserEntity user = resolvedUser
-            .orElseThrow(() -> {
-              loginThrottleService.recordFailure(throttleKey);
-              return new UnauthorizedException("Invalid username or password");
-            });
+    UserEntity user = userIdentifierResolver.find(identifier)
+            .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
 
     try {
       if (user.getKeycloakId() == null) {
@@ -147,11 +158,9 @@ public class UserAuthService {
         throw new EmailNotVerifiedException("Email is not verified");
       }
 
-      loginThrottleService.recordSuccess(throttleKey);
-
       return createAuthenticationResult(user, keycloakToken);
     } catch (UnauthorizedException exception) {
-      loginThrottleService.recordFailure(throttleKey);
+      loginLockoutService.throwIfLockedOut(user);
       throw exception;
     }
   }
@@ -192,8 +201,8 @@ public class UserAuthService {
 
   @Transactional
   public void verifyEmail(String token) {
-    TokenEntity verificationToken = tokenRepository
-            .findByTokenAndValidTrue(token)
+    TokenEntity verificationToken = tokenService
+            .findValid(token)
             .orElseThrow(() -> new ForbiddenException("Invalid verification token"));
 
     UserEntity user = verificationToken.getUser();
@@ -212,8 +221,8 @@ public class UserAuthService {
 
   @Transactional
   public void changePasswordByToken(UserChangePasswordWithTokenRequest request) {
-    TokenEntity tokenEntity = tokenRepository
-            .findByTokenAndValidTrue(request.getToken())
+    TokenEntity tokenEntity = tokenService
+            .findValid(request.getToken())
             .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
 
     if (tokenEntity.getType() != TokenType.FORGOT_PASSWORD) {
@@ -236,12 +245,23 @@ public class UserAuthService {
               user.getKeycloakId(),
               request.getPassword()
       );
+
+      keycloakAdminClient.logoutUser(user.getKeycloakId());
     }
 
-    user.setPassword(passwordEncoder.encode(request.getPassword()));
+    user.setPassword(null);
+    cancelPendingEmailChange(user);
 
     userRepository.save(user);
     tokenRepository.delete(tokenEntity);
+  }
+
+  private void cancelPendingEmailChange(UserEntity user) {
+    tokenRepository
+            .findByUserIdAndType(user.getId(), TokenType.EMAIL_CHANGE)
+            .ifPresent(tokenRepository::delete);
+
+    user.setPendingEmail(null);
   }
 
   @Transactional
@@ -270,10 +290,12 @@ public class UserAuthService {
     validateEmailIsNotUsedByAnotherUser(newEmail, user.getId());
 
     if (emailUse) {
+      String previousEmail = user.getEmail();
+
       user.setPendingEmail(newEmail);
       userRepository.save(user);
 
-      TokenEntity verificationToken = tokenService.create(
+      String verificationToken = tokenService.create(
               user,
               TokenType.EMAIL_CHANGE,
               newEmail
@@ -282,7 +304,13 @@ public class UserAuthService {
       emailService.sendEmailChangeMail(
               user.getName(),
               newEmail,
-              verificationToken.getToken()
+              verificationToken
+      );
+
+      emailService.sendEmailChangeNotice(
+              user.getName(),
+              previousEmail,
+              newEmail
       );
 
       return;
@@ -320,8 +348,10 @@ public class UserAuthService {
             request.getNewPassword()
     );
 
-    // Temporary while old local-password flows still exist.
-    user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+    keycloakAdminClient.logoutUser(user.getKeycloakId());
+
+    user.setPassword(null);
+    cancelPendingEmailChange(user);
 
     userRepository.save(user);
   }
@@ -379,7 +409,8 @@ public class UserAuthService {
   }
 
   private UserEntity migrateExistingUserToKeycloak(UserEntity user, String rawPassword) {
-    if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
+    if (user.getPassword() == null
+            || !passwordEncoder.matches(rawPassword, user.getPassword())) {
       throw new UnauthorizedException("Invalid username or password");
     }
 
@@ -391,6 +422,8 @@ public class UserAuthService {
     );
 
     user.setKeycloakId(keycloakId);
+
+    user.setPassword(null);
 
     return userRepository.save(user);
   }

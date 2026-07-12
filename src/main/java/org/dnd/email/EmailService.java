@@ -45,6 +45,9 @@ public class EmailService {
   @Value("classpath:email/reset-password-email.html")
   private Resource resetPasswordTemplate;
 
+  @Value("classpath:email/email-change-notice.html")
+  private Resource emailChangeNoticeTemplate;
+
   public void sendVerificationEmail(String username, String email, String verificationToken) {
     send(email, "Verify Your email", verificationEmailTemplate, Map.of(
             "username", username,
@@ -62,6 +65,13 @@ public class EmailService {
   public void sendPasswordReset(String email, String passwordResetToken) {
     send(email, "Reset Your password", resetPasswordTemplate, Map.of(
             "passwordResetUrl", frontendLink(frontendPathResetPassword, passwordResetToken)
+    ));
+  }
+
+  public void sendEmailChangeNotice(String username, String previousEmail, String newEmail) {
+    send(previousEmail, "Your email address is being changed", emailChangeNoticeTemplate, Map.of(
+            "username", username,
+            "newEmail", newEmail
     ));
   }
 
