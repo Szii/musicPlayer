@@ -36,6 +36,17 @@ public class KeycloakAuthClient {
     return requestToken(body, "Invalid username or password");
   }
 
+  public KeycloakTokenResponse exchangeAuthorizationCode(String code, String redirectUri) {
+    MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+    body.add("grant_type", "authorization_code");
+    body.add("client_id", keycloakProperties.getClientId());
+    body.add("client_secret", keycloakProperties.getClientSecret());
+    body.add("code", code);
+    body.add("redirect_uri", redirectUri);
+
+    return requestToken(body, "Invalid authorization code");
+  }
+
   public KeycloakTokenResponse refresh(String refreshToken) {
     MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
     body.add("grant_type", "refresh_token");

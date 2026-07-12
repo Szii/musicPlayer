@@ -149,7 +149,7 @@ class UserControllerEmailDisabledTest extends DatabaseBase {
   @Test
   void resendVerificationEmail_whenEmailDisabled_returnsMethodNotAllowed() throws Exception {
     UserLoginRequest request = new UserLoginRequest()
-            .name("testUser")
+            .email("user@email.cz")
             .password("password123");
 
     mockMvc.perform(post("/api/v1/auth/verify/resend")

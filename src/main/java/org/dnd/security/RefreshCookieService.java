@@ -11,6 +11,8 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class RefreshCookieService {
 
+  public static final String OAUTH_STATE_COOKIE = "oauthState";
+
   private final JwtConfiguration jwtConfiguration;
 
   public ResponseCookie createRefreshCookie(String refreshToken) {
@@ -28,6 +30,26 @@ public class RefreshCookieService {
             .httpOnly(true)
             .secure(jwtConfiguration.isRefreshCookieSecure())
             .sameSite(jwtConfiguration.getRefreshCookieSameSite())
+            .path("/api/v1/auth")
+            .maxAge(0)
+            .build();
+  }
+
+  public ResponseCookie createOauthStateCookie(String state) {
+    return ResponseCookie.from(OAUTH_STATE_COOKIE, state)
+            .httpOnly(true)
+            .secure(jwtConfiguration.isRefreshCookieSecure())
+            .sameSite("Lax")
+            .path("/api/v1/auth")
+            .maxAge(Duration.ofMinutes(5))
+            .build();
+  }
+
+  public ResponseCookie clearOauthStateCookie() {
+    return ResponseCookie.from(OAUTH_STATE_COOKIE, "")
+            .httpOnly(true)
+            .secure(jwtConfiguration.isRefreshCookieSecure())
+            .sameSite("Lax")
             .path("/api/v1/auth")
             .maxAge(0)
             .build();

@@ -44,6 +44,11 @@ public class UserAuthService {
           Pattern.CASE_INSENSITIVE
   );
 
+  private static final int USERNAME_MAX_LENGTH = 30;
+
+  private static final Pattern USERNAME_PATTERN =
+          Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._-]{1,28}[A-Za-z0-9]$");
+
   private final UserRepository userRepository;
   private final UserMapper userMapper;
   private final PasswordEncoder passwordEncoder;
@@ -56,19 +61,21 @@ public class UserAuthService {
   private final KeycloakAdminClient keycloakAdminClient;
   private final ObjectMapper objectMapper;
   private final SecurityUtils securityUtils;
-  private final UserIdentifierResolver userIdentifierResolver;
   private final TransactionCompensation transactionCompensation;
 
   @Transactional
   public User registerUser(UserRegisterRequest request) {
     log.debug("Registering new user with name: {}", request.getName());
 
+    String username = validateUsername(request.getName());
     String normalizedEmail = normalizeEmail(request.getEmail());
 
-    releaseUnverifiedClaim(userRepository.findByName(request.getName()));
+    request.setName(username);
+
+    releaseUnverifiedClaim(userRepository.findByName(username));
     releaseUnverifiedClaim(userRepository.findByEmail(normalizedEmail));
 
-    if (userRepository.existsByName(request.getName())) {
+    if (userRepository.existsByNameIgnoreCase(username)) {
       throw new UserAlreadyExistsException("Username already exists");
     }
 
@@ -135,12 +142,10 @@ public class UserAuthService {
 
   @Transactional
   public AuthenticationResult loginUser(UserLoginRequest request) {
-    log.debug("Attempting login for user: {}", request.getName());
+    log.debug("Attempting login for: {}", request.getEmail());
 
-    String identifier = request.getName();
-
-    UserEntity user = userIdentifierResolver.find(identifier)
-            .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
+    UserEntity user = userRepository.findByEmail(normalizeEmail(request.getEmail()))
+            .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
 
     try {
       if (user.getKeycloakId() == null) {
@@ -187,6 +192,129 @@ public class UserAuthService {
     return createAuthenticationResult(user, keycloakToken);
   }
 
+  @Transactional
+  public void provisionBrokeredUser(String accessToken) {
+    JsonNode payload = extractPayloadFromAccessToken(accessToken);
+
+    UUID keycloakId = extractSubjectFromAccessToken(accessToken);
+
+    if (userRepository.findByKeycloakId(keycloakId).isPresent()) {
+      return;
+    }
+
+    String email = normalizeEmail(payload.path("email").asText(null));
+
+    Optional<UserEntity> existingByEmail = userRepository.findByEmail(email);
+
+    if (existingByEmail.isPresent()) {
+      UserEntity user = existingByEmail.get();
+      user.setKeycloakId(keycloakId);
+      user.setEmailVerified(true);
+
+      userRepository.save(user);
+
+      return;
+    }
+
+    UserEntity user = new UserEntity();
+    user.setKeycloakId(keycloakId);
+    user.setName(claimUsernameFor(keycloakId, payload, email));
+    user.setEmail(email);
+    user.setPassword(null);
+    user.setEmailVerified(true);
+    user.setPendingEmail(null);
+
+    userRepository.save(user);
+  }
+
+  private String claimUsernameFor(UUID keycloakId, JsonNode payload, String email) {
+    String base = sanitizeUsername(payload.path("given_name").asText(null));
+
+    if (base.isBlank()) {
+      base = sanitizeUsername(email.substring(0, email.indexOf('@')));
+    }
+
+    if (base.length() < 3) {
+      base = base + "user";
+    }
+
+    base = base.substring(0, Math.min(base.length(), USERNAME_MAX_LENGTH - 4));
+
+    String candidate = base;
+
+    for (int suffix = 1; isUsernameTaken(candidate); suffix++) {
+      if (suffix > 999) {
+        candidate = base + UUID.randomUUID().toString().substring(0, 4);
+        break;
+      }
+
+      candidate = base + suffix;
+    }
+
+    keycloakAdminClient.updateUsername(keycloakId, candidate);
+
+    return candidate;
+  }
+
+  private String validateUsername(String username) {
+    String trimmed = username == null ? "" : username.trim();
+
+    if (!USERNAME_PATTERN.matcher(trimmed).matches()) {
+      throw new BadRequestException(
+              "Username must be 3-30 characters: letters, digits, dot, underscore or hyphen, "
+                      + "starting and ending with a letter or digit"
+      );
+    }
+
+    return trimmed;
+  }
+
+  private boolean isUsernameTaken(String username) {
+    return userRepository.existsByNameIgnoreCase(username)
+            || keycloakAdminClient.usernameExists(username);
+  }
+
+  private String sanitizeUsername(String value) {
+    if (value == null) {
+      return "";
+    }
+
+    return value.toLowerCase().replaceAll("[^a-z0-9]", "");
+  }
+
+  @Transactional
+  public User changeUsername(String newUsername) {
+    UserEntity user = securityUtils.getCurrentUserEntity();
+
+    String requested = validateUsername(newUsername);
+
+    if (requested.equals(user.getName())) {
+      return userMapper.toDto(user);
+    }
+
+    if (isUsernameTaken(requested)) {
+      throw new ConflictException("Username already exists");
+    }
+
+    String previousUsername = user.getName();
+
+    keycloakAdminClient.updateUsername(user.getKeycloakId(), requested);
+
+    transactionCompensation.onRollback(
+            () -> keycloakAdminClient.updateUsername(user.getKeycloakId(), previousUsername)
+    );
+
+    user.setName(requested);
+
+    return userMapper.toDto(userRepository.save(user));
+  }
+
+  private void assertNotGoogleManaged(UserEntity user) {
+    if (keycloakAdminClient.hasFederatedIdentity(user.getKeycloakId())) {
+      throw new ForbiddenException("This account is managed by Google");
+    }
+  }
+
   public ResponseCookie logoutUser(String refreshToken) {
     if (refreshToken != null && !refreshToken.isBlank()) {
       keycloakAuthClient.logout(refreshToken);
@@ -231,6 +359,8 @@ public class UserAuthService {
 
     UserEntity user = tokenEntity.getUser();
 
+    assertNotGoogleManaged(user);
+
     if (user.getKeycloakId() == null) {
       UUID keycloakId = keycloakAdminClient.createUser(
               user.getName(),
@@ -265,13 +395,13 @@ public class UserAuthService {
   }
 
   @Transactional
-  public void changeEmailByAuth(UserRegisterRequest request) {
-    String identifier = request.getName();
+  public void changeEmailByAuth(ChangeEmailRequest request) {
     String password = request.getPassword();
     String newEmail = normalizeEmail(request.getEmail());
 
-    UserEntity user = userIdentifierResolver.find(identifier)
-            .orElseThrow(() -> new ForbiddenException("Invalid credentials"));
+    UserEntity user = securityUtils.getCurrentUserEntity();
+
+    assertNotGoogleManaged(user);
 
     if (user.getKeycloakId() == null) {
       user = migrateExistingUserToKeycloak(user, password);
@@ -333,9 +463,7 @@ public class UserAuthService {
   public void changePasswordByAuth(UserChangePasswordRequest request) {
     UserEntity user = securityUtils.getCurrentUserEntity();
 
-    if (!userIdentifierResolver.matches(user, request.getName())) {
-      throw new ForbiddenException("Invalid credentials");
-    }
+    assertNotGoogleManaged(user);
 
     if (user.getKeycloakId() == null) {
       user = migrateExistingUserToKeycloak(user, request.getPassword());

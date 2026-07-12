@@ -48,6 +48,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -336,7 +337,7 @@ class UserControllerTest extends DatabaseBase {
     userRepository.save(user);
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name(username)
+            .email(email)
             .password(password);
 
     mockMvc.perform(post("/api/v1/auth/login")
@@ -369,7 +370,7 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.token").doesNotExist());
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name(username)
+            .email(email)
             .password(password);
 
     mockMvc.perform(post("/api/v1/auth/login")
@@ -394,7 +395,7 @@ class UserControllerTest extends DatabaseBase {
             ));
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name(username)
+            .email(email)
             .password("wrongPassword");
 
     mockMvc.perform(post("/api/v1/auth/login")
@@ -420,7 +421,7 @@ class UserControllerTest extends DatabaseBase {
     userRepository.save(user);
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name(username)
+            .email(email)
             .password("wrongPassword");
 
     mockMvc.perform(post("/api/v1/auth/login")
@@ -443,7 +444,7 @@ class UserControllerTest extends DatabaseBase {
             .andExpect(status().isCreated());
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name("testUser")
+            .email("user@email.cz")
             .password("wrongPassword");
 
     mockMvc.perform(post("/api/v1/auth/login")
@@ -475,16 +476,12 @@ class UserControllerTest extends DatabaseBase {
     String oldEmail = "email@email.com";
     String newEmail = "new-email@email.com";
 
-    UserEntity user = UserHelper.createValidatedUser(
-            username,
-            passwordEncoder.encode(password),
-            oldEmail
+    UserEntity user = givenKeycloakUser(
+            UserHelper.createValidatedUser(username, null, oldEmail),
+            password
     );
 
-    UserEntity savedUser = userRepository.save(user);
-
-    UserRegisterRequest request = new UserRegisterRequest()
-            .name(username)
+    ChangeEmailRequest request = new ChangeEmailRequest()
             .email(newEmail)
             .password(password);
 
@@ -529,8 +526,7 @@ class UserControllerTest extends DatabaseBase {
 
     userRepository.save(user);
 
-    UserRegisterRequest request = new UserRegisterRequest()
-            .name(username)
+    ChangeEmailRequest request = new ChangeEmailRequest()
             .email(newEmail)
             .password(password);
 
@@ -595,7 +591,7 @@ class UserControllerTest extends DatabaseBase {
             .findByUserIdAndType(verifiedUser.getId(), TokenType.REGISTRATION).isEmpty());
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name(username)
+            .email(email)
             .password(password);
 
     mockMvc.perform(post("/api/v1/auth/login")
@@ -614,16 +610,12 @@ class UserControllerTest extends DatabaseBase {
     String oldEmail = "old@email.com";
     String newEmail = "new@email.com";
 
-    UserEntity user = UserHelper.createValidatedUser(
-            username,
-            passwordEncoder.encode(password),
-            oldEmail
+    UserEntity user = givenKeycloakUser(
+            UserHelper.createValidatedUser(username, null, oldEmail),
+            password
     );
 
-    userRepository.save(user);
-
-    UserRegisterRequest request = new UserRegisterRequest()
-            .name(username)
+    ChangeEmailRequest request = new ChangeEmailRequest()
             .email(newEmail)
             .password(password);
 
@@ -757,8 +749,7 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/users/change-email")
                     .with(TestHelpers.authenticatedAs(user))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(new UserRegisterRequest()
-                            .name(username)
+                    .content(objectMapper.writeValueAsString(new ChangeEmailRequest()
                             .email(attackerEmail)
                             .password("password123"))))
             .andExpect(status().isOk());
@@ -806,8 +797,7 @@ class UserControllerTest extends DatabaseBase {
     mockMvc.perform(post("/api/v1/users/change-email")
                     .with(TestHelpers.authenticatedAs(user))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(new UserRegisterRequest()
-                            .name(username)
+                    .content(objectMapper.writeValueAsString(new ChangeEmailRequest()
                             .email("attacker@evil.com")
                             .password("password123"))))
             .andExpect(status().isOk());
@@ -818,7 +808,7 @@ class UserControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(user))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(
-                            new UserChangePasswordRequest(username, "password123", "brandNewPassword1"))))
+                            new UserChangePasswordRequest("password123", "brandNewPassword1"))))
             .andExpect(status().isOk());
 
     UserEntity afterChange = userRepository.findByName(username).orElseThrow();
@@ -831,6 +821,166 @@ class UserControllerTest extends DatabaseBase {
     assertEquals(ownEmail, userRepository.findByName(username).orElseThrow().getEmail());
   }
 
+  private UserEntity givenGoogleBrokeredUser(String username, String email) {
+    UserEntity user = givenKeycloakUser(UserHelper.createValidatedUser(username, null, email), null);
+
+    when(keycloakAdminClient.hasFederatedIdentity(user.getKeycloakId())).thenReturn(true);
+
+    return user;
+  }
+
+  @Test
+  void getCurrentUser_reportsWhetherTheAccountIsGoogleManaged() throws Exception {
+    UserEntity googleUser = givenGoogleBrokeredUser("googler", "googler@gmail.com");
+
+    mockMvc.perform(get("/api/v1/users/me").with(TestHelpers.authenticatedAs(googleUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.managedByGoogle").value(true));
+
+    UserEntity passwordUser = givenKeycloakUser(
+            UserHelper.createValidatedUser("localuser", null, "local@email.com"), "password123");
+
+    mockMvc.perform(get("/api/v1/users/me").with(TestHelpers.authenticatedAs(passwordUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.managedByGoogle").value(false));
+  }
+
+  @Test
+  void changePasswordByAuth_googleUser_isRefused() throws Exception {
+    UserEntity user = givenGoogleBrokeredUser("googler", "googler@gmail.com");
+
+    mockMvc.perform(post("/api/v1/verify/change-password")
+                    .with(TestHelpers.authenticatedAs(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new UserChangePasswordRequest("whatever", "newPassword1"))))
+            .andExpect(status().isForbidden());
+
+    verify(keycloakAdminClient, never()).updatePassword(any(UUID.class), anyString());
+  }
+
+  @Test
+  void changeEmailByAuth_googleUser_isRefused() throws Exception {
+    UserEntity user = givenGoogleBrokeredUser("googler", "googler@gmail.com");
+
+    mockMvc.perform(post("/api/v1/users/change-email")
+                    .with(TestHelpers.authenticatedAs(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new ChangeEmailRequest()
+                            .email("elsewhere@email.com")
+                            .password("whatever"))))
+            .andExpect(status().isForbidden());
+
+    verifyNoInteractions(emailService);
+  }
+
+  @Test
+  void forgotPassword_googleUser_sendsNothingButStillAnswers200() throws Exception {
+    UserEntity user = givenGoogleBrokeredUser("googler", "googler@gmail.com");
+
+    mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new ForgotPasswordRequest().email("googler@gmail.com"))))
+            .andExpect(status().isOk());
+
+    verifyNoInteractions(emailService);
+    assertTrue(tokenRepository
+            .findByUserIdAndType(user.getId(), TokenType.FORGOT_PASSWORD).isEmpty());
+  }
+
+  @Test
+  void changeUsername_success() throws Exception {
+    UserEntity user = givenGoogleBrokeredUser("alice1", "alice@gmail.com");
+
+    mockMvc.perform(patch("/api/v1/users/me/username")
+                    .with(TestHelpers.authenticatedAs(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new ChangeUsernameRequest().name("alice"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("alice"));
+
+    assertEquals("alice", userRepository.findById(user.getId()).orElseThrow().getName());
+    verify(keycloakAdminClient).updateUsername(user.getKeycloakId(), "alice");
+  }
+
+  @Test
+  void changeUsername_emailShapedName_isRejected() throws Exception {
+    UserEntity victim = givenKeycloakUser(
+            UserHelper.createValidatedUser("victim", null, "victim@email.com"), "password123");
+    UserEntity attacker = givenGoogleBrokeredUser("alice1", "alice@gmail.com");
+
+    mockMvc.perform(patch("/api/v1/users/me/username")
+                    .with(TestHelpers.authenticatedAs(attacker))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                            new ChangeUsernameRequest().name("victim@email.com"))))
+            .andExpect(status().isBadRequest());
+
+    assertEquals("alice1", userRepository.findById(attacker.getId()).orElseThrow().getName());
+    assertEquals("victim", userRepository.findById(victim.getId()).orElseThrow().getName());
+    verify(keycloakAdminClient, never()).updateUsername(any(UUID.class), anyString());
+  }
+
+  @Test
+  void changeUsername_invalidShapes_areRejectedBeforeReachingKeycloak() throws Exception {
+    UserEntity user = givenGoogleBrokeredUser("alice1", "alice@gmail.com");
+
+    for (String invalid : new String[]{"ab", "with space", "has@sign", "trailing-"}) {
+      mockMvc.perform(patch("/api/v1/users/me/username")
+                      .with(TestHelpers.authenticatedAs(user))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content(objectMapper.writeValueAsString(new ChangeUsernameRequest().name(invalid))))
+              .andExpect(status().isBadRequest());
+    }
+
+    verify(keycloakAdminClient, never()).updateUsername(any(UUID.class), anyString());
+  }
+
+  @Test
+  void changeUsername_conflictsCaseInsensitively() throws Exception {
+    givenKeycloakUser(UserHelper.createValidatedUser("Taken", null, "taken@email.com"), "password123");
+    UserEntity user = givenGoogleBrokeredUser("alice1", "alice@gmail.com");
+
+    mockMvc.perform(patch("/api/v1/users/me/username")
+                    .with(TestHelpers.authenticatedAs(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new ChangeUsernameRequest().name("taken"))))
+            .andExpect(status().isConflict());
+
+    verify(keycloakAdminClient, never()).updateUsername(any(UUID.class), anyString());
+  }
+
+  @Test
+  void registerUser_emailShapedUsername_isRejected() throws Exception {
+    UserRegisterRequest request = new UserRegisterRequest()
+            .name("victim@email.com")
+            .email("attacker@email.com")
+            .password("password123");
+
+    mockMvc.perform(post("/api/v1/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(request)))
+            .andExpect(status().isBadRequest());
+
+    assertEquals(0, userRepository.count());
+    verifyNoInteractions(keycloakAdminClient);
+  }
+
+  @Test
+  void changeUsername_alreadyTaken_returnsConflict() throws Exception {
+    givenKeycloakUser(UserHelper.createValidatedUser("taken", null, "taken@email.com"), "password123");
+    UserEntity user = givenGoogleBrokeredUser("alice1", "alice@gmail.com");
+
+    mockMvc.perform(patch("/api/v1/users/me/username")
+                    .with(TestHelpers.authenticatedAs(user))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new ChangeUsernameRequest().name("taken"))))
+            .andExpect(status().isConflict());
+
+    verify(keycloakAdminClient, never()).updateUsername(any(UUID.class), anyString());
+  }
+
   @Test
   void changePassword_revokesExistingSessions() throws Exception {
     UserEntity user = givenKeycloakUser(
@@ -838,7 +988,7 @@ class UserControllerTest extends DatabaseBase {
             "lala"
     );
 
-    UserChangePasswordRequest request = new UserChangePasswordRequest("franta", "lala", "lalaNewPass1");
+    UserChangePasswordRequest request = new UserChangePasswordRequest("lala", "lalaNewPass1");
 
     mockMvc.perform(post("/api/v1/verify/change-password")
                     .with(TestHelpers.authenticatedAs(user))
@@ -860,8 +1010,7 @@ class UserControllerTest extends DatabaseBase {
             "password123"
     );
 
-    UserRegisterRequest request = new UserRegisterRequest()
-            .name(username)
+    ChangeEmailRequest request = new ChangeEmailRequest()
             .email(newEmail)
             .password("password123");
 
@@ -919,7 +1068,7 @@ class UserControllerTest extends DatabaseBase {
     UserEntity user = UserHelper.createValidatedUser("franta", null, "email@email.com");
     UserEntity managedUser = givenKeycloakUser(user, "lala");
 
-    UserChangePasswordRequest request = new UserChangePasswordRequest("franta", "lala", "lala1");
+    UserChangePasswordRequest request = new UserChangePasswordRequest("lala", "lala1");
 
     mockMvc.perform(post("/api/v1/verify/change-password")
                     .with(TestHelpers.authenticatedAs(user))
@@ -948,7 +1097,7 @@ class UserControllerTest extends DatabaseBase {
     givenKeycloakUser(user, password);
 
     UserLoginRequest loginRequest = new UserLoginRequest()
-            .name(username)
+            .email(email)
             .password(password);
 
     MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")

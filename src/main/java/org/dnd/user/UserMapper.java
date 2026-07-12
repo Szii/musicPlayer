@@ -11,6 +11,7 @@ import org.mapstruct.ReportingPolicy;
 )
 public interface UserMapper {
   @Mapping(target = "limits", ignore = true)
+  @Mapping(target = "managedByGoogle", ignore = true)
   User toDto(UserEntity entity);
 
   @Mapping(target = "id", source = "entity.id")

@@ -46,4 +46,10 @@ public class KeycloakProperties {
 
   @Value("${keycloak.admin-brute-force-uri}")
   private String adminBruteForceUri;
+
+  @Value("${keycloak.authorization-uri}")
+  private String authorizationUri;
+
+  @Value("${keycloak.google-idp-alias}")
+  private String googleIdpAlias;
 }

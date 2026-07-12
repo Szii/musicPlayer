@@ -13,6 +13,9 @@ public final class RateLimitNames {
   public static final String PASSWORD_TOKEN = "password-token";
   public static final String CHANGE_PASSWORD_ACCOUNT = "change-password-account";
 
+  public static final String GOOGLE_AUTH = "google-auth";
+  public static final String CHANGE_USERNAME = "change-username";
+
   public static final String STREAM_API = "stream-api";
 
   public static final String CURRENT_USER_KEY =
@@ -30,8 +33,8 @@ public final class RateLimitNames {
   public static final String RESEND_VERIFICATION_LOGIN_KEY =
           "@rateLimitKeyResolver.resendVerificationKey(#request)";
 
-  public static final String RESEND_VERIFICATION_REGISTER_KEY =
-          "@rateLimitKeyResolver.resendVerificationKey(#userAuthDTO)";
+  public static final String CHANGE_EMAIL_KEY =
+          "@rateLimitKeyResolver.changeEmailKey(#changeEmailRequest)";
 
   public static final String FORGOT_PASSWORD_EMAIL_KEY =
           "@rateLimitKeyResolver.forgotPasswordEmailKey(#forgotPasswordRequest)";
@@ -40,7 +43,13 @@ public final class RateLimitNames {
           "@rateLimitKeyResolver.changePasswordTokenKey(#userChangePasswordWithTokenRequest)";
 
   public static final String CHANGE_PASSWORD_ACCOUNT_KEY =
-          "@rateLimitKeyResolver.changePasswordAccountKey(#userChangePasswordRequest)";
+          "@rateLimitKeyResolver.currentUserKey()";
+
+  public static final String GOOGLE_AUTH_KEY =
+          "@rateLimitKeyResolver.clientIp()";
+
+  public static final String CHANGE_USERNAME_KEY =
+          "@rateLimitKeyResolver.currentUserKey()";
 
   public static final String STREAM_TOKEN_KEY =
           "@rateLimitKeyResolver.streamKey(#streamToken)";
