@@ -13,6 +13,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.UUID;
+
 import static org.dnd.configuration.limiting.RateLimitNames.*;
 
 @RequestMapping("/api/v1")
@@ -30,7 +32,7 @@ public class ShareController implements ShareApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<TrackShareResponse> publishTrack(Long trackId, PublishTrackRequest request) {
+  public ResponseEntity<TrackShareResponse> publishTrack(UUID trackId, PublishTrackRequest request) {
     TrackShareResponse trackShare = shareService.publish(trackId, request.getDescription());
     return ResponseEntity.status(HttpStatus.CREATED).body(trackShare);
   }
@@ -41,7 +43,7 @@ public class ShareController implements ShareApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Void> unpublishTrack(Long trackId) {
+  public ResponseEntity<Void> unpublishTrack(UUID trackId) {
     shareService.unpublish(trackId);
     return ResponseEntity.noContent().build();
   }
@@ -65,7 +67,7 @@ public class ShareController implements ShareApi {
           ratePerMethod = true
   )
   public ResponseEntity<Void> unsubscribeFromTrack(
-          Long trackId) {
+          UUID trackId) {
     shareService.unsubscribe(trackId);
     return ResponseEntity.noContent().build();
   }

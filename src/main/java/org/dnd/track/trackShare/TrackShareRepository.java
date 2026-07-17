@@ -7,9 +7,10 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
-public interface TrackShareRepository extends JpaRepository<TrackShareEntity, Long> {
+public interface TrackShareRepository extends JpaRepository<TrackShareEntity, UUID> {
   Optional<TrackShareEntity> findByShareCode(String shareCode);
 
   Boolean existsByShareCode(String shareCode);
@@ -19,5 +20,5 @@ public interface TrackShareRepository extends JpaRepository<TrackShareEntity, Lo
           delete from TrackWindowEntity tw
           where tw.track.id = :trackId
           """)
-  int deleteAllByTrackId(@Param("trackId") Long trackId);
+  int deleteAllByTrackId(@Param("trackId") UUID trackId);
 }

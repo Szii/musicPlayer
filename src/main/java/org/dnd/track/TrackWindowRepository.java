@@ -7,14 +7,15 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface TrackWindowRepository extends JpaRepository<TrackWindowEntity, Long> {
+public interface TrackWindowRepository extends JpaRepository<TrackWindowEntity, UUID> {
 
-  List<TrackWindowEntity> findByTrack_Id(Long trackId);
+  List<TrackWindowEntity> findByTrack_Id(UUID trackId);
 
-  Optional<TrackWindowEntity> findByIdAndTrack_Id(Long windowId, Long trackId);
+  Optional<TrackWindowEntity> findByIdAndTrack_Id(UUID windowId, UUID trackId);
 
-  void deleteByIdAndTrack_Id(Long windowId, Long trackId);
+  void deleteByIdAndTrack_Id(UUID windowId, UUID trackId);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
@@ -22,20 +23,20 @@ public interface TrackWindowRepository extends JpaRepository<TrackWindowEntity, 
           set b.selectedWindow = null
           where b.selectedWindow.id = :windowId
           """)
-  void clearSelectedWindowFromAllBoards(@Param("windowId") Long windowId);
+  void clearSelectedWindowFromAllBoards(@Param("windowId") UUID windowId);
 
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query("""
           delete from TrackWindowEntity tw
           where tw.track.id = :trackId
           """)
-  int deleteAllByTrackId(@Param("trackId") Long trackId);
+  int deleteAllByTrackId(@Param("trackId") UUID trackId);
 
   @Query("""
           select max(w.positionWithinTrack)
           from TrackWindowEntity w
           where w.track.id = :trackId
           """)
-  Optional<Integer> findMaxPositionWithinTrack(@Param("trackId") Long trackId);
+  Optional<Integer> findMaxPositionWithinTrack(@Param("trackId") UUID trackId);
 
 }

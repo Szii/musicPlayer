@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,13 +41,13 @@ public class TrackService {
   private final SecurityUtils securityUtils;
 
   @Transactional
-  public void deleteTrack(Long trackId) {
+  public void deleteTrack(UUID trackId) {
     log.debug("Deleting track with id {}", trackId);
 
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Track with id %d not found", trackId)));
+                    String.format("Track with id %s not found", trackId)));
 
     if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only delete tracks you own");
@@ -62,7 +63,7 @@ public class TrackService {
   @Transactional
   public Track addTrack(TrackRequest trackRequest) {
     log.debug("Adding track {}", trackRequest);
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     UserEntity owner = userRepository.getReferenceById(userId);
 
     if (!userRankEvaluatorService.canCreateTrack(owner)) {
@@ -79,7 +80,7 @@ public class TrackService {
   @Transactional
   public Track addTrackV2(CreateTrackRequestV2 trackRequest) {
     log.debug("Adding track {}", trackRequest);
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     UserEntity owner = userRepository.getReferenceById(userId);
 
     if (!userRankEvaluatorService.canCreateTrack(owner)) {
@@ -105,12 +106,12 @@ public class TrackService {
   }
 
   @Transactional
-  public Track updateTrack(Long trackId, UpdateTrackRequestV2 request) {
+  public Track updateTrack(UUID trackId, UpdateTrackRequestV2 request) {
     log.debug("Updating track with id {}", trackId);
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     TrackEntity entity = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Track with id %d not found", trackId)));
+                    String.format("Track with id %s not found", trackId)));
 
     if (!entity.getOwner().getId().equals(userId)) {
       throw new ForbiddenException("You can only update tracks you own");
@@ -133,7 +134,7 @@ public class TrackService {
 
   @Transactional(readOnly = true)
   public List<Track> getAllTracksForUser() {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     log.debug("Getting tracks for user with id {}", userId);
 
     return trackRepository.findAccessibleTracksForUser(userId).stream()
@@ -141,7 +142,7 @@ public class TrackService {
             .collect(Collectors.toList());
   }
 
-  private void removeTrackFromAllGroups(Long trackId) {
+  private void removeTrackFromAllGroups(UUID trackId) {
     List<GroupEntity> groups = groupRepository.findAllContainingTrack(trackId);
     for (GroupEntity group : groups) {
       group.getTracks().removeIf(t -> t.getId().equals(trackId));

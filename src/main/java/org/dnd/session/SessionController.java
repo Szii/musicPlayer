@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.util.UUID;
+
 import static org.dnd.configuration.limiting.RateLimitNames.*;
 
 @Controller
@@ -26,12 +28,12 @@ public class SessionController implements SessionsApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<SessionsResponse> deleteSession(Long sessionId) {
+  public ResponseEntity<SessionsResponse> deleteSession(UUID sessionId) {
     return ResponseEntity.ok(sessionService.deleteSession(sessionId));
   }
 
   @Override
-  public ResponseEntity<SessionResponse> getSessionById(Long sessionId) {
+  public ResponseEntity<SessionResponse> getSessionById(UUID sessionId) {
     return ResponseEntity.ok(sessionService.getSession(sessionId));
   }
 

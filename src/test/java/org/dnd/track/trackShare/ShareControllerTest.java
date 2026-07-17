@@ -19,6 +19,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankLimits;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -112,7 +113,7 @@ class ShareControllerTest extends DatabaseBase {
     PublishTrackRequest request = new PublishTrackRequest();
     request.setDescription("Non-existent track");
 
-    mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", 999999L)
+    mockMvc.perform(post("/api/v1/share/tracks/{trackId}/publish", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
@@ -263,7 +264,7 @@ class ShareControllerTest extends DatabaseBase {
 
   @Test
   void unpublishTrack_TrackNotFound() throws Exception {
-    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", 999999L)
+    mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
@@ -306,17 +307,19 @@ class ShareControllerTest extends DatabaseBase {
     mockMvc.perform(get("/api/v1/tracks/published")
                     .with(TestHelpers.authenticatedAs(otherUser)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.id == %d)].trackShare.subscriberCount", track.getId())
-                    .value(2));
+            .andExpect(jsonPath(
+                    "$[?(@.id == '%s')].trackShare.subscriberCount",
+                    track.getId()
+            ).value(Matchers.contains(2)));
 
-    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId())
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", track.getId().toString())
                     .with(TestHelpers.authenticatedAs(subscriber2)))
             .andExpect(status().isNoContent());
 
     mockMvc.perform(get("/api/v1/tracks/published")
                     .with(TestHelpers.authenticatedAs(otherUser)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.id == %d)].trackShare.subscriberCount", track.getId())
+            .andExpect(jsonPath("$[?(@.id == '%s')].trackShare.subscriberCount", track.getId().toString())
                     .value(1));
   }
 
@@ -446,7 +449,7 @@ class ShareControllerTest extends DatabaseBase {
 
   @Test
   void unsubscribeFromTrack_TrackNotFound() throws Exception {
-    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", 999999L)
+    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }

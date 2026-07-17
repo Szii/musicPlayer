@@ -16,10 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -77,9 +74,11 @@ class UserRankEvaluatorServiceTest {
   void normalUserCannotCreateSessionWhenLimitReached() {
     UserEntity user = mock(UserEntity.class);
 
-    when(user.getId()).thenReturn(1L);
+    UUID expectedUuid = UUID.randomUUID();
+
+    when(user.getId()).thenReturn(expectedUuid);
     when(user.getRank()).thenReturn(UserRank.NORMAL);
-    when(sessionRepository.findByOwner_Id(1L)).thenReturn(rawList(5));
+    when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(rawList(5));
 
     assertThat(service.canCreateSession(user)).isFalse();
   }
@@ -98,14 +97,18 @@ class UserRankEvaluatorServiceTest {
   void getLimitsForUserReturnsActualAndMaxValues() {
     UserEntity user = mock(UserEntity.class);
 
+    UUID boardId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
+
     TrackEntity track = trackWithWindows(3);
     BoardEntity board = new BoardEntity();
-    board.setId(1L);
+    board.setId(boardId);
     SessionEntity session = new SessionEntity();
-    session.setId(1L);
+    session.setId(sessionId);
     session.setBoards(Set.of(board));
 
-    when(user.getId()).thenReturn(1L);
+    UUID expectedUuid = UUID.randomUUID();
+    when(user.getId()).thenReturn(expectedUuid);
     when(user.getRank()).thenReturn(UserRank.NORMAL);
     when(user.getOwnedTracks()).thenReturn(Set.of(track));
     when(user.getBoards()).thenReturn(rawSet(3));
@@ -113,8 +116,8 @@ class UserRankEvaluatorServiceTest {
     when(user.getShares()).thenReturn(rawSet(10));
 
 
-    when(sessionRepository.countByOwner_Id(1L)).thenReturn(5L);
-    when(sessionRepository.findByOwner_Id(1L)).thenReturn(List.of(session));
+    when(sessionRepository.countByOwner_Id(expectedUuid)).thenReturn(5L);
+    when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(List.of(session));
 
     UserLimits result = service.getLimitsForUser(user);
 

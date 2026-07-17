@@ -23,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -128,7 +129,7 @@ class GroupControllerTest extends DatabaseBase {
     GroupRequest updateRequest = new GroupRequest()
             .listName("Updated Name");
 
-    mockMvc.perform(put("/api/v1/groups/{groupId}", 999L)
+    mockMvc.perform(put("/api/v1/groups/{groupId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
@@ -172,7 +173,7 @@ class GroupControllerTest extends DatabaseBase {
 
   @Test
   void deleteGroup_NotFound() throws Exception {
-    mockMvc.perform(delete("/api/v1/groups/{groupId}", 999L)
+    mockMvc.perform(delete("/api/v1/groups/{groupId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }

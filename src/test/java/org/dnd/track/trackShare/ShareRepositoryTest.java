@@ -14,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -128,7 +129,7 @@ class ShareRepositoryTest extends DatabaseBase {
   @Transactional
   void cascade_DeleteTrackDeletesShare() {
     TrackShareEntity saved = trackShareRepository.save(trackShare);
-    Long shareId = saved.getId();
+    UUID shareId = saved.getId();
     testTrack.setTrackShare(saved);
     saved.setTrack(testTrack);
     trackRepository.save(testTrack);

@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.dnd.configuration.limiting.RateLimitNames.*;
 
@@ -56,7 +57,7 @@ public class BoardController implements MusicBoardsApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<SessionResponse> deleteUserBoard(Long boardId) {
+  public ResponseEntity<SessionResponse> deleteUserBoard(UUID boardId) {
     return ResponseEntity.ok(boardSessionApplicationService.deleteBoardAndReturnSession(boardId));
   }
 
@@ -66,7 +67,7 @@ public class BoardController implements MusicBoardsApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Board> getUserBoard(Long boardId) throws Exception {
+  public ResponseEntity<Board> getUserBoard(UUID boardId) throws Exception {
     return ResponseEntity.ok(boardService.getUserBoard(boardId));
   }
 
@@ -76,7 +77,7 @@ public class BoardController implements MusicBoardsApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Board> updateUserBoard(Long boardId, BoardUpdateRequest boardRequest) {
+  public ResponseEntity<Board> updateUserBoard(UUID boardId, BoardUpdateRequest boardRequest) {
     return ResponseEntity.ok(boardService.updateUserBoard(boardId, boardRequest));
   }
 }

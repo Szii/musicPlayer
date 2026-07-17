@@ -3,6 +3,8 @@ package org.dnd.track;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.UUID;
+
 @Builder
 @Entity
 @Table(
@@ -21,8 +23,8 @@ import lombok.*;
 public class TrackWindowEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "track_id", nullable = false)

@@ -20,6 +20,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.UUID;
+
 import static org.hamcrest.Matchers.hasSize;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -136,7 +138,7 @@ class SessionControllerTest extends DatabaseBase {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.sessions").isArray())
             .andExpect(jsonPath("$.sessions", hasSize(1)))
-            .andExpect(jsonPath("$.sessions[0].sessionId").value(session.getId()))
+            .andExpect(jsonPath("$.sessions[0].sessionId").value(session.getId().toString()))
             .andExpect(jsonPath("$.sessions[0].sessionName").value("Updated Name"))
             .andExpect(jsonPath("$.sessions[0].sessionDescription").value("Updated description"));
   }
@@ -157,7 +159,7 @@ class SessionControllerTest extends DatabaseBase {
   @Test
   void updateSession_NotFound() throws Exception {
     SessionRequest request = new SessionRequest()
-            .sessionId(999L)
+            .sessionId(UUID.randomUUID())
             .sessionName("Updated Name")
             .sessionDescription("Updated description");
 
@@ -170,7 +172,7 @@ class SessionControllerTest extends DatabaseBase {
 
   @Test
   void deleteSession_NotFound() throws Exception {
-    mockMvc.perform(delete("/api/v1/sessions/{sessionId}", 999L)
+    mockMvc.perform(delete("/api/v1/sessions/{sessionId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }

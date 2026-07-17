@@ -9,6 +9,7 @@ import org.dnd.track.TrackRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -17,12 +18,12 @@ public class BoardEnricher {
   private final TrackRepository trackRepository;
   private final TrackMapper trackMapper;
 
-  public Board enrich(Board boardDto, BoardEntity boardEntity, Long userId) {
+  public Board enrich(Board boardDto, BoardEntity boardEntity, UUID userId) {
     boardDto.setAvailableTracks(getAvailableTracks(boardEntity, userId));
     return boardDto;
   }
 
-  public List<Track> getAvailableTracks(BoardEntity boardEntity, Long userId) {
+  public List<Track> getAvailableTracks(BoardEntity boardEntity, UUID userId) {
     List<TrackEntity> tracks;
 
     if (boardEntity.getSelectedGroup() != null) {

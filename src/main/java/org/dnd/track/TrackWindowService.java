@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 @AllArgsConstructor
 @Service
@@ -34,14 +35,14 @@ public class TrackWindowService {
   private final EntityManager entityManager;
 
   @Transactional
-  public Track deleteTrackWindow(Long trackId, Long windowId) {
+  public Track deleteTrackWindow(UUID trackId, UUID windowId) {
     log.debug("Deleting track point {} from track {}", windowId, trackId);
 
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     if (!track.getOwner().getId().equals(userId)) {
@@ -50,7 +51,7 @@ public class TrackWindowService {
 
     TrackWindowEntity point = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track point with id %d not found for track %d" .formatted(windowId, trackId)
+                    "Track point with id %s not found for track %s" .formatted(windowId, trackId)
             ));
 
     trackWindowRepository.clearSelectedWindowFromAllBoards(point.getId());
@@ -59,7 +60,7 @@ public class TrackWindowService {
 
     TrackEntity freshTrack = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     normalizeWindowPositions(freshTrack);
@@ -69,15 +70,15 @@ public class TrackWindowService {
 
   @Transactional
   public Track updateTrackWindow(
-          Long trackId,
-          Long windowId,
+          UUID trackId,
+          UUID windowId,
           TrackWindowRequest trackWindowRequest
   ) {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     if (!track.getOwner().getId().equals(userId)) {
@@ -86,7 +87,7 @@ public class TrackWindowService {
 
     TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track point with id %d not found" .formatted(windowId)
+                    "Track point with id %s not found" .formatted(windowId)
             ));
 
     validateWindowRange(track, trackWindowRequest);
@@ -107,19 +108,19 @@ public class TrackWindowService {
   }
 
   @Transactional
-  public Track reorderTrackWindows(Long trackId, ReorderTrackWindowsRequest request) {
-    Long userId = securityUtils.getCurrentUserId();
+  public Track reorderTrackWindows(UUID trackId, ReorderTrackWindowsRequest request) {
+    UUID userId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     if (!track.getOwner().getId().equals(userId)) {
       throw new ForbiddenException("You can only reorder windows on your own tracks");
     }
 
-    List<Long> requestedWindowIds = request.getWindowIds();
+    List<UUID> requestedWindowIds = request.getWindowIds();
 
     if (requestedWindowIds == null || requestedWindowIds.isEmpty()) {
       throw new BadRequestException("Window ids must not be empty");
@@ -143,12 +144,12 @@ public class TrackWindowService {
 
     List<TrackWindowEntity> orderedWindows = new ArrayList<>();
 
-    for (Long windowId : requestedWindowIds) {
+    for (UUID windowId : requestedWindowIds) {
       TrackWindowEntity window = windowsById.get(windowId);
 
       if (window == null) {
         throw new BadRequestException(
-                "Window with id %d does not belong to track %d" .formatted(windowId, trackId)
+                "Window with id %s does not belong to track %s" .formatted(windowId, trackId)
         );
       }
 
@@ -162,14 +163,14 @@ public class TrackWindowService {
 
   @Transactional
   public Track createTrackWindow(
-          Long trackId,
+          UUID trackId,
           TrackWindowRequest trackWindowRequest
   ) throws BadRequestException {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     if (!track.getOwner().getId().equals(userId)) {
@@ -195,10 +196,10 @@ public class TrackWindowService {
   }
 
   @Transactional
-  public TrackWindow getTrackWindow(Long trackId, Long windowId) {
+  public TrackWindow getTrackWindow(UUID trackId, UUID windowId) {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
@@ -207,7 +208,7 @@ public class TrackWindowService {
 
     TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track point with id %d not found" .formatted(windowId)
+                    "Track point with id %s not found" .formatted(windowId)
             ));
 
     log.debug("Retrieved track point with id {} for track {}", entity.getId(), trackId);
@@ -249,7 +250,7 @@ public class TrackWindowService {
                             )
                             .thenComparing(
                                     TrackWindowEntity::getId,
-                                    Comparator.nullsLast(Long::compareTo)
+                                    Comparator.nullsLast(UUID::compareTo)
                             )
             )
             .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
@@ -283,13 +284,13 @@ public class TrackWindowService {
     trackWindowRepository.flush();
   }
 
-  private Track reloadTrackDto(Long trackId, Long userId) {
+  private Track reloadTrackDto(UUID trackId, UUID userId) {
     trackWindowRepository.flush();
     entityManager.clear();
 
     TrackEntity freshTrack = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
-                    "Track with id %d not found" .formatted(trackId)
+                    "Track with id %s not found" .formatted(trackId)
             ));
 
     return trackMapper.toDto(freshTrack, userId);

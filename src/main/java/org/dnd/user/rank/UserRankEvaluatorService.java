@@ -89,7 +89,7 @@ public class UserRankEvaluatorService {
               UserWindowsLimit windowLimits = new UserWindowsLimit();
               windowLimits.setActualTrackWindows(actualWindows);
               windowLimits.setMaxTrackWindows(limits.maxWindows());
-              windowLimits.setTrackId(Math.toIntExact(track.getId()));
+              windowLimits.setTrackId(track.getId());
               windowLimits.setTrackWindowsLimitReached(
                       limits.isLimitReached(limits.maxWindows(), actualWindows)
               );
@@ -105,7 +105,7 @@ public class UserRankEvaluatorService {
               boardLimits.setActualBoards(actualBoards);
               boardLimits.setMaxBoards(limits.maxBoards());
               boardLimits.setBoardLimitReached(limits.isLimitReached(limits.maxBoards(), actualBoards));
-              boardLimits.setSessionId(Math.toIntExact(session.getId()));
+              boardLimits.setSessionId(session.getId());
               return boardLimits;
             }).toList();
 
