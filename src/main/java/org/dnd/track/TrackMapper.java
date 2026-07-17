@@ -9,6 +9,7 @@ import org.dnd.user.UserMapper;
 import org.mapstruct.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @Mapper(
         componentModel = "spring",
@@ -41,7 +42,7 @@ public interface TrackMapper {
           target = "owned",
           expression = "java(entity.getOwner().getId().equals(userId))"
   )
-  Track toDto(TrackEntity entity, Long userId);
+  Track toDto(TrackEntity entity, UUID userId);
 
   List<TrackEntity> toEntities(List<Track> dtos);
 

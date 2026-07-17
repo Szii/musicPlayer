@@ -21,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -57,8 +58,8 @@ class SessionServiceTest {
 
   @Test
   void getSession_whenNotFound_throwsNotFoundException() {
-    Long userId = 1L;
-    Long sessionId = 99L;
+    UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
 
     when(sessionRepository.findByIdAndOwner_Id(sessionId, userId))
             .thenReturn(Optional.empty());
@@ -73,7 +74,7 @@ class SessionServiceTest {
 
   @Test
   void createSession_savesSessionForCurrentUser() {
-    Long userId = 1L;
+    UUID userId = UUID.randomUUID();
 
     UserEntity user = new UserEntity();
     user.setId(userId);
@@ -103,8 +104,8 @@ class SessionServiceTest {
 
   @Test
   void updateSession_updatesExistingSession() {
-    Long userId = 1L;
-    Long sessionId = 10L;
+    UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
 
     SessionEntity existingSession = new SessionEntity();
     existingSession.setId(sessionId);
@@ -145,8 +146,8 @@ class SessionServiceTest {
 
   @Test
   void deleteSession_deletesSession() {
-    Long userId = 1L;
-    Long sessionId = 10L;
+    UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
 
     SessionEntity session = new SessionEntity();
     session.setId(sessionId);
@@ -169,9 +170,9 @@ class SessionServiceTest {
 
   @Test
   void getSession_enrichesBoards() {
-    Long userId = 1L;
-    Long sessionId = 10L;
-    Long boardId = 100L;
+    UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
+    UUID boardId = UUID.randomUUID();
 
     BoardEntity boardEntity = new BoardEntity();
     boardEntity.setId(boardId);

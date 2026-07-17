@@ -598,7 +598,7 @@ public class UserAuthService {
     return userRepository.save(user);
   }
 
-  private void validateEmailIsNotUsedByAnotherUser(String email, Long currentUserId) {
+  private void validateEmailIsNotUsedByAnotherUser(String email, UUID currentUserId) {
     userRepository.findByEmail(email)
             .filter(existingUser -> !existingUser.getId().equals(currentUserId))
             .ifPresent(existingUser -> {

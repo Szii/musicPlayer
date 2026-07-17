@@ -11,6 +11,8 @@ import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserEntity;
 
+import java.util.UUID;
+
 @Entity
 @Table(name = "boards")
 @Getter
@@ -19,8 +21,8 @@ import org.dnd.user.UserEntity;
 @AllArgsConstructor
 public class BoardEntity {
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "selected_track_id")

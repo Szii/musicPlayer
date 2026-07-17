@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.dnd.configuration.limiting.RateLimitNames.*;
 
@@ -49,7 +50,7 @@ public class GroupController implements MusicGroupsApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Void> deleteGroup(Long groupId) {
+  public ResponseEntity<Void> deleteGroup(UUID groupId) {
     groupService.deleteGroup(groupId);
     return ResponseEntity.noContent().build();
   }
@@ -60,7 +61,7 @@ public class GroupController implements MusicGroupsApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Group> updateGroup(Long groupId, GroupRequest groupRequest) {
+  public ResponseEntity<Group> updateGroup(UUID groupId, GroupRequest groupRequest) {
     return ResponseEntity.ok(groupService.updateGroup(groupId, groupRequest));
   }
 }

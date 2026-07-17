@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -41,7 +42,7 @@ public class BoardService {
 
   @Transactional(readOnly = true)
   public List<Board> getUserBoards() {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
 
     log.debug("Getting boards for user with id {}", userId);
 
@@ -51,33 +52,33 @@ public class BoardService {
   }
 
   @Transactional(readOnly = true)
-  public Board getUserBoard(Long boardId) {
-    Long userId = securityUtils.getCurrentUserId();
+  public Board getUserBoard(UUID boardId) {
+    UUID userId = securityUtils.getCurrentUserId();
 
     log.debug("Getting single board {} for user {}", boardId, userId);
 
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Board with id %d not found for user %d", boardId, userId)
+                    String.format("Board with id %s not found for user %s", boardId, userId)
             ));
 
     return toEnrichedDto(board, userId);
   }
 
   @Transactional
-  public Long createUserBoard(BoardCreateRequest request) {
-    Long userId = securityUtils.getCurrentUserId();
+  public UUID createUserBoard(BoardCreateRequest request) {
+    UUID userId = securityUtils.getCurrentUserId();
 
     log.debug("Creating board for user with id {}", userId);
 
     UserEntity owner = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("User with id %d not found", userId)
+                    String.format("User with id %s not found", userId)
             ));
 
     SessionEntity session = sessionRepository.findByIdAndOwner_Id(request.getSessionId(), userId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Session with id %d not found for user %d", request.getSessionId(), userId)
+                    String.format("Session with id %s not found for user %s", request.getSessionId(), userId)
             ));
 
     if (!userRankEvaluatorService.canCreateBoardForSession(owner, session)) {
@@ -100,25 +101,25 @@ public class BoardService {
   }
 
   @Transactional
-  public Long deleteUserBoard(Long boardId) {
-    Long userId = securityUtils.getCurrentUserId();
+  public UUID deleteUserBoard(UUID boardId) {
+    UUID userId = securityUtils.getCurrentUserId();
     log.debug("Deleting board {} for user {}", boardId, userId);
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Board with id %d not found for user %d", boardId, userId)
+                    String.format("Board with id %s not found for user %s", boardId, userId)
             ));
     boardRepository.delete(board);
     return board.getSession().getId();
   }
 
   @Transactional
-  public Board updateUserBoard(Long boardId, BoardUpdateRequest request) {
-    Long userId = securityUtils.getCurrentUserId();
+  public Board updateUserBoard(UUID boardId, BoardUpdateRequest request) {
+    UUID userId = securityUtils.getCurrentUserId();
     log.debug("Updating board {} for user {}", boardId, userId);
 
     BoardEntity board = boardRepository.findByIdAndOwner_Id(boardId, userId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Board with id %d not found for user %d", boardId, userId)
+                    String.format("Board with id %s not found for user %s", boardId, userId)
             ));
 
     boardMapper.updateBoardFromRequest(request, board);
@@ -131,48 +132,48 @@ public class BoardService {
     return toEnrichedDto(savedBoard, userId);
   }
 
-  private void setTrackIfExist(Long selectedTrackId, BoardEntity board) {
+  private void setTrackIfExist(UUID selectedTrackId, BoardEntity board) {
     if (selectedTrackId == null) {
       board.setSelectedTrack(null);
       return;
     }
 
-    Long currentUserId = securityUtils.getCurrentUserId();
+    UUID currentUserId = securityUtils.getCurrentUserId();
 
     TrackEntity track = trackRepository.findAccessibleByIdAndUserId(selectedTrackId, currentUserId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Track with id %d not found", selectedTrackId)
+                    String.format("Track with id %s not found", selectedTrackId)
             ));
 
     board.setSelectedTrack(track);
   }
 
-  private void setGroupIfExist(Long selectedGroupId, BoardEntity board) {
+  private void setGroupIfExist(UUID selectedGroupId, BoardEntity board) {
     if (selectedGroupId == null) {
       board.setSelectedGroup(null);
       return;
     }
     GroupEntity group = groupRepository.findByIdAndOwner_Id(selectedGroupId, securityUtils.getCurrentUserId())
-            .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", selectedGroupId)));
+            .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", selectedGroupId)));
     board.setSelectedGroup(group);
 
   }
 
-  private void setWindowIfExist(Long selectedWindowId, BoardEntity board) {
+  private void setWindowIfExist(UUID selectedWindowId, BoardEntity board) {
     if (selectedWindowId == null) {
       board.setSelectedWindow(null);
       return;
     }
     TrackWindowEntity window = trackWindowRepository.findById(selectedWindowId)
-            .orElseThrow(() -> new NotFoundException(String.format("Window with id %d not found", selectedWindowId)));
+            .orElseThrow(() -> new NotFoundException(String.format("Window with id %s not found", selectedWindowId)));
     if (board.getSelectedTrack() != null && !board.getSelectedTrack().getTrackWindows().contains(window)) {
-      throw new NotFoundException(String.format("Window with id %d not found", selectedWindowId));
+      throw new NotFoundException(String.format("Window with id %s not found", selectedWindowId));
     }
 
     board.setSelectedWindow(window);
   }
 
-  private Board toEnrichedDto(BoardEntity boardEntity, Long userId) {
+  private Board toEnrichedDto(BoardEntity boardEntity, UUID userId) {
     Board boardDto = boardMapper.toDto(boardEntity);
     return boardEnricher.enrich(boardDto, boardEntity, userId);
   }

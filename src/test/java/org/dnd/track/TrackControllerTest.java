@@ -28,6 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -80,7 +81,7 @@ class TrackControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[*].trackName").value(containsInAnyOrder("T1", "T2")))
-            .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(testUser.getId().intValue()))));
+            .andExpect(jsonPath("$[*].ownerId").value(everyItem(is(testUser.getId()))));
   }
 
   @Test
@@ -355,7 +356,7 @@ class TrackControllerTest extends DatabaseBase {
 
   @Test
   void deleteTrack_NotFound() throws Exception {
-    mockMvc.perform(delete("/api/v1/tracks/{trackId}", 999999L)
+    mockMvc.perform(delete("/api/v1/tracks/{trackId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
@@ -386,7 +387,7 @@ class TrackControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value(track.getId().intValue()))
+            .andExpect(jsonPath("$.id").value(track.getId().toString()))
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", hasSize(1)))
             .andExpect(jsonPath("$.trackWindows[0].name").value("Intro"))
@@ -528,7 +529,7 @@ class TrackControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(update)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.trackWindows[*].id", hasItem(point.getId().intValue())))
+            .andExpect(jsonPath("$.trackWindows[*].id", hasItem(point.getId().toString())))
             .andExpect(jsonPath("$.trackWindows[0].name").value("Intro Updated"))
             .andExpect(jsonPath("$.trackWindows[0].positionFrom").value(20))
             .andExpect(jsonPath("$.trackWindows[0].positionTo").value(45))
@@ -608,9 +609,9 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", hasSize(3)))
             .andExpect(jsonPath("$.trackWindows[*].id", contains(
-                    third.getId().intValue(),
-                    first.getId().intValue(),
-                    second.getId().intValue()
+                    third.getId().toString(),
+                    first.getId().toString(),
+                    second.getId().toString()
             )))
             .andExpect(jsonPath("$.trackWindows[*].positionWithinTrack", contains(1, 2, 3)));
 
@@ -677,8 +678,8 @@ class TrackControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.trackWindows").isArray())
             .andExpect(jsonPath("$.trackWindows", hasSize(2)))
             .andExpect(jsonPath("$.trackWindows[*].id", contains(
-                    first.getId().intValue(),
-                    third.getId().intValue()
+                    first.getId().toString(),
+                    third.getId().toString()
             )))
             .andExpect(jsonPath("$.trackWindows[*].positionWithinTrack", contains(1, 2)));
 
@@ -736,9 +737,9 @@ class TrackControllerTest extends DatabaseBase {
   @Test
   void reorderTrackWindows_NotFound_WhenTrackDoesNotExist() throws Exception {
     ReorderTrackWindowsRequest req = new ReorderTrackWindowsRequest()
-            .windowIds(List.of(1L, 2L));
+            .windowIds(List.of(UUID.randomUUID(), UUID.randomUUID()));
 
-    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", 999999L)
+    mockMvc.perform(patch("/api/v1/tracks/{trackId}/windows/reorder", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))

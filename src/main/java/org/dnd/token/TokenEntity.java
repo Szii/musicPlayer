@@ -5,6 +5,7 @@ import lombok.*;
 import org.dnd.user.UserEntity;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "tokens")
@@ -16,8 +17,8 @@ import java.time.LocalDateTime;
 public class TokenEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
   @Column(name = "token_hash", nullable = false, unique = true, length = 64)
   private String tokenHash;

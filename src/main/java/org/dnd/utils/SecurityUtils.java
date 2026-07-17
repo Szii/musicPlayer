@@ -19,7 +19,7 @@ public class SecurityUtils {
 
   private final UserRepository userRepository;
 
-  public Long getCurrentUserId() {
+  public UUID getCurrentUserId() {
     return getCurrentUserEntity().getId();
   }
 

@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.dnd.configuration.limiting.RateLimitNames.*;
 
@@ -45,7 +46,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> reorderTrackWindows(Long trackId, ReorderTrackWindowsRequest reorderTrackWindowsRequest) throws Exception {
+  public ResponseEntity<Track> reorderTrackWindows(UUID trackId, ReorderTrackWindowsRequest reorderTrackWindowsRequest) throws Exception {
     return ResponseEntity.ok(trackWindowService.reorderTrackWindows(trackId, reorderTrackWindowsRequest));
   }
 
@@ -75,7 +76,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Void> deleteTrack(Long trackId) throws Exception {
+  public ResponseEntity<Void> deleteTrack(UUID trackId) throws Exception {
     trackService.deleteTrack(trackId);
     return ResponseEntity.noContent().build();
   }
@@ -86,7 +87,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> updateTrack(Long trackId, UpdateTrackRequestV2 trackRequest) throws Exception {
+  public ResponseEntity<Track> updateTrack(UUID trackId, UpdateTrackRequestV2 trackRequest) throws Exception {
     return ResponseEntity.ok().body(trackService.updateTrack(trackId, trackRequest));
   }
 
@@ -96,7 +97,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> updateTrackWindow(Long trackId, Long pointId, TrackWindowRequest trackRequest) throws Exception {
+  public ResponseEntity<Track> updateTrackWindow(UUID trackId, UUID pointId, TrackWindowRequest trackRequest) throws Exception {
     return ResponseEntity.ok().body(trackWindowService.updateTrackWindow(trackId, pointId, trackRequest));
   }
 
@@ -106,7 +107,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> deleteTrackWindow(Long trackId, Long pointId) throws Exception {
+  public ResponseEntity<Track> deleteTrackWindow(UUID trackId, UUID pointId) throws Exception {
     return ResponseEntity.ok().body(trackWindowService.deleteTrackWindow(trackId, pointId));
   }
 
@@ -136,7 +137,7 @@ public class TrackController implements MusicTracksApi {
           cacheKey = CURRENT_USER_KEY,
           ratePerMethod = true
   )
-  public ResponseEntity<Track> createTrackWindow(Long trackId, TrackWindowRequest trackRequest) throws Exception {
+  public ResponseEntity<Track> createTrackWindow(UUID trackId, TrackWindowRequest trackRequest) throws Exception {
     return ResponseEntity.ok().body(trackWindowService.createTrackWindow(trackId, trackRequest));
   }
 }

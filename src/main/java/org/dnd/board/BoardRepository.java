@@ -7,18 +7,19 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
+public interface BoardRepository extends JpaRepository<BoardEntity, UUID> {
 
-  List<BoardEntity> findByOwner_Id(Long ownerId);
+  List<BoardEntity> findByOwner_Id(UUID ownerId);
 
-  Optional<BoardEntity> findByIdAndOwner_Id(Long boardId, Long ownerId);
+  Optional<BoardEntity> findByIdAndOwner_Id(UUID boardId, UUID ownerId);
 
-  boolean existsByIdAndOwner_Id(Long boardId, Long ownerId);
+  boolean existsByIdAndOwner_Id(UUID boardId, UUID ownerId);
 
   @Modifying
   @Query("update BoardEntity b set b.selectedGroup = null where b.selectedGroup.id = :groupId")
-  void clearSelectedGroupFromBoards(@Param("groupId") Long groupId);
+  void clearSelectedGroupFromBoards(@Param("groupId") UUID groupId);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
@@ -26,7 +27,7 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
           set b.selectedTrack = null, b.selectedWindow = null
           where b.selectedTrack.id = :trackId
           """)
-  void clearSelectedTrackFromAllBoards(@Param("trackId") Long trackId);
+  void clearSelectedTrackFromAllBoards(@Param("trackId") UUID trackId);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
@@ -35,8 +36,8 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
           where b.selectedTrack.id = :trackId
             and b.owner.id = :ownerId
           """)
-  void clearSelectedTrackFromBoardsOwnedByUser(@Param("trackId") Long trackId,
-                                               @Param("ownerId") Long ownerId);
+  void clearSelectedTrackFromBoardsOwnedByUser(@Param("trackId") UUID trackId,
+                                               @Param("ownerId") UUID ownerId);
 
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("""
@@ -46,8 +47,8 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
             and b.owner.id != :ownerId
           """)
   void clearSelectedTrackFromAllBoardsNotOwnedByUser(
-          @Param("trackId") Long trackId,
-          @Param("ownerId") Long ownerId
+          @Param("trackId") UUID trackId,
+          @Param("ownerId") UUID ownerId
   );
 
   @Modifying(flushAutomatically = true, clearAutomatically = true)
@@ -60,6 +61,6 @@ public interface BoardRepository extends JpaRepository<BoardEntity, Long> {
             where tw.track.id = :trackId
           )
           """)
-  int clearSelectedWindowForTrack(@Param("trackId") Long trackId);
+  int clearSelectedWindowForTrack(@Param("trackId") UUID trackId);
 
 }

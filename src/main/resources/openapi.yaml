@@ -32,9 +32,8 @@ components:
       required: true
       description: ID of the track
       schema:
-        type: integer
-        format: int64
-        example: 1
+        type: string
+        format: uuid
 
     WindowId:
       name: windowId
@@ -42,9 +41,8 @@ components:
       required: true
       description: ID of the track window
       schema:
-        type: integer
-        format: int64
-        example: 1
+        type: string
+        format: uuid
 
     UserId:
       name: userId
@@ -52,9 +50,8 @@ components:
       required: true
       description: ID of the user
       schema:
-        type: integer
-        format: int64
-        example: 1
+        type: string
+        format: uuid
 
     BoardId:
       name: boardId
@@ -62,9 +59,8 @@ components:
       required: true
       description: ID of the board
       schema:
-        type: integer
-        format: int64
-        example: 1
+        type: string
+        format: uuid
 
     VerificationToken:
       name: verificationToken
@@ -81,9 +77,8 @@ components:
       required: true
       description: ID of the session
       schema:
-        type: integer
-        format: int64
-        example: 1
+        type: string
+        format: uuid
 
     StreamToken:
       name: streamToken
@@ -100,9 +95,8 @@ components:
       required: true
       description: ID of the group
       schema:
-        type: integer
-        format: int64
-        example: 1
+        type: string
+        format: uuid
 
   schemas:
     ChangeUsernameRequest:
@@ -170,10 +164,9 @@ components:
       description: Basic user representation
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Unique identifier of the user
-          example: 1
         name:
           type: string
           description: Unique username
@@ -198,10 +191,9 @@ components:
       description: Basic user representation
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Unique identifier of the user
-          example: 1
         name:
           type: string
           description: Unique username
@@ -252,9 +244,9 @@ components:
       description: User-specific limits and quotas
       properties:
         sessionId:
-          type: integer
+          type: string
+          format: uuid
           description: Id of session of the board
-          example: 1
         maxBoards:
           type: integer
           description: Maximum number of boards the user can create
@@ -324,9 +316,9 @@ components:
       description: User-specific limits and quotas
       properties:
         trackId:
-          type: integer
+          type: string
+          format: uuid
           description: Id of the track
-          example: 1
         maxTrackWindows:
           type: integer
           description: Maximum number of windows per track
@@ -535,8 +527,8 @@ components:
         - email
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         name:
           type: string
         email:
@@ -559,10 +551,9 @@ components:
       description: A music track
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Unique identifier (auto-generated)
-          example: 1
         trackName:
           type: string
           description: Name or title of the track
@@ -595,9 +586,9 @@ components:
           type: array
           description: IDs of groups this track belongs to
           items:
-            type: integer
-            format: int64
-          example: [3, 7, 12]
+            type: string
+            format: uuid
+          example: ["3fa85f64-5717-4562-b3fc-2c963f66afa6"]
         trackWindows:
           type: array
           description: Windows of interest for the track
@@ -611,8 +602,8 @@ components:
       description: Window of interest in track
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Unique identifier (auto-generated)
         name:
           type: string
@@ -689,12 +680,8 @@ components:
           description: Window ids in the desired order. The first id receives positionWithinTrack 1.
           minItems: 1
           items:
-            type: integer
-            format: int64
-          example:
-            - 12
-            - 8
-            - 15
+            type: string
+            format: uuid
 
     PublishTrackRequest:
       type: object
@@ -719,8 +706,8 @@ components:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         description:
           type: string
         shareCode:
@@ -734,10 +721,9 @@ components:
       description: A playlist or group of tracks
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Unique identifier (auto-generated)
-          example: 1
         listName:
           type: string
           description: Name of the playlist or group
@@ -764,19 +750,18 @@ components:
         trackIds:
           type: array
           items:
-            type: integer
-            format: int64
+            type: string
+            format: uuid
 
     Board:
       type: object
       description: A playback board
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Unique identifier (auto-generated)
           readOnly: true
-          example: 1
         name:
           type: string
           description: Name of the board
@@ -821,8 +806,8 @@ components:
           description: Play the windows of track in the sequence
           example: false
         sessionId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           nullable: false
           description: Id of the session this board belongs to
 
@@ -837,14 +822,14 @@ components:
           description: Name of the board
           example: "Default Playback"
         selectedTrackId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         selectedGroupId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         sessionId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           nullable: false
           description: Id of the session this board belongs to
         volume:
@@ -868,14 +853,14 @@ components:
       required: []
       properties:
         selectedTrackId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         selectedGroupId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
         selectedWindowId:
-         type: integer
-         format: int64
+         type: string
+         format: uuid
         volume:
           type: integer
           description: Playback volume (0-100)
@@ -914,11 +899,10 @@ components:
         Request to start playback. If track window is omitted, play whole selected track
       properties:
         windowId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           nullable: true
           description: Track window to play
-          example: 1
 
     SeekRequest:
       type: object
@@ -960,10 +944,9 @@ components:
         - sessionName
       properties:
         sessionId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Id of the session
-          example: 1
         sessionName:
             type: string
             maxLength: 30
@@ -990,10 +973,9 @@ components:
       description: Response with session details
       properties:
         sessionId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           description: Id of the session
-          example: 1
         sessionName:
           type: string
           description: Name of the session
@@ -1018,9 +1000,8 @@ components:
         - peaks
       properties:
         trackId:
-          type: integer
-          format: int64
-          example: 1
+          type: string
+          format: uuid
         durationS:
           type: integer
           format: int64
@@ -1061,9 +1042,8 @@ components:
         - rangeSupported
       properties:
         trackId:
-          type: integer
-          format: int64
-          example: 1
+          type: string
+          format: uuid
         durationS:
           type: integer
           format: int64
@@ -1120,17 +1100,15 @@ components:
           description: URL to stream the currently playing audio for the board
           example: "/boards/1/stream?streamToken=abc123"
         boardId:
-          type: integer
-          format: int64
-          example: 1
+          type: string
+          format: uuid
         status:
           $ref: '#/components/schemas/PlaybackStatus'
         trackId:
-          type: integer
-          format: int64
+          type: string
+          format: uuid
           nullable: true
           description: Currently loaded/playing track id
-          example: 1
         positionS:
           type: integer
           format: int64

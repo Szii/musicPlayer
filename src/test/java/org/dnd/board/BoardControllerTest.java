@@ -32,6 +32,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -123,7 +124,7 @@ class BoardControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.sessionId").value(testSession.getId()))
+            .andExpect(jsonPath("$.sessionId").value(testSession.getId().toString()))
             .andExpect(jsonPath("$.boards").isArray())
             .andExpect(jsonPath("$.boards.size()").value(1))
             .andExpect(jsonPath("$.boards[0].name").value("Test Board"))
@@ -223,7 +224,7 @@ class BoardControllerTest extends DatabaseBase {
             .volume(100)
             .repeat(true);
 
-    mockMvc.perform(put("/api/v1/boards/{boardId}", 999L)
+    mockMvc.perform(put("/api/v1/boards/{boardId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
@@ -290,7 +291,7 @@ class BoardControllerTest extends DatabaseBase {
 
   @Test
   void deleteUserBoard_NotFound() throws Exception {
-    mockMvc.perform(delete("/api/v1/boards/{boardId}", 999L)
+    mockMvc.perform(delete("/api/v1/boards/{boardId}", UUID.randomUUID())
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isNotFound());
   }
@@ -377,7 +378,7 @@ class BoardControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.availableTracks.length()").value(1))
-            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()));
+            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId().toString()));
 
   }
 
@@ -437,7 +438,7 @@ class BoardControllerTest extends DatabaseBase {
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.availableTracks.length()").value(1))
-            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId()))
+            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId().toString()))
             .andExpect(jsonPath("$.selectedTrack.trackName").value(trackInGroup.getTrackName()))
             .andExpect(jsonPath("$.selectedWindow.name").value(trackWindow.getName()));
 
@@ -543,8 +544,8 @@ class BoardControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.availableTracks.length()").value(2))
             .andExpect(jsonPath("$.availableTracks[*].id").value(
                     Matchers.containsInAnyOrder(
-                            trackInGroup.getId().intValue(),
-                            trackWhichIsNotInGroup.getId().intValue()
+                            trackInGroup.getId().toString(),
+                            trackWhichIsNotInGroup.getId().toString()
                     )
             ));
 

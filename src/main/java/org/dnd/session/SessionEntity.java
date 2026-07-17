@@ -9,6 +9,7 @@ import org.dnd.board.BoardEntity;
 import org.dnd.user.UserEntity;
 
 import java.util.Set;
+import java.util.UUID;
 
 //Groups for boards
 @Entity
@@ -20,8 +21,8 @@ import java.util.Set;
 public class SessionEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
   @Column(nullable = false)
   private String name;

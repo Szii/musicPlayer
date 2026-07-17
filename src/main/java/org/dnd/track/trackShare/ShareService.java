@@ -41,7 +41,7 @@ public class ShareService {
 
 
   @Transactional
-  public TrackShareResponse publish(Long trackId, String description) {
+  public TrackShareResponse publish(UUID trackId, String description) {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
@@ -65,7 +65,7 @@ public class ShareService {
 
   @Transactional
   public void subscribe(String shareCode) {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     TrackShareEntity trackShare = trackShareRepository.findByShareCode(shareCode)
             .orElseThrow(() -> new NotFoundException("Invalid share code: " + shareCode));
 
@@ -84,8 +84,8 @@ public class ShareService {
   }
 
   @Transactional
-  public void unsubscribe(Long trackId) {
-    Long userId = securityUtils.getCurrentUserId();
+  public void unsubscribe(UUID trackId) {
+    UUID userId = securityUtils.getCurrentUserId();
 
     UserEntity user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
@@ -112,7 +112,7 @@ public class ShareService {
   }
 
   @Transactional
-  public void unpublish(Long trackId) {
+  public void unpublish(UUID trackId) {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
@@ -143,7 +143,7 @@ public class ShareService {
 
   @Transactional(readOnly = true)
   public List<Track> getSubscribedTracks() {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     UserEntity user = userRepository.findById(userId)
             .orElseThrow(() -> new NotFoundException("User not found with id: " + userId));
 
@@ -166,7 +166,7 @@ public class ShareService {
 
   @Transactional(readOnly = true)
   public List<Track> getTracksPublishedByCurrentUser() {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
 
     Set<TrackShareEntity> allShares = new HashSet<>(trackShareRepository.findAll());
 

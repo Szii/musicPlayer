@@ -10,6 +10,7 @@ import org.dnd.user.UserEntity;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "groups")
@@ -20,8 +21,8 @@ import java.util.Set;
 public class GroupEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
   @Column(name = "list_name", nullable = false)
   private String listName;

@@ -6,10 +6,11 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
+public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
 
-  List<TrackEntity> findByOwner_Id(Long ownerId);
+  List<TrackEntity> findByOwner_Id(UUID ownerId);
 
   @Query("""
           select distinct t
@@ -19,20 +20,20 @@ public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
           where t.owner.id = :userId
              or u.id = :userId
           """)
-  List<TrackEntity> findAllAccessibleByUserId(@Param("userId") Long userId);
+  List<TrackEntity> findAllAccessibleByUserId(@Param("userId") UUID userId);
 
-  List<TrackEntity> findByGroups_Id(Long groupId);
+  List<TrackEntity> findByGroups_Id(UUID groupId);
 
-  boolean existsByIdAndOwner_Id(Long trackId, Long ownerId);
+  boolean existsByIdAndOwner_Id(UUID trackId, UUID ownerId);
 
-  Optional<TrackEntity> findByIdAndOwner_Id(Long trackId, Long ownerId);
+  Optional<TrackEntity> findByIdAndOwner_Id(UUID trackId, UUID ownerId);
 
   @Query("""
           select distinct t
           from TrackEntity t
           where t.owner.id = :userId
           """)
-  List<TrackEntity> findAccessibleTracksForUser(@Param("userId") Long userId);
+  List<TrackEntity> findAccessibleTracksForUser(@Param("userId") UUID userId);
 
   @Query("""
           select distinct t
@@ -46,8 +47,8 @@ public interface TrackRepository extends JpaRepository<TrackEntity, Long> {
             )
           """)
   Optional<TrackEntity> findAccessibleByIdAndUserId(
-          @Param("trackId") Long trackId,
-          @Param("userId") Long userId
+          @Param("trackId") UUID trackId,
+          @Param("userId") UUID userId
   );
 
 }

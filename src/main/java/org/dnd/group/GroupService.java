@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -34,17 +35,17 @@ public class GroupService {
 
   @Transactional(readOnly = true)
   public List<Group> getUserGroups() {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     log.debug("Getting groups for user with id {}", userId);
     return groupMapper.toDtos(groupRepository.findAccessibleGroupsForUser(userId));
   }
 
   @Transactional
   public Group createGroup(GroupRequest request) {
-    Long userId = securityUtils.getCurrentUserId();
+    UUID userId = securityUtils.getCurrentUserId();
     log.debug("Creating group with name {}", request.getListName());
     UserEntity owner = userRepository.findById(userId)
-            .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", userId)));
+            .orElseThrow(() -> new NotFoundException(String.format("User with id %s not found",userId)));
 
     if (!userRankEvaluatorService.canCreateGroup(owner)) {
       throw new LimitReachedException("Group limit reached");
@@ -58,12 +59,12 @@ public class GroupService {
   }
 
   @Transactional
-  public void deleteGroup(Long groupId) {
+  public void deleteGroup(UUID groupId) {
     log.debug("Deleting group with id {}", groupId);
 
     GroupEntity group = groupRepository.findById(groupId)
             .orElseThrow(() -> new NotFoundException(
-                    String.format("Group with id %d not found", groupId)));
+                    String.format("Group with id %s not found", groupId)));
 
     if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only delete your own groups");
@@ -77,10 +78,10 @@ public class GroupService {
   }
 
   @Transactional
-  public Group updateGroup(Long groupId, GroupRequest request) {
+  public Group updateGroup(UUID groupId, GroupRequest request) {
     log.debug("Updating group with id {}", groupId);
     GroupEntity group = groupRepository.findById(groupId)
-            .orElseThrow(() -> new NotFoundException(String.format("Group with id %d not found", groupId)));
+            .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
 
     if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
       throw new ForbiddenException("You can only update your own groups");
@@ -90,7 +91,7 @@ public class GroupService {
 
     tracks.forEach(track -> {
       if (!validateTrackAccessForCurrentUser(track)) {
-        throw new ForbiddenException(String.format("You can only add tracks you own. Track id %d is not accessible", track.getId()));
+        throw new ForbiddenException(String.format("You can only add tracks you own. Track id %s is not accessible", track.getId()));
       }
     });
 
@@ -101,7 +102,7 @@ public class GroupService {
 
   private boolean validateTrackAccessForCurrentUser(TrackEntity track) {
     UserEntity user = userRepository.findById(securityUtils.getCurrentUserId())
-            .orElseThrow(() -> new NotFoundException(String.format("User with id %d not found", securityUtils.getCurrentUserId())));
+            .orElseThrow(() -> new NotFoundException(String.format("User with id %s not found",securityUtils.getCurrentUserId())));
     return track.getOwner().getId().equals(securityUtils.getCurrentUserId()) ||
             (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(user));
   }

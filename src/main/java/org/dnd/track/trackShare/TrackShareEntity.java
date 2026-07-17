@@ -10,6 +10,7 @@ import org.dnd.user.UserEntity;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Entity
 @Table(name = "track_shares")
@@ -19,8 +20,8 @@ import java.util.Set;
 @AllArgsConstructor
 public class TrackShareEntity {
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private UUID id;
 
   @Column
   private String description;
