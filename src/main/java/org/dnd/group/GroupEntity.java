@@ -31,11 +31,18 @@ public class GroupEntity {
   @JoinColumn(name = "owner_id", nullable = false)
   private UserEntity owner;
 
-  @ManyToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-  @JoinTable(
-          name = "group_tracks",
-          joinColumns = @JoinColumn(name = "group_id"),
-          inverseJoinColumns = @JoinColumn(name = "track_id")
-  )
-  private Set<TrackEntity> tracks = new HashSet<>();
+  @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+  private Set<GroupTrackEntity> groupTracks = new HashSet<>();
+
+  public void addTrack(TrackEntity track, String customName) {
+    groupTracks.add(new GroupTrackEntity(this, track, customName));
+  }
+
+  public void addTrack(TrackEntity track) {
+    addTrack(track, null);
+  }
+
+  public void removeTrack(UUID trackId) {
+    groupTracks.removeIf(groupTrack -> groupTrack.getTrack().getId().equals(trackId));
+  }
 }

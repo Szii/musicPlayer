@@ -145,7 +145,7 @@ public class TrackService {
   private void removeTrackFromAllGroups(UUID trackId) {
     List<GroupEntity> groups = groupRepository.findAllContainingTrack(trackId);
     for (GroupEntity group : groups) {
-      group.getTracks().removeIf(t -> t.getId().equals(trackId));
+      group.removeTrack(trackId);
     }
   }
 

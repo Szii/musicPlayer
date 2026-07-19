@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.dnd.group.GroupEntity;
+import org.dnd.group.GroupTrackEntity;
 import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 
@@ -50,8 +50,8 @@ public class TrackEntity {
   @JoinColumn(name = "owner_id", nullable = false)
   private UserEntity owner;
 
-  @ManyToMany(mappedBy = "tracks")
-  private Set<GroupEntity> groups = new HashSet<>();
+  @OneToMany(mappedBy = "track")
+  private Set<GroupTrackEntity> groupTracks = new HashSet<>();
 
   @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true)
   @OrderBy("positionWithinTrack  ASC, name ASC")

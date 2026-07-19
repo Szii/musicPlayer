@@ -22,7 +22,7 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
           """)
   List<TrackEntity> findAllAccessibleByUserId(@Param("userId") UUID userId);
 
-  List<TrackEntity> findByGroups_Id(UUID groupId);
+  List<TrackEntity> findByGroupTracks_Group_Id(UUID groupId);
 
   boolean existsByIdAndOwner_Id(UUID trackId, UUID ownerId);
 
