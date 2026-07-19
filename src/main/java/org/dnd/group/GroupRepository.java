@@ -38,7 +38,8 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
   @Query("""
           select distinct g
           from GroupEntity g
-          join g.tracks t
+          join g.groupTracks gt
+          join gt.track t
           where t.id = :trackId
           """)
   List<GroupEntity> findAllContainingTrack(@Param("trackId") UUID trackId);
@@ -46,7 +47,8 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
   @Query("""
           select distinct g
           from GroupEntity g
-          join g.tracks t
+          join g.groupTracks gt
+          join gt.track t
           where t.id = :trackId
             and g.owner.id = :ownerId
           """)
@@ -56,7 +58,8 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
   @Query("""
           select distinct g
           from GroupEntity g
-          join g.tracks t
+          join g.groupTracks gt
+          join gt.track t
           where t.id = :trackId
             and g.owner.id <> :ownerId
           """)

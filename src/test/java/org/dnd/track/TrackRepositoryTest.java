@@ -50,8 +50,10 @@ class TrackRepositoryTest extends DatabaseBase {
     track.setDuration(120);
     track.setOwner(owner);
     track.setTrackOriginalName("name");
-    track.getGroups().add(group);
     track = trackRepository.save(track);
+
+    group.addTrack(track);
+    groupRepository.save(group);
 
     List<TrackEntity> ownerTracks = trackRepository.findByOwner_Id(owner.getId());
     assertThat(ownerTracks).hasSize(1);

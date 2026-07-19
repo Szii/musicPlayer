@@ -31,7 +31,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -360,7 +359,8 @@ class BoardControllerTest extends DatabaseBase {
     GroupEntity group = new GroupEntity();
     group.setListName("Test Group");
     group.setOwner(testUser);
-    group.setTracks(Set.of(trackInGroup));
+    trackInGroup = trackRepository.save(trackInGroup);
+    group.addTrack(trackInGroup);
     group = groupRepository.save(group);
     board.setSelectedGroup(group);
 
@@ -415,7 +415,8 @@ class BoardControllerTest extends DatabaseBase {
     GroupEntity group = new GroupEntity();
     group.setListName("Test Group");
     group.setOwner(testUser);
-    group.setTracks(Set.of(trackInGroup));
+    trackInGroup = trackRepository.save(trackInGroup);
+    group.addTrack(trackInGroup);
     group = groupRepository.save(group);
     board.setSelectedGroup(group);
 
@@ -526,7 +527,8 @@ class BoardControllerTest extends DatabaseBase {
     GroupEntity group = new GroupEntity();
     group.setListName("Test Group");
     group.setOwner(testUser);
-    group.setTracks(Set.of(trackInGroup));
+    trackInGroup = trackRepository.save(trackInGroup);
+    group.addTrack(trackInGroup);
     board.setSelectedGroup(null);
     groupRepository.save(group);
     boardRepository.save(board);

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Group;
 import org.dnd.api.model.GroupRequest;
+import org.dnd.api.model.GroupTrackRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
@@ -18,7 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -72,7 +76,7 @@ public class GroupService {
 
     boardRepository.clearSelectedGroupFromBoards(groupId);
 
-    group.getTracks().clear();
+    group.getGroupTracks().clear();
 
     groupRepository.delete(group);
   }
@@ -87,7 +91,10 @@ public class GroupService {
       throw new ForbiddenException("You can only update your own groups");
     }
 
-    List<TrackEntity> tracks = trackRepository.findAllById(request.getTrackIds());
+    Map<UUID, String> nameByTrackId = new LinkedHashMap<>();
+    request.getTracks().forEach(track -> nameByTrackId.put(track.getTrackId(), track.getName()));
+
+    List<TrackEntity> tracks = trackRepository.findAllById(nameByTrackId.keySet());
 
     tracks.forEach(track -> {
       if (!validateTrackAccessForCurrentUser(track)) {
@@ -96,7 +103,20 @@ public class GroupService {
     });
 
     group.setListName(request.getListName());
-    group.setTracks(new HashSet<>(tracks));
+
+    group.getGroupTracks().removeIf(groupTrack ->
+            !nameByTrackId.containsKey(groupTrack.getTrack().getId()));
+
+    Set<UUID> existingTrackIds = new HashSet<>();
+    group.getGroupTracks().forEach(groupTrack -> {
+      groupTrack.setCustomName(nameByTrackId.get(groupTrack.getTrack().getId()));
+      existingTrackIds.add(groupTrack.getTrack().getId());
+    });
+
+    tracks.stream()
+            .filter(track -> !existingTrackIds.contains(track.getId()))
+            .forEach(track -> group.addTrack(track, nameByTrackId.get(track.getId())));
+
     return groupMapper.toDto(groupRepository.save(group));
   }
 

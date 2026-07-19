@@ -747,11 +747,26 @@ components:
           maxLength: 30
           description: Name of the playlist or group
           example: "My Favorites"
-        trackIds:
+        tracks:
           type: array
+          description: Tracks in this group, each with an optional per-group name
           items:
-            type: string
-            format: uuid
+            $ref: '#/components/schemas/GroupTrackRequest'
+
+    GroupTrackRequest:
+      type: object
+      description: A track membership within a group
+      required:
+        - trackId
+      properties:
+        trackId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          nullable: true
+          maxLength: 255
+          description: Optional name for the track within this group. If omitted, the track's own name is used.
 
     Board:
       type: object

@@ -17,26 +17,26 @@ import java.util.UUID;
         unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
 public interface TrackMapper {
-  @Mapping(target = "groups", ignore = true)
+  @Mapping(target = "groupTracks", ignore = true)
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
   TrackEntity toEntity(Track dto);
 
   @Mapping(target = "id", ignore = true)
-  @Mapping(target = "groups", ignore = true)
+  @Mapping(target = "groupTracks", ignore = true)
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
   TrackEntity toEntity(TrackRequest request);
 
   @Mapping(target = "id", ignore = true)
-  @Mapping(target = "groups", ignore = true)
+  @Mapping(target = "groupTracks", ignore = true)
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
   TrackEntity toEntity(CreateTrackRequestV2 request);
 
   @Mapping(
           target = "groupIds",
-          expression = "java(entity.getGroups() == null ? java.util.List.of() : entity.getGroups().stream().map(org.dnd.group.GroupEntity::getId).toList())"
+          expression = "java(entity.getGroupTracks() == null ? java.util.List.of() : entity.getGroupTracks().stream().map(groupTrack -> groupTrack.getGroup().getId()).toList())"
   )
   @Mapping(
           target = "owned",
@@ -49,7 +49,7 @@ public interface TrackMapper {
   List<Track> toDtos(List<TrackEntity> entities);
 
   @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-  @Mapping(target = "groups", ignore = true)
+  @Mapping(target = "groupTracks", ignore = true)
   @Mapping(target = "owner", ignore = true)
   @Mapping(target = "trackWindows", ignore = true)
   void updateTrackFromRequest(UpdateTrackRequestV2 request, @MappingTarget TrackEntity entity);

@@ -27,7 +27,7 @@ public class BoardEnricher {
     List<TrackEntity> tracks;
 
     if (boardEntity.getSelectedGroup() != null) {
-      tracks = trackRepository.findByGroups_Id(boardEntity.getSelectedGroup().getId());
+      tracks = trackRepository.findByGroupTracks_Group_Id(boardEntity.getSelectedGroup().getId());
     } else {
       tracks = trackRepository.findAllAccessibleByUserId(userId);
     }
