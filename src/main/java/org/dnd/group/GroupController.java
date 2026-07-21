@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.dnd.api.MusicGroupsApi;
 import org.dnd.api.model.Group;
 import org.dnd.api.model.GroupRequest;
+import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -63,6 +64,16 @@ public class GroupController implements MusicGroupsApi {
   )
   public ResponseEntity<Group> updateGroup(UUID groupId, GroupRequest groupRequest) {
     return ResponseEntity.ok(groupService.updateGroup(groupId, groupRequest));
+  }
+
+  @Override
+  @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<Group> reorderGroupTracks(UUID groupId, ReorderGroupTracksRequest reorderGroupTracksRequest) {
+    return ResponseEntity.ok(groupService.reorderGroupTracks(groupId, reorderGroupTracksRequest));
   }
 }
 

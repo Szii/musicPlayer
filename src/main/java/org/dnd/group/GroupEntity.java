@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.track.TrackEntity;
+import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserEntity;
 
 import java.util.HashSet;
@@ -32,14 +33,21 @@ public class GroupEntity {
   private UserEntity owner;
 
   @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
+  @OrderBy("positionWithinGroup ASC")
   private Set<GroupTrackEntity> groupTracks = new HashSet<>();
 
-  public void addTrack(TrackEntity track, String customName) {
-    groupTracks.add(new GroupTrackEntity(this, track, customName));
+  public GroupTrackEntity addTrack(TrackEntity track, TrackWindowEntity trackWindow, String customName) {
+    GroupTrackEntity groupTrack = new GroupTrackEntity(this, track, trackWindow, customName);
+    groupTracks.add(groupTrack);
+    return groupTrack;
   }
 
-  public void addTrack(TrackEntity track) {
-    addTrack(track, null);
+  public GroupTrackEntity addTrack(TrackEntity track, String customName) {
+    return addTrack(track, null, customName);
+  }
+
+  public GroupTrackEntity addTrack(TrackEntity track) {
+    return addTrack(track, null, null);
   }
 
   public void removeTrack(UUID trackId) {
