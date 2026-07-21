@@ -28,8 +28,10 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Transactional
   @Query(value = """
-          insert into group_tracks (group_id, track_id)
-          values (:groupId, :trackId)
+          insert into group_tracks (group_id, track_id, position_within_group)
+          values (:groupId, :trackId,
+                  (select coalesce(max(position_within_group), 0) + 1
+                   from group_tracks where group_id = :groupId))
           on conflict do nothing
           """, nativeQuery = true)
   void addTrackToGroup(@Param("groupId") UUID groupId,

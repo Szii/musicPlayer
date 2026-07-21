@@ -4,11 +4,13 @@ import org.dnd.api.model.Group;
 import org.dnd.api.model.Track;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackMapper;
+import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserMapper;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 
@@ -35,13 +37,27 @@ public interface GroupMapper {
       return List.of();
     }
     return groupTracks.stream()
-            .map(groupTrack -> {
-              Track track = toTrackDto(groupTrack.getTrack());
-              if (groupTrack.getCustomName() != null) {
-                track.setTrackName(groupTrack.getCustomName());
-              }
-              return track;
-            })
+            .sorted(Comparator.comparingInt(GroupTrackEntity::getPositionWithinGroup))
+            .map(this::toGroupTrackDto)
             .toList();
+  }
+
+  default Track toGroupTrackDto(GroupTrackEntity groupTrack) {
+    Track track = toTrackDto(groupTrack.getTrack());
+    track.setPositionWithinGroup(groupTrack.getPositionWithinGroup());
+    TrackWindowEntity window = groupTrack.getTrackWindow();
+    String customName = groupTrack.getCustomName();
+
+    if (window != null) {
+      track.setIsWindow(true);
+      track.setWindowId(window.getId());
+      track.setTrackName(customName != null ? customName : window.getName());
+    } else {
+      track.setIsWindow(false);
+      if (customName != null) {
+        track.setTrackName(customName);
+      }
+    }
+    return track;
   }
 }

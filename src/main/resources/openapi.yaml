@@ -596,6 +596,19 @@ components:
             $ref: '#/components/schemas/TrackWindow'
         trackShare:
           $ref: '#/components/schemas/TrackShareResponse'
+        isWindow:
+          type: boolean
+          description: Within a group, whether this item is a track window rather than the whole track. False outside a group context.
+          example: false
+        windowId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Within a group, the id of the track window this item represents. Null for whole-track items.
+        positionWithinGroup:
+          type: integer
+          description: Within a group, the 1-based position of this item. 0 outside a group context.
+          example: 1
 
     TrackWindow:
       type: object
@@ -732,10 +745,9 @@ components:
           $ref: '#/components/schemas/UserInfoLite'
         tracks:
           type: array
-          description: Tracks in this group
+          description: Tracks in this group, in position order
           items:
             $ref: '#/components/schemas/Track'
-
     GroupRequest:
       type: object
       description: Request to create or update a group
@@ -762,11 +774,44 @@ components:
         trackId:
           type: string
           format: uuid
+        windowId:
+          type: string
+          format: uuid
+          nullable: true
+          description: When set, this item is a window of the given track rather than the whole track. The window must belong to trackId.
         name:
           type: string
           nullable: true
           maxLength: 255
-          description: Optional name for the track within this group. If omitted, the track's own name is used.
+          description: Optional name for the item within this group. If omitted, the track's (or window's) own name is used.
+
+    ReorderGroupTracksRequest:
+      type: object
+      description: The group's items in the desired order. Must be a full permutation of the group's current items.
+      required:
+        - tracks
+      properties:
+        tracks:
+          type: array
+          description: Group items in the desired order. The first item receives positionWithinGroup 1.
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/GroupTrackRef'
+
+    GroupTrackRef:
+      type: object
+      description: References a single group item by its track and optional window.
+      required:
+        - trackId
+      properties:
+        trackId:
+          type: string
+          format: uuid
+        windowId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Set when the item is a window of the track rather than the whole track.
 
     Board:
       type: object
@@ -2076,6 +2121,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Group'
+        '404':
+          description: Group not found
+
+  /groups/{groupId}/reorder:
+    patch:
+      tags:
+        - MusicGroups
+      summary: Reorder items within a group
+      description: Updates the order of items within the specified group. Positions are assigned from 1 based on the order of items in the request.
+      operationId: reorderGroupTracks
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderGroupTracksRequest'
+      responses:
+        '200':
+          description: Group with reordered items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: Bad request validation error, duplicate items, missing items, or items not belonging to the group
+        '403':
+          description: Forbidden, only the group owner can reorder items
         '404':
           description: Group not found
 
