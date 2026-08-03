@@ -1,14 +1,17 @@
 # Music Player API
 
-This project is a Spring Boot RESTful API for a Youtube music player application using FFMPEG.
-It allows users to register and then to manage their music library, create playlists, stream songs from Youtube or only
-selected parts of them and share
+This project is a Spring Boot RESTful API for a Youtube music player application.
+It allows users to register and then to manage their music library, create playlists, define specific parts of tracks and share compositions with other users.
 the prepared tracks with other users.
 The API provides endpoints for user authentication, music management, playlist management, and track sharing.
 
 My primary goal was to create a simple API that can handle demands for quick music management during D&D sessions.
 Thus, every track can be assigned to a board which serves as a control panel for controlling the flow of the music in
 real-time with minimum effort.
+
+Check running build there: <https://soundmasterslair.cz>
+
+Check frontend repository there: <https://github.com/Szii/music-player-fe>
 
 ## Local run
 
