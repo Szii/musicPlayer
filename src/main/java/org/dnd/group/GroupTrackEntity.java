@@ -14,6 +14,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.track.TrackEntity;
+import org.dnd.track.TrackWindowEntity;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -40,12 +41,20 @@ public class GroupTrackEntity {
   @JoinColumn(name = "track_id", nullable = false)
   private TrackEntity track;
 
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "track_window_id")
+  private TrackWindowEntity trackWindow;
+
   @Column(name = "custom_name")
   private String customName;
 
-  public GroupTrackEntity(GroupEntity group, TrackEntity track, String customName) {
+  @Column(name = "position_within_group", nullable = false)
+  private int positionWithinGroup;
+
+  public GroupTrackEntity(GroupEntity group, TrackEntity track, TrackWindowEntity trackWindow, String customName) {
     this.group = group;
     this.track = track;
+    this.trackWindow = trackWindow;
     this.customName = customName;
   }
 
@@ -57,11 +66,13 @@ public class GroupTrackEntity {
     if (!(o instanceof GroupTrackEntity that)) {
       return false;
     }
-    return Objects.equals(group, that.group) && Objects.equals(track, that.track);
+    return Objects.equals(group, that.group)
+            && Objects.equals(track, that.track)
+            && Objects.equals(trackWindow, that.trackWindow);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(group, track);
+    return Objects.hash(group, track, trackWindow);
   }
 }
