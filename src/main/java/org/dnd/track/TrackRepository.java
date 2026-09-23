@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -48,6 +49,22 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
           """)
   Optional<TrackEntity> findAccessibleByIdAndUserId(
           @Param("trackId") UUID trackId,
+          @Param("userId") UUID userId
+  );
+
+  @Query("""
+          select count(distinct t.id)
+          from TrackEntity t
+          left join t.trackShare ts
+          left join ts.users u
+          where t.id in :trackIds
+            and (
+              t.owner.id = :userId
+              or u.id = :userId
+            )
+          """)
+  long countAccessibleByIdsAndUserId(
+          @Param("trackIds") Collection<UUID> trackIds,
           @Param("userId") UUID userId
   );
 

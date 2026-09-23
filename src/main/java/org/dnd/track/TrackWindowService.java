@@ -9,11 +9,11 @@ import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackWindow;
 import org.dnd.api.model.TrackWindowRequest;
 import org.dnd.exception.BadRequestException;
-import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -34,20 +34,12 @@ public class TrackWindowService {
   private final SecurityUtils securityUtils;
   private final EntityManager entityManager;
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public Track deleteTrackWindow(UUID trackId, UUID windowId) {
     log.debug("Deleting track point {} from track {}", windowId, trackId);
 
     UUID userId = securityUtils.getCurrentUserId();
-
-    TrackEntity track = trackRepository.findById(trackId)
-            .orElseThrow(() -> new NotFoundException(
-                    "Track with id %s not found" .formatted(trackId)
-            ));
-
-    if (!track.getOwner().getId().equals(userId)) {
-      throw new ForbiddenException("You can only delete track points from your own tracks");
-    }
 
     TrackWindowEntity point = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
             .orElseThrow(() -> new NotFoundException(
@@ -68,6 +60,7 @@ public class TrackWindowService {
     return reloadTrackDto(trackId, userId);
   }
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public Track updateTrackWindow(
           UUID trackId,
@@ -80,10 +73,6 @@ public class TrackWindowService {
             .orElseThrow(() -> new NotFoundException(
                     "Track with id %s not found" .formatted(trackId)
             ));
-
-    if (!track.getOwner().getId().equals(userId)) {
-      throw new ForbiddenException("You can only update track points on your own tracks");
-    }
 
     TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
             .orElseThrow(() -> new NotFoundException(
@@ -107,6 +96,7 @@ public class TrackWindowService {
     return reloadTrackDto(trackId, userId);
   }
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public Track reorderTrackWindows(UUID trackId, ReorderTrackWindowsRequest request) {
     UUID userId = securityUtils.getCurrentUserId();
@@ -115,10 +105,6 @@ public class TrackWindowService {
             .orElseThrow(() -> new NotFoundException(
                     "Track with id %s not found" .formatted(trackId)
             ));
-
-    if (!track.getOwner().getId().equals(userId)) {
-      throw new ForbiddenException("You can only reorder windows on your own tracks");
-    }
 
     List<UUID> requestedWindowIds = request.getWindowIds();
 
@@ -161,6 +147,7 @@ public class TrackWindowService {
     return reloadTrackDto(trackId, userId);
   }
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public Track createTrackWindow(
           UUID trackId,
@@ -172,10 +159,6 @@ public class TrackWindowService {
             .orElseThrow(() -> new NotFoundException(
                     "Track with id %s not found" .formatted(trackId)
             ));
-
-    if (!track.getOwner().getId().equals(userId)) {
-      throw new ForbiddenException("You can only create track windows on your own tracks");
-    }
 
     if (!userRankEvaluatorService.canCreateTrackWindowForTrack(track.getOwner(), track)) {
       throw new LimitReachedException("Track window limit reached");
@@ -195,17 +178,9 @@ public class TrackWindowService {
     return reloadTrackDto(trackId, userId);
   }
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public TrackWindow getTrackWindow(UUID trackId, UUID windowId) {
-    TrackEntity track = trackRepository.findById(trackId)
-            .orElseThrow(() -> new NotFoundException(
-                    "Track with id %s not found" .formatted(trackId)
-            ));
-
-    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only get track points for your own tracks");
-    }
-
     TrackWindowEntity entity = trackWindowRepository.findByIdAndTrack_Id(windowId, trackId)
             .orElseThrow(() -> new NotFoundException(
                     "Track point with id %s not found" .formatted(windowId)

@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackShareResponse;
 import org.dnd.board.BoardRepository;
-import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupRepository;
@@ -16,6 +15,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,14 +40,12 @@ public class ShareService {
   private final SecurityUtils securityUtils;
 
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public TrackShareResponse publish(UUID trackId, String description) {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
 
-    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only publish tracks you own");
-    }
     if (track.getTrackShare() != null) {
       throw new NotFoundException("Track is already published");
     }
@@ -111,14 +109,11 @@ public class ShareService {
     log.info("User {} unsubscribed from track {}", userId, trackId);
   }
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public void unpublish(UUID trackId) {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException("Track not found with id: " + trackId));
-
-    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only unpublish tracks you own");
-    }
 
     TrackShareEntity share = track.getTrackShare();
     if (share == null) {

@@ -7,7 +7,6 @@ import org.dnd.api.model.Track;
 import org.dnd.api.model.TrackRequest;
 import org.dnd.api.model.UpdateTrackRequestV2;
 import org.dnd.board.BoardRepository;
-import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
@@ -17,6 +16,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +40,7 @@ public class TrackService {
   private final TrackWindowRepository trackWindowRepository;
   private final SecurityUtils securityUtils;
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public void deleteTrack(UUID trackId) {
     log.debug("Deleting track with id {}", trackId);
@@ -48,10 +49,6 @@ public class TrackService {
     TrackEntity track = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
                     String.format("Track with id %s not found", trackId)));
-
-    if (!track.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only delete tracks you own");
-    }
 
     removeShareCompletely(track);
     removeTrackFromAllGroups(trackId);
@@ -105,6 +102,7 @@ public class TrackService {
     }
   }
 
+  @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
   public Track updateTrack(UUID trackId, UpdateTrackRequestV2 request) {
     log.debug("Updating track with id {}", trackId);
@@ -112,10 +110,6 @@ public class TrackService {
     TrackEntity entity = trackRepository.findById(trackId)
             .orElseThrow(() -> new NotFoundException(
                     String.format("Track with id %s not found", trackId)));
-
-    if (!entity.getOwner().getId().equals(userId)) {
-      throw new ForbiddenException("You can only update tracks you own");
-    }
 
     String requestTrackLink = request.getTrackLink();
 
