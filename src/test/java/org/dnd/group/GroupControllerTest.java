@@ -4,9 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
 import org.dnd.api.model.GroupRequest;
-import org.dnd.api.model.GroupTrackRef;
 import org.dnd.api.model.GroupTrackRequest;
-import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
 import org.dnd.track.TrackEntity;
@@ -31,6 +29,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -385,6 +384,30 @@ class GroupControllerTest extends DatabaseBase {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(updateRequest)))
             .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void updateGroup_isNotFound_whenTrackNotAccessible() throws Exception {
+    GroupEntity group = createGroup("Original Name", testUser);
+    TrackEntity ownTrack = createTrack("own", testUser, null);
+    TrackEntity foreignTrack = createTrack("foreign", createUser("otherUser"), null);
+
+    GroupRequest updateRequest = new GroupRequest()
+            .listName("Updated Name")
+            .tracks(List.of(
+                    new GroupTrackRequest().trackId(ownTrack.getId()),
+                    new GroupTrackRequest().trackId(foreignTrack.getId())
+            ));
+
+    mockMvc.perform(put("/api/v1/groups/{groupId}", group.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value(ErrorCode.NOT_FOUND.getCode()));
+
+    assertEquals("Original Name", groupRepository.findById(group.getId()).orElseThrow().getListName());
+    assertTrue(trackRepository.findByGroupTracks_Group_Id(group.getId()).isEmpty());
   }
 
   @Test

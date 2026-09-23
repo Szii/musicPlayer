@@ -8,8 +8,6 @@ import org.dnd.api.model.GroupTrackRef;
 import org.dnd.api.model.GroupTrackRequest;
 import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.dnd.board.BoardRepository;
-import org.dnd.exception.BadRequestException;
-import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.track.TrackEntity;
@@ -20,6 +18,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,6 +70,7 @@ public class GroupService {
     return groupMapper.toDto(groupRepository.save(group));
   }
 
+  @PreAuthorize("@resourceAccess.isGroupOwner(#groupId)")
   @Transactional
   public void deleteGroup(UUID groupId) {
     log.debug("Deleting group with id {}", groupId);
@@ -79,10 +79,6 @@ public class GroupService {
             .orElseThrow(() -> new NotFoundException(
                     String.format("Group with id %s not found", groupId)));
 
-    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only delete your own groups");
-    }
-
     boardRepository.clearSelectedGroupFromBoards(groupId);
 
     group.getGroupTracks().clear();
@@ -90,49 +86,17 @@ public class GroupService {
     groupRepository.delete(group);
   }
 
+  @PreAuthorize("@resourceAccess.isGroupOwner(#groupId) and @resourceAccess.canAccessTracks(#request.tracks.![trackId])")
   @Transactional
   public Group updateGroup(UUID groupId, GroupRequest request) {
     log.debug("Updating group with id {}", groupId);
     GroupEntity group = groupRepository.findById(groupId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
 
-    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only update your own groups");
-    }
+    Map<UUID, String> nameByTrackId = new LinkedHashMap<>();
+    request.getTracks().forEach(track -> nameByTrackId.put(track.getTrackId(), track.getName()));
 
-    List<GroupTrackRequest> items = request.getTracks();
-
-    Map<UUID, TrackEntity> tracksById = trackRepository
-            .findAllById(items.stream().map(GroupTrackRequest::getTrackId).collect(Collectors.toSet()))
-            .stream()
-            .collect(Collectors.toMap(TrackEntity::getId, track -> track));
-
-    Set<UUID> windowIds = items.stream()
-            .map(GroupTrackRequest::getWindowId)
-            .filter(windowId -> windowId != null)
-            .collect(Collectors.toSet());
-    Map<UUID, TrackWindowEntity> windowsById = windowIds.isEmpty()
-            ? Map.of()
-            : trackWindowRepository.findAllById(windowIds).stream()
-                    .collect(Collectors.toMap(TrackWindowEntity::getId, window -> window));
-
-    Map<MembershipKey, String> desired = new LinkedHashMap<>();
-    for (GroupTrackRequest item : items) {
-      TrackEntity track = tracksById.get(item.getTrackId());
-      if (track == null) {
-        continue;
-      }
-      if (!validateTrackAccessForCurrentUser(track)) {
-        throw new ForbiddenException(String.format("You can only add tracks you own. Track id %s is not accessible", track.getId()));
-      }
-      if (item.getWindowId() != null) {
-        TrackWindowEntity window = windowsById.get(item.getWindowId());
-        if (window == null || !window.getTrack().getId().equals(track.getId())) {
-          throw new ForbiddenException(String.format("Window %s is not a window of track %s", item.getWindowId(), track.getId()));
-        }
-      }
-      desired.put(new MembershipKey(item.getTrackId(), item.getWindowId()), item.getName());
-    }
+    List<TrackEntity> tracks = trackRepository.findAllById(nameByTrackId.keySet());
 
     group.setListName(request.getListName());
 
@@ -158,77 +122,5 @@ public class GroupService {
     rewritePositionsSafely(ordered);
 
     return groupMapper.toDto(groupRepository.save(group));
-  }
-
-  @Transactional
-  public Group reorderGroupTracks(UUID groupId, ReorderGroupTracksRequest request) {
-    log.debug("Reordering items in group with id {}", groupId);
-
-    GroupEntity group = groupRepository.findById(groupId)
-            .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
-
-    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only reorder items in your own groups");
-    }
-
-    List<GroupTrackRef> refs = request.getTracks();
-    if (refs == null || refs.isEmpty()) {
-      throw new BadRequestException("Items must not be empty");
-    }
-
-    List<MembershipKey> requestedKeys = refs.stream()
-            .map(ref -> new MembershipKey(ref.getTrackId(), ref.getWindowId()))
-            .toList();
-
-    if (requestedKeys.size() != new HashSet<>(requestedKeys).size()) {
-      throw new BadRequestException("Items must not contain duplicates");
-    }
-
-    Map<MembershipKey, GroupTrackEntity> byKey = group.getGroupTracks().stream()
-            .collect(Collectors.toMap(GroupService::keyOf, groupTrack -> groupTrack));
-
-    if (requestedKeys.size() != byKey.size()) {
-      throw new BadRequestException("Request must contain all items of the group");
-    }
-
-    List<GroupTrackEntity> ordered = new ArrayList<>();
-    for (MembershipKey key : requestedKeys) {
-      GroupTrackEntity groupTrack = byKey.get(key);
-      if (groupTrack == null) {
-        throw new BadRequestException(String.format("Item %s does not belong to group %s", key, groupId));
-      }
-      ordered.add(groupTrack);
-    }
-
-    rewritePositionsSafely(ordered);
-
-    return groupMapper.toDto(group);
-  }
-
-  private void rewritePositionsSafely(List<GroupTrackEntity> ordered) {
-    for (int i = 0; i < ordered.size(); i++) {
-      ordered.get(i).setPositionWithinGroup(-(i + 1));
-    }
-    groupRepository.flush();
-
-    for (int i = 0; i < ordered.size(); i++) {
-      ordered.get(i).setPositionWithinGroup(i + 1);
-    }
-    groupRepository.flush();
-  }
-
-  private static MembershipKey keyOf(GroupTrackEntity groupTrack) {
-    UUID windowId = groupTrack.getTrackWindow() == null ? null : groupTrack.getTrackWindow().getId();
-    return new MembershipKey(groupTrack.getTrack().getId(), windowId);
-  }
-
-  private record MembershipKey(UUID trackId, UUID windowId) {
-  }
-
-  private boolean validateTrackAccessForCurrentUser(TrackEntity track) {
-    UserEntity user = userRepository.findById(securityUtils.getCurrentUserId())
-            .orElseThrow(() -> new NotFoundException(String.format("User with id %s not found",securityUtils.getCurrentUserId())));
-    return track.getOwner().getId().equals(securityUtils.getCurrentUserId()) ||
-            (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(user));
   }
 }
