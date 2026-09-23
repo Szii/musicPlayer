@@ -122,6 +122,13 @@ public class BoardService {
                     String.format("Board with id %s not found for user %s", boardId, userId)
             ));
 
+    if (request.getLinkedBoardId() != null) {
+      boardRepository.findById(request.getLinkedBoardId())
+              .orElseThrow(() -> new NotFoundException(
+                      String.format("Linked board with id %s not found", request.getLinkedBoardId())
+              ));
+    }
+
     boardMapper.updateBoardFromRequest(request, board);
     setGroupIfExist(request.getSelectedGroupId(), board);
     setTrackIfExist(request.getSelectedTrackId(), board);

@@ -825,6 +825,11 @@ components:
           format: uuid
           nullable: false
           description: Id of the session this board belongs to
+        linkedBoardId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Id of the linked board for synchronized playback
 
     BoardCreateRequest:
       type: object
@@ -907,6 +912,11 @@ components:
           type: boolean
           description: Play the windows of track in the sequence
           example: false
+        linkedBoardId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Id of the linked board for synchronized playback
 
     PlayRequest:
       type: object

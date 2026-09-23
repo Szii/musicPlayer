@@ -135,6 +135,44 @@ class BoardControllerTest extends DatabaseBase {
   }
 
   @Test
+  void updateUserBoardWithLinkedBoard_Success() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board.setSession(testSession);
+    board = boardRepository.save(board);
+
+    BoardEntity linkedBoard = new BoardEntity();
+    linkedBoard.setName("Linked Board");
+    linkedBoard.setOwner(testUser);
+    linkedBoard.setVolume(30);
+    linkedBoard.setRepeat(false);
+    linkedBoard.setOverplay(false);
+    linkedBoard.setSession(testSession);
+    linkedBoard = boardRepository.save(linkedBoard);
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .repeat(true)
+            .linkedBoardId(linkedBoard.getId())
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Original Board"))
+            .andExpect(jsonPath("$.volume").value(100))
+            .andExpect(jsonPath("$.repeat").value(true))
+            .andExpect(jsonPath("$.linkedBoardId").value(linkedBoard.getId().toString()))
+            .andExpect(jsonPath("$.overplay").value(true));
+  }
+
+  @Test
   void updateUserBoard_Success() throws Exception {
     BoardEntity board = new BoardEntity();
     board.setName("Original Board");
