@@ -95,7 +95,7 @@ class ShareControllerTest extends DatabaseBase {
   }
 
   @Test
-  void publishTrack_NotOwner_Forbidden() throws Exception {
+  void publishTrack_NotOwner_NotFound() throws Exception {
     TrackEntity track = createTrackEntity("Other Track", otherUser);
 
     PublishTrackRequest request = new PublishTrackRequest();
@@ -105,7 +105,7 @@ class ShareControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test
@@ -218,13 +218,13 @@ class ShareControllerTest extends DatabaseBase {
   }
 
   @Test
-  void unpublishTrack_NotOwner_Forbidden() throws Exception {
+  void unpublishTrack_NotOwner_NotFound() throws Exception {
     TrackEntity track = createTrackEntity("Other Track", otherUser);
     createTrackShare(track, "Published track");
 
     mockMvc.perform(delete("/api/v1/share/tracks/{trackId}/publish", track.getId())
                     .with(TestHelpers.authenticatedAs(testUser)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test

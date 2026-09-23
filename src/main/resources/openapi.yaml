@@ -1866,10 +1866,8 @@ paths:
                 $ref: '#/components/schemas/Track'
         '400':
           description: Bad request validation error, duplicate window ids, missing windows, or windows not belonging to the track
-        '403':
-          description: Forbidden, only the track owner can reorder windows
         '404':
-          description: Track not found
+          description: Track not found or not owned by the current user
 
   /tracks/{trackId}/windows/{windowId}:
     patch:
