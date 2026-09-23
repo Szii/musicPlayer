@@ -4,12 +4,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Group;
 import org.dnd.api.model.GroupRequest;
+import org.dnd.api.model.GroupTrackRef;
 import org.dnd.api.model.GroupTrackRequest;
+import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
+import org.dnd.track.TrackWindowEntity;
+import org.dnd.track.TrackWindowRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
@@ -18,12 +22,15 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -33,6 +40,7 @@ public class GroupService {
   private final UserRepository userRepository;
   private final GroupMapper groupMapper;
   private final TrackRepository trackRepository;
+  private final TrackWindowRepository trackWindowRepository;
   private final BoardRepository boardRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final SecurityUtils securityUtils;
@@ -92,18 +100,26 @@ public class GroupService {
 
     group.setListName(request.getListName());
 
-    group.getGroupTracks().removeIf(groupTrack ->
-            !nameByTrackId.containsKey(groupTrack.getTrack().getId()));
+    group.getGroupTracks().removeIf(groupTrack -> !desired.containsKey(keyOf(groupTrack)));
 
-    Set<UUID> existingTrackIds = new HashSet<>();
-    group.getGroupTracks().forEach(groupTrack -> {
-      groupTrack.setCustomName(nameByTrackId.get(groupTrack.getTrack().getId()));
-      existingTrackIds.add(groupTrack.getTrack().getId());
+    List<GroupTrackEntity> ordered = group.getGroupTracks().stream()
+            .sorted(Comparator.comparingInt(GroupTrackEntity::getPositionWithinGroup))
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    Set<MembershipKey> existing = new HashSet<>();
+    ordered.forEach(groupTrack -> {
+      groupTrack.setCustomName(desired.get(keyOf(groupTrack)));
+      existing.add(keyOf(groupTrack));
     });
 
-    tracks.stream()
-            .filter(track -> !existingTrackIds.contains(track.getId()))
-            .forEach(track -> group.addTrack(track, nameByTrackId.get(track.getId())));
+    desired.forEach((key, name) -> {
+      if (!existing.contains(key)) {
+        TrackWindowEntity window = key.windowId() == null ? null : windowsById.get(key.windowId());
+        ordered.add(group.addTrack(tracksById.get(key.trackId()), window, name));
+      }
+    });
+
+    rewritePositionsSafely(ordered);
 
     return groupMapper.toDto(groupRepository.save(group));
   }
