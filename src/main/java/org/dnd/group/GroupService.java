@@ -8,6 +8,7 @@ import org.dnd.api.model.GroupTrackRef;
 import org.dnd.api.model.GroupTrackRequest;
 import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.dnd.board.BoardRepository;
+import org.dnd.exception.BadRequestException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.track.TrackEntity;
@@ -93,10 +94,32 @@ public class GroupService {
     GroupEntity group = groupRepository.findById(groupId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
 
-    Map<UUID, String> nameByTrackId = new LinkedHashMap<>();
-    request.getTracks().forEach(track -> nameByTrackId.put(track.getTrackId(), track.getName()));
+    List<GroupTrackRequest> items = request.getTracks();
 
-    List<TrackEntity> tracks = trackRepository.findAllById(nameByTrackId.keySet());
+    Map<UUID, TrackEntity> tracksById = trackRepository
+            .findAllById(items.stream().map(GroupTrackRequest::getTrackId).collect(Collectors.toSet()))
+            .stream()
+            .collect(Collectors.toMap(TrackEntity::getId, track -> track));
+
+    Set<UUID> windowIds = items.stream()
+            .map(GroupTrackRequest::getWindowId)
+            .filter(windowId -> windowId != null)
+            .collect(Collectors.toSet());
+    Map<UUID, TrackWindowEntity> windowsById = windowIds.isEmpty()
+            ? Map.of()
+            : trackWindowRepository.findAllById(windowIds).stream()
+                    .collect(Collectors.toMap(TrackWindowEntity::getId, window -> window));
+
+    Map<MembershipKey, String> desired = new LinkedHashMap<>();
+    for (GroupTrackRequest item : items) {
+      if (item.getWindowId() != null) {
+        TrackWindowEntity window = windowsById.get(item.getWindowId());
+        if (window == null || !window.getTrack().getId().equals(item.getTrackId())) {
+          throw new NotFoundException(String.format("Window with id %s not found for track %s", item.getWindowId(), item.getTrackId()));
+        }
+      }
+      desired.put(new MembershipKey(item.getTrackId(), item.getWindowId()), item.getName());
+    }
 
     group.setListName(request.getListName());
 
@@ -122,5 +145,67 @@ public class GroupService {
     rewritePositionsSafely(ordered);
 
     return groupMapper.toDto(groupRepository.save(group));
+  }
+
+  @PreAuthorize("@resourceAccess.isGroupOwner(#groupId)")
+  @Transactional
+  public Group reorderGroupTracks(UUID groupId, ReorderGroupTracksRequest request) {
+    log.debug("Reordering items in group with id {}", groupId);
+
+    GroupEntity group = groupRepository.findById(groupId)
+            .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
+
+    List<GroupTrackRef> refs = request.getTracks();
+    if (refs == null || refs.isEmpty()) {
+      throw new BadRequestException("Items must not be empty");
+    }
+
+    List<MembershipKey> requestedKeys = refs.stream()
+            .map(ref -> new MembershipKey(ref.getTrackId(), ref.getWindowId()))
+            .toList();
+
+    if (requestedKeys.size() != new HashSet<>(requestedKeys).size()) {
+      throw new BadRequestException("Items must not contain duplicates");
+    }
+
+    Map<MembershipKey, GroupTrackEntity> byKey = group.getGroupTracks().stream()
+            .collect(Collectors.toMap(GroupService::keyOf, groupTrack -> groupTrack));
+
+    if (requestedKeys.size() != byKey.size()) {
+      throw new BadRequestException("Request must contain all items of the group");
+    }
+
+    List<GroupTrackEntity> ordered = new ArrayList<>();
+    for (MembershipKey key : requestedKeys) {
+      GroupTrackEntity groupTrack = byKey.get(key);
+      if (groupTrack == null) {
+        throw new BadRequestException(String.format("Item %s does not belong to group %s", key, groupId));
+      }
+      ordered.add(groupTrack);
+    }
+
+    rewritePositionsSafely(ordered);
+
+    return groupMapper.toDto(group);
+  }
+
+  private void rewritePositionsSafely(List<GroupTrackEntity> ordered) {
+    for (int i = 0; i < ordered.size(); i++) {
+      ordered.get(i).setPositionWithinGroup(-(i + 1));
+    }
+    groupRepository.flush();
+
+    for (int i = 0; i < ordered.size(); i++) {
+      ordered.get(i).setPositionWithinGroup(i + 1);
+    }
+    groupRepository.flush();
+  }
+
+  private static MembershipKey keyOf(GroupTrackEntity groupTrack) {
+    UUID windowId = groupTrack.getTrackWindow() == null ? null : groupTrack.getTrackWindow().getId();
+    return new MembershipKey(groupTrack.getTrack().getId(), windowId);
+  }
+
+  private record MembershipKey(UUID trackId, UUID windowId) {
   }
 }

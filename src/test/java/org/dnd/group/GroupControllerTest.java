@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
 import org.dnd.api.model.GroupRequest;
+import org.dnd.api.model.GroupTrackRef;
 import org.dnd.api.model.GroupTrackRequest;
+import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.ErrorCode;
 import org.dnd.track.TrackEntity;
@@ -254,7 +256,7 @@ class GroupControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test

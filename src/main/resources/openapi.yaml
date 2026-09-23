@@ -2156,10 +2156,8 @@ paths:
                 $ref: '#/components/schemas/Group'
         '400':
           description: Bad request validation error, duplicate items, missing items, or items not belonging to the group
-        '403':
-          description: Forbidden, only the group owner can reorder items
         '404':
-          description: Group not found
+          description: Group not found or not owned by the current user
 
   /share/tracks/{trackId}/publish:
     post:
