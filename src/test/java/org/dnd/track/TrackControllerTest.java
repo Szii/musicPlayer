@@ -253,7 +253,7 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
-  void updateTrack_Forbidden_WhenNotOwner() throws Exception {
+  void updateTrack_NotFound_WhenNotOwner() throws Exception {
     UserEntity owner = createUser("owner3");
     TrackEntity t = createTrackEntity("O", owner, null);
 
@@ -267,7 +267,7 @@ class TrackControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test
@@ -362,13 +362,13 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
-  void deleteTrack_Forbidden_WhenNotOwner() throws Exception {
+  void deleteTrack_NotFound_WhenNotOwner() throws Exception {
     UserEntity owner = createUser("owner4");
     TrackEntity t = createTrackEntity("Del2", owner, null);
 
     mockMvc.perform(delete("/api/v1/tracks/{trackId}", t.getId())
                     .with(TestHelpers.authenticatedAs(testUser)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test
@@ -418,7 +418,7 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
-  void createTrackWindow_NonOwner_Forbidden() throws Exception {
+  void createTrackWindow_NonOwner_NotFound() throws Exception {
     UserEntity other = createUser("otherUser");
     TrackEntity track = createTrackEntity("Other Track", other, null);
 
@@ -433,7 +433,7 @@ class TrackControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test
@@ -630,7 +630,7 @@ class TrackControllerTest extends DatabaseBase {
   }
 
   @Test
-  void reorderTrackWindows_Forbidden_WhenNotOwner() throws Exception {
+  void reorderTrackWindows_NotFound_WhenNotOwner() throws Exception {
     UserEntity owner = createUser("windowOwner");
     TrackEntity track = createTrackEntity("Other User Track", owner, null);
 
@@ -644,7 +644,7 @@ class TrackControllerTest extends DatabaseBase {
                     .with(TestHelpers.authenticatedAs(testUser))
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
   }
 
   @Test

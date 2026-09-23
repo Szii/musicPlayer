@@ -4,6 +4,7 @@ import com.giffing.bucket4j.spring.boot.starter.context.RateLimitException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
@@ -40,6 +41,18 @@ public class GlobalExceptionHandler {
   public ResponseEntity<ErrorResponse> handleForbidden(ForbiddenException e) {
     ErrorResponse response = new ErrorResponse(
             e.getCode(),
+            e.getMessage()
+    );
+
+    return ResponseEntity
+            .status(HttpStatus.FORBIDDEN)
+            .body(response);
+  }
+
+  @ExceptionHandler(AccessDeniedException.class)
+  public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException e) {
+    ErrorResponse response = new ErrorResponse(
+            ErrorCode.FORBIDDEN.getCode(),
             e.getMessage()
     );
 

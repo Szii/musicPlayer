@@ -870,6 +870,11 @@ components:
           format: uuid
           nullable: false
           description: Id of the session this board belongs to
+        linkedBoardId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Id of the linked board for synchronized playback
 
     BoardCreateRequest:
       type: object
@@ -952,6 +957,11 @@ components:
           type: boolean
           description: Play the windows of track in the sequence
           example: false
+        linkedBoardId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Id of the linked board for synchronized playback
 
     PlayRequest:
       type: object
@@ -1901,10 +1911,8 @@ paths:
                 $ref: '#/components/schemas/Track'
         '400':
           description: Bad request validation error, duplicate window ids, missing windows, or windows not belonging to the track
-        '403':
-          description: Forbidden, only the track owner can reorder windows
         '404':
-          description: Track not found
+          description: Track not found or not owned by the current user
 
   /tracks/{trackId}/windows/{windowId}:
     patch:
@@ -2148,10 +2156,8 @@ paths:
                 $ref: '#/components/schemas/Group'
         '400':
           description: Bad request validation error, duplicate items, missing items, or items not belonging to the group
-        '403':
-          description: Forbidden, only the group owner can reorder items
         '404':
-          description: Group not found
+          description: Group not found or not owned by the current user
 
   /share/tracks/{trackId}/publish:
     post:

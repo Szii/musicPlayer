@@ -9,7 +9,6 @@ import org.dnd.api.model.GroupTrackRequest;
 import org.dnd.api.model.ReorderGroupTracksRequest;
 import org.dnd.board.BoardRepository;
 import org.dnd.exception.BadRequestException;
-import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.track.TrackEntity;
@@ -20,6 +19,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -71,6 +71,7 @@ public class GroupService {
     return groupMapper.toDto(groupRepository.save(group));
   }
 
+  @PreAuthorize("@resourceAccess.isGroupOwner(#groupId)")
   @Transactional
   public void deleteGroup(UUID groupId) {
     log.debug("Deleting group with id {}", groupId);
@@ -79,10 +80,6 @@ public class GroupService {
             .orElseThrow(() -> new NotFoundException(
                     String.format("Group with id %s not found", groupId)));
 
-    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only delete your own groups");
-    }
-
     boardRepository.clearSelectedGroupFromBoards(groupId);
 
     group.getGroupTracks().clear();
@@ -90,15 +87,12 @@ public class GroupService {
     groupRepository.delete(group);
   }
 
+  @PreAuthorize("@resourceAccess.isGroupOwner(#groupId) and @resourceAccess.canAccessTracks(#request.tracks.![trackId])")
   @Transactional
   public Group updateGroup(UUID groupId, GroupRequest request) {
     log.debug("Updating group with id {}", groupId);
     GroupEntity group = groupRepository.findById(groupId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
-
-    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only update your own groups");
-    }
 
     List<GroupTrackRequest> items = request.getTracks();
 
@@ -118,17 +112,10 @@ public class GroupService {
 
     Map<MembershipKey, String> desired = new LinkedHashMap<>();
     for (GroupTrackRequest item : items) {
-      TrackEntity track = tracksById.get(item.getTrackId());
-      if (track == null) {
-        continue;
-      }
-      if (!validateTrackAccessForCurrentUser(track)) {
-        throw new ForbiddenException(String.format("You can only add tracks you own. Track id %s is not accessible", track.getId()));
-      }
       if (item.getWindowId() != null) {
         TrackWindowEntity window = windowsById.get(item.getWindowId());
-        if (window == null || !window.getTrack().getId().equals(track.getId())) {
-          throw new ForbiddenException(String.format("Window %s is not a window of track %s", item.getWindowId(), track.getId()));
+        if (window == null || !window.getTrack().getId().equals(item.getTrackId())) {
+          throw new NotFoundException(String.format("Window with id %s not found for track %s", item.getWindowId(), item.getTrackId()));
         }
       }
       desired.put(new MembershipKey(item.getTrackId(), item.getWindowId()), item.getName());
@@ -160,16 +147,13 @@ public class GroupService {
     return groupMapper.toDto(groupRepository.save(group));
   }
 
+  @PreAuthorize("@resourceAccess.isGroupOwner(#groupId)")
   @Transactional
   public Group reorderGroupTracks(UUID groupId, ReorderGroupTracksRequest request) {
     log.debug("Reordering items in group with id {}", groupId);
 
     GroupEntity group = groupRepository.findById(groupId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
-
-    if (!group.getOwner().getId().equals(securityUtils.getCurrentUserId())) {
-      throw new ForbiddenException("You can only reorder items in your own groups");
-    }
 
     List<GroupTrackRef> refs = request.getTracks();
     if (refs == null || refs.isEmpty()) {
@@ -223,12 +207,5 @@ public class GroupService {
   }
 
   private record MembershipKey(UUID trackId, UUID windowId) {
-  }
-
-  private boolean validateTrackAccessForCurrentUser(TrackEntity track) {
-    UserEntity user = userRepository.findById(securityUtils.getCurrentUserId())
-            .orElseThrow(() -> new NotFoundException(String.format("User with id %s not found",securityUtils.getCurrentUserId())));
-    return track.getOwner().getId().equals(securityUtils.getCurrentUserId()) ||
-            (track.getTrackShare() != null && track.getTrackShare().getUsers().contains(user));
   }
 }

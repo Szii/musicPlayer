@@ -33,7 +33,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -132,6 +134,82 @@ class BoardControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.boards[0].overplay").value(false));
 
     assertFalse(boardRepository.findByOwner_Id(testUser.getId()).isEmpty());
+  }
+
+  @Test
+  void updateUserBoardWithLinkedBoard_Success() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board.setSession(testSession);
+    board = boardRepository.save(board);
+
+    BoardEntity linkedBoard = new BoardEntity();
+    linkedBoard.setName("Linked Board");
+    linkedBoard.setOwner(testUser);
+    linkedBoard.setVolume(30);
+    linkedBoard.setRepeat(false);
+    linkedBoard.setOverplay(false);
+    linkedBoard.setSession(testSession);
+    linkedBoard = boardRepository.save(linkedBoard);
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .repeat(true)
+            .linkedBoardId(linkedBoard.getId())
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Original Board"))
+            .andExpect(jsonPath("$.volume").value(100))
+            .andExpect(jsonPath("$.repeat").value(true))
+            .andExpect(jsonPath("$.linkedBoardId").value(linkedBoard.getId().toString()))
+            .andExpect(jsonPath("$.overplay").value(true));
+  }
+
+  @Test
+  void updateUserBoardWithLinkedBoard_isNotFound_whenLinkedBoardNotOwned() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setVolume(50);
+    board.setRepeat(false);
+    board.setOverplay(false);
+    board.setSession(testSession);
+    board = boardRepository.save(board);
+
+    BoardEntity foreignBoard = new BoardEntity();
+    foreignBoard.setName("Foreign Board");
+    foreignBoard.setOwner(anotherUser);
+    foreignBoard.setVolume(30);
+    foreignBoard.setRepeat(false);
+    foreignBoard.setOverplay(false);
+    foreignBoard.setSession(testSession);
+    foreignBoard = boardRepository.save(foreignBoard);
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
+            .volume(100)
+            .repeat(true)
+            .linkedBoardId(foreignBoard.getId())
+            .overplay(true);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.code").value(ErrorCode.NOT_FOUND.getCode()));
+
+    BoardEntity unchanged = boardRepository.findById(board.getId()).orElseThrow();
+    assertEquals(50, unchanged.getVolume());
+    assertNull(unchanged.getLinkedBoardId());
   }
 
   @Test

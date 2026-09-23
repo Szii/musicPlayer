@@ -19,6 +19,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -112,6 +113,7 @@ public class BoardService {
     return board.getSession().getId();
   }
 
+  @PreAuthorize("#request.linkedBoardId == null or @resourceAccess.isBoardOwner(#request.linkedBoardId)")
   @Transactional
   public Board updateUserBoard(UUID boardId, BoardUpdateRequest request) {
     UUID userId = securityUtils.getCurrentUserId();
