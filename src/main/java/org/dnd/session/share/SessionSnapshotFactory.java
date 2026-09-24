@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,12 +39,20 @@ public class SessionSnapshotFactory {
 
     Set<UUID> boardIds = boards(session).stream().map(BoardEntity::getId).collect(Collectors.toSet());
 
+    Set<UUID> sessionTrackIds = new LinkedHashSet<>();
+    session.getTracks().forEach(track -> sessionTrackIds.add(track.getId()));
+    boards(session).forEach(board -> {
+      if (board.getSelectedGroup() == null && board.getSelectedTrack() != null) {
+        sessionTrackIds.add(board.getSelectedTrack().getId());
+      }
+    });
+
     return new SessionSnapshot(
             session.getName(),
             session.getDescription(),
             tracks.values().stream().map(this::toTrack).toList(),
             session.getGroups().stream().map(this::toGroup).toList(),
-            session.getTracks().stream().map(TrackEntity::getId).toList(),
+            List.copyOf(sessionTrackIds),
             boards(session).stream().map(board -> toBoard(board, boardIds)).toList()
     );
   }

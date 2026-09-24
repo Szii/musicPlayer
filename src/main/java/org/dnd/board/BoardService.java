@@ -159,21 +159,6 @@ public class BoardService {
     if (request.getVolume() != null) {
       board.setVolume(request.getVolume());
     }
-    if (request.getRepeat() != null) {
-      board.setRepeat(request.getRepeat());
-    }
-    if (request.getOverplay() != null) {
-      board.setOverplay(request.getOverplay());
-    }
-    if (request.getShuffle() != null) {
-      board.setShuffle(request.getShuffle());
-    }
-    if (request.getPlaylistMode() != null) {
-      board.setPlaylistMode(request.getPlaylistMode());
-    }
-    if (request.getSequenceMode() != null) {
-      board.setSequenceMode(request.getSequenceMode());
-    }
 
     if (request.getSelectedTrackId() == null) {
       board.setSelectedTrack(null);
@@ -254,7 +239,8 @@ public class BoardService {
   private boolean isInSessionGroup(SessionEntity session, TrackEntity track) {
     return session.getGroups().stream()
             .flatMap(group -> group.getGroupTracks().stream())
-            .anyMatch(groupTrack -> groupTrack.getTrack().getId().equals(track.getId()));
+            .anyMatch(groupTrack -> groupTrack.getTrackWindow() == null
+                    && groupTrack.getTrack().getId().equals(track.getId()));
   }
 
   private void setWindowIfExist(UUID selectedWindowId, BoardEntity board) {

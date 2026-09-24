@@ -6,6 +6,7 @@ import org.dnd.board.BoardRepository;
 import org.dnd.board.LinkedBoard;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
+import org.dnd.group.GroupTrackEntity;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.share.SessionSnapshot.BoardSnapshot;
 import org.dnd.session.share.SessionSnapshot.GroupSnapshot;
@@ -18,10 +19,12 @@ import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserEntity;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 @Component
 @RequiredArgsConstructor
@@ -109,9 +112,13 @@ public class SessionMaterializer {
       board.setName(boardSnapshot.name());
       board.setOwner(owner);
       board.setSession(session);
-      board.setSelectedTrack(boardSnapshot.selectedTrackId() == null ? null : tracks.get(boardSnapshot.selectedTrackId()));
-      board.setSelectedWindow(boardSnapshot.selectedWindowId() == null ? null : windows.get(boardSnapshot.selectedWindowId()));
       board.setSelectedGroup(boardSnapshot.selectedGroupId() == null ? null : groups.get(boardSnapshot.selectedGroupId()));
+      if (boardSnapshot.selectedTrackId() == null) {
+        selectFirstTrack(board, snapshot, tracks);
+      } else {
+        board.setSelectedTrack(tracks.get(boardSnapshot.selectedTrackId()));
+        board.setSelectedWindow(boardSnapshot.selectedWindowId() == null ? null : windows.get(boardSnapshot.selectedWindowId()));
+      }
       board.setVolume(boardSnapshot.volume());
       board.setRepeat(boardSnapshot.repeat());
       board.setOverplay(boardSnapshot.overplay());
@@ -129,5 +136,27 @@ public class SessionMaterializer {
         boards.get(boardSnapshot.id()).setLinkedBoard(new LinkedBoard(linked.getId(), boardSnapshot.linkedBoardMode()));
       }
     }
+  }
+
+  private void selectFirstTrack(BoardEntity board,
+                                SessionSnapshot snapshot,
+                                Map<UUID, TrackEntity> tracks) {
+    if (board.getSelectedGroup() != null) {
+      board.getSelectedGroup().getGroupTracks().stream()
+              .min(Comparator.comparingInt(GroupTrackEntity::getPositionWithinGroup))
+              .ifPresent(first -> {
+                board.setSelectedTrack(first.getTrack());
+                board.setSelectedWindow(first.getTrackWindow());
+              });
+      return;
+    }
+
+    Stream.concat(
+                    snapshot.sessionTrackIds().stream(),
+                    snapshot.groups().stream().flatMap(group -> group.tracks().stream().map(GroupTrackSnapshot::trackId)))
+            .map(tracks::get)
+            .filter(Objects::nonNull)
+            .findFirst()
+            .ifPresent(board::setSelectedTrack);
   }
 }
