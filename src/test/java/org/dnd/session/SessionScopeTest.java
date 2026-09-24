@@ -3,6 +3,7 @@ package org.dnd.session;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
+import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.GroupRequest;
@@ -184,6 +185,23 @@ class SessionScopeTest extends DatabaseBase {
   }
 
   @Test
+  void creatingBoardWithTrack_addsTrackToSession() throws Exception {
+    TrackEntity track = createTrack("Track", testUser);
+
+    mockMvc.perform(post("/api/v1/boards")
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardCreateRequest()
+                            .name("Board")
+                            .sessionId(session.getId())
+                            .selectedTrackId(track.getId()))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.trackIds").value(Matchers.contains(track.getId().toString())));
+
+    assertEquals(List.of(track.getId()), sessionTrackIds());
+  }
+
+  @Test
   void selectingTrackReachableThroughSessionGroup_doesNotAddItDirectly() throws Exception {
     TrackEntity track = createTrack("Track", testUser);
     GroupEntity group = new GroupEntity();
@@ -305,6 +323,65 @@ class SessionScopeTest extends DatabaseBase {
   }
 
   @Test
+  void removingTrackFromSession_clearsItFromBoards() throws Exception {
+    TrackEntity track = createTrack("Track", testUser);
+    attach(track.getId(), "tracks");
+    BoardEntity board = createBoard();
+    board.setSelectedTrack(track);
+    boardRepository.save(board);
+
+    mockMvc.perform(delete("/api/v1/sessions/{sessionId}/tracks/{trackId}", session.getId(), track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards[0].selectedTrack").doesNotExist());
+
+    assertEquals(List.of(), boardSelection("selected_track_id", board.getId()));
+  }
+
+  @Test
+  void removingTrackStillReachableThroughSessionGroup_keepsBoardSelection() throws Exception {
+    TrackEntity track = createTrack("Track", testUser);
+    GroupEntity group = new GroupEntity();
+    group.setListName("Group");
+    group.setOwner(testUser);
+    group.addTrack(track);
+    group = groupRepository.save(group);
+    attach(track.getId(), "tracks");
+    attach(group.getId(), "groups");
+    BoardEntity board = createBoard();
+    board.setSelectedTrack(track);
+    boardRepository.save(board);
+
+    mockMvc.perform(delete("/api/v1/sessions/{sessionId}/tracks/{trackId}", session.getId(), track.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk());
+
+    assertEquals(List.of(track.getId()), boardSelection("selected_track_id", board.getId()));
+  }
+
+  @Test
+  void removingGroupFromSession_clearsGroupAndItsTracksFromBoards() throws Exception {
+    TrackEntity track = createTrack("Track", testUser);
+    GroupEntity group = new GroupEntity();
+    group.setListName("Group");
+    group.setOwner(testUser);
+    group.addTrack(track);
+    group = groupRepository.save(group);
+    attach(group.getId(), "groups");
+    BoardEntity board = createBoard();
+    board.setSelectedGroup(group);
+    board.setSelectedTrack(track);
+    boardRepository.save(board);
+
+    mockMvc.perform(delete("/api/v1/sessions/{sessionId}/groups/{groupId}", session.getId(), group.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk());
+
+    assertEquals(List.of(), boardSelection("selected_group_id", board.getId()));
+    assertEquals(List.of(), boardSelection("selected_track_id", board.getId()));
+  }
+
+  @Test
   void deletingTrack_removesItFromSession() throws Exception {
     TrackEntity track = createTrack("Track", testUser);
     attach(track.getId(), "tracks");
@@ -320,6 +397,11 @@ class SessionScopeTest extends DatabaseBase {
     mockMvc.perform(put("/api/v1/sessions/{sessionId}/" + collection + "/{id}", session.getId(), id)
                     .with(TestHelpers.authenticatedAs(testUser)))
             .andExpect(status().isOk());
+  }
+
+  private List<UUID> boardSelection(String column, UUID boardId) {
+    return jdbcTemplate.queryForList(
+            "select " + column + " from boards where id = ? and " + column + " is not null", UUID.class, boardId);
   }
 
   private List<UUID> sessionTrackIds() {
