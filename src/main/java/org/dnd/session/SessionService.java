@@ -19,8 +19,10 @@ import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -123,6 +125,7 @@ public class SessionService {
     SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
 
     sessionEntity.getTracks().removeIf(track -> track.getId().equals(trackId));
+    clearSelectionsOutsideSession(sessionEntity);
     return toEnrichedResponse(sessionEntity, userId);
   }
 
@@ -144,6 +147,7 @@ public class SessionService {
     SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
 
     sessionEntity.getGroups().removeIf(group -> group.getId().equals(groupId));
+    clearSelectionsOutsideSession(sessionEntity);
     return toEnrichedResponse(sessionEntity, userId);
   }
 
@@ -161,6 +165,31 @@ public class SessionService {
       return;
     }
     findOwnedSession(sessionId, securityUtils.getCurrentUserId()).getGroups().add(group);
+  }
+
+  private void clearSelectionsOutsideSession(SessionEntity session) {
+    if (session.getBoards() == null) {
+      return;
+    }
+
+    Set<UUID> groupIds = session.getGroups().stream()
+            .map(GroupEntity::getId)
+            .collect(Collectors.toSet());
+    Set<UUID> trackIds = session.getTracks().stream()
+            .map(TrackEntity::getId)
+            .collect(Collectors.toCollection(HashSet::new));
+    session.getGroups().forEach(group ->
+            group.getGroupTracks().forEach(groupTrack -> trackIds.add(groupTrack.getTrack().getId())));
+
+    for (BoardEntity board : session.getBoards()) {
+      if (board.getSelectedGroup() != null && !groupIds.contains(board.getSelectedGroup().getId())) {
+        board.setSelectedGroup(null);
+      }
+      if (board.getSelectedTrack() != null && !trackIds.contains(board.getSelectedTrack().getId())) {
+        board.setSelectedTrack(null);
+        board.setSelectedWindow(null);
+      }
+    }
   }
 
   private SessionEntity findOwnedSession(UUID sessionId, UUID userId) {
