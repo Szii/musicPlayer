@@ -20,6 +20,7 @@ public interface BoardMapper {
   @Mapping(target = "selectedTrack", ignore = true)
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "selectedGroup", ignore = true)
+  @Mapping(target = "linkedBoard", ignore = true)
   BoardEntity toEntity(BoardCreateRequest request);
 
   @Mapping(target = "availableTracks", ignore = true)
@@ -30,12 +31,12 @@ public interface BoardMapper {
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "selectedTrack", ignore = true)
   @Mapping(target = "selectedGroup", ignore = true)
+  @Mapping(target = "linkedBoard", ignore = true)
   void updateBoardFromRequest(BoardUpdateRequest request, @MappingTarget BoardEntity entity);
 
   List<Board> toDtos(List<BoardEntity> entities);
+
+  org.dnd.api.model.LinkedBoard toLinkedBoardDto(LinkedBoard linkedBoard);
+
+  LinkedBoard toLinkedBoard(org.dnd.api.model.LinkedBoard linkedBoard);
 }
-
-
-
-
-

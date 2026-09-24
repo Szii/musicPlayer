@@ -5,6 +5,8 @@ import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
+import org.dnd.api.model.LinkedBoard;
+import org.dnd.api.model.LinkedBoardMode;
 import org.dnd.api.model.UserAuthDTO;
 import org.dnd.exception.ErrorCode;
 import org.dnd.group.GroupEntity;
@@ -159,7 +161,7 @@ class BoardControllerTest extends DatabaseBase {
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
             .volume(100)
             .repeat(true)
-            .linkedBoardId(linkedBoard.getId())
+            .linkedBoard(new LinkedBoard(linkedBoard.getId(), LinkedBoardMode.RESUME))
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
@@ -170,8 +172,55 @@ class BoardControllerTest extends DatabaseBase {
             .andExpect(jsonPath("$.name").value("Original Board"))
             .andExpect(jsonPath("$.volume").value(100))
             .andExpect(jsonPath("$.repeat").value(true))
-            .andExpect(jsonPath("$.linkedBoardId").value(linkedBoard.getId().toString()))
+            .andExpect(jsonPath("$.linkedBoard.boardId").value(linkedBoard.getId().toString()))
+            .andExpect(jsonPath("$.linkedBoard.mode").value("RESUME"))
             .andExpect(jsonPath("$.overplay").value(true));
+
+    BoardEntity saved = boardRepository.findById(board.getId()).orElseThrow();
+    assertEquals(linkedBoard.getId(), saved.getLinkedBoard().getBoardId());
+    assertEquals(org.dnd.board.LinkedBoardMode.RESUME, saved.getLinkedBoard().getMode());
+  }
+
+  @Test
+  void updateUserBoard_clearsLinkedBoard_whenOmitted() throws Exception {
+    BoardEntity linkedBoard = new BoardEntity();
+    linkedBoard.setName("Linked Board");
+    linkedBoard.setOwner(testUser);
+    linkedBoard.setSession(testSession);
+    linkedBoard = boardRepository.save(linkedBoard);
+
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setSession(testSession);
+    board.setLinkedBoard(new org.dnd.board.LinkedBoard(linkedBoard.getId(), org.dnd.board.LinkedBoardMode.START));
+    board = boardRepository.save(board);
+
+    BoardUpdateRequest updateRequest = new BoardUpdateRequest().volume(40);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(updateRequest)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.linkedBoard").doesNotExist());
+
+    assertNull(boardRepository.findById(board.getId()).orElseThrow().getLinkedBoard());
+  }
+
+  @Test
+  void updateUserBoardWithLinkedBoard_isBadRequest_whenModeMissing() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Original Board");
+    board.setOwner(testUser);
+    board.setSession(testSession);
+    board = boardRepository.save(board);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"linkedBoard\":{\"boardId\":\"" + board.getId() + "\"}}"))
+            .andExpect(status().isBadRequest());
   }
 
   @Test
@@ -197,7 +246,7 @@ class BoardControllerTest extends DatabaseBase {
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
             .volume(100)
             .repeat(true)
-            .linkedBoardId(foreignBoard.getId())
+            .linkedBoard(new LinkedBoard(foreignBoard.getId(), LinkedBoardMode.START))
             .overplay(true);
 
     mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
@@ -209,7 +258,7 @@ class BoardControllerTest extends DatabaseBase {
 
     BoardEntity unchanged = boardRepository.findById(board.getId()).orElseThrow();
     assertEquals(50, unchanged.getVolume());
-    assertNull(unchanged.getLinkedBoardId());
+    assertNull(unchanged.getLinkedBoard());
   }
 
   @Test

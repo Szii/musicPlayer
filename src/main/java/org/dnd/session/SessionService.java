@@ -79,6 +79,7 @@ public class SessionService {
     return getSessions();
   }
 
+  @Transactional
   public SessionsResponse updateSession(SessionRequest sessionRequest) {
     UUID userId = securityUtils.getCurrentUserId();
 

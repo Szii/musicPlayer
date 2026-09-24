@@ -65,8 +65,8 @@ public class BoardEntity {
   @Column(nullable = false)
   private boolean sequenceMode = false;
 
-  @Column
-  private UUID linkedBoardId;
+  @Embedded
+  private LinkedBoard linkedBoard;
 
 }
 
