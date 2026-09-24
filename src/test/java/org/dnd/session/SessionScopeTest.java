@@ -184,6 +184,28 @@ class SessionScopeTest extends DatabaseBase {
   }
 
   @Test
+  void selectingTrackReachableThroughSessionGroup_doesNotAddItDirectly() throws Exception {
+    TrackEntity track = createTrack("Track", testUser);
+    GroupEntity group = new GroupEntity();
+    group.setListName("Group");
+    group.setOwner(testUser);
+    group.addTrack(track);
+    group = groupRepository.save(group);
+    BoardEntity board = createBoard();
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .selectedGroupId(group.getId())
+                            .selectedTrackId(track.getId()))))
+            .andExpect(status().isOk());
+
+    assertEquals(List.of(group.getId()), sessionGroupIds());
+    assertEquals(List.of(), sessionTrackIds());
+  }
+
+  @Test
   void updatingBoardWithUnchangedSelection_doesNotReAddRemovedTrack() throws Exception {
     TrackEntity track = createTrack("Track", testUser);
     BoardEntity board = createBoard();
