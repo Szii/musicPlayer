@@ -11,6 +11,7 @@ import org.dnd.board.BoardRepository;
 import org.dnd.exception.BadRequestException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
+import org.dnd.session.SessionService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowEntity;
@@ -45,6 +46,7 @@ public class GroupService {
   private final BoardRepository boardRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final SecurityUtils securityUtils;
+  private final SessionService sessionService;
 
   @Transactional(readOnly = true)
   public List<Group> getUserGroups() {
@@ -68,7 +70,10 @@ public class GroupService {
     group.setListName(request.getListName());
     group.setOwner(owner);
 
-    return groupMapper.toDto(groupRepository.save(group));
+    GroupEntity saved = groupRepository.save(group);
+    sessionService.attachGroup(request.getSessionId(), saved);
+
+    return groupMapper.toDto(saved);
   }
 
   @PreAuthorize("@resourceAccess.isGroupOwner(#groupId)")

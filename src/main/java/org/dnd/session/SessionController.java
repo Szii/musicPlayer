@@ -64,4 +64,44 @@ public class SessionController implements SessionsApi {
       return ResponseEntity.ok(sessionService.updateSession(sessionRequest));
     }
   }
+
+  @Override
+  @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<SessionResponse> addTrackToSession(UUID sessionId, UUID trackId) {
+    return ResponseEntity.ok(sessionService.addTrack(sessionId, trackId));
+  }
+
+  @Override
+  @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<SessionResponse> removeTrackFromSession(UUID sessionId, UUID trackId) {
+    return ResponseEntity.ok(sessionService.removeTrack(sessionId, trackId));
+  }
+
+  @Override
+  @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<SessionResponse> addGroupToSession(UUID sessionId, UUID groupId) {
+    return ResponseEntity.ok(sessionService.addGroup(sessionId, groupId));
+  }
+
+  @Override
+  @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<SessionResponse> removeGroupFromSession(UUID sessionId, UUID groupId) {
+    return ResponseEntity.ok(sessionService.removeGroup(sessionId, groupId));
+  }
 }

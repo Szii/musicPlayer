@@ -56,7 +56,7 @@ public class ShareController implements ShareApi {
   )
   public ResponseEntity<Void> subscribeToTrack(
           SubscribeRequest request) {
-    shareService.subscribe(request.getShareCode());
+    shareService.subscribe(request.getShareCode(), request.getSessionId());
     return ResponseEntity.status(HttpStatus.CREATED).build();
   }
 
