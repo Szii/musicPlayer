@@ -239,7 +239,8 @@ public class BoardService {
   private boolean isInSessionGroup(SessionEntity session, TrackEntity track) {
     return session.getGroups().stream()
             .flatMap(group -> group.getGroupTracks().stream())
-            .anyMatch(groupTrack -> groupTrack.getTrack().getId().equals(track.getId()));
+            .anyMatch(groupTrack -> groupTrack.getTrackWindow() == null
+                    && groupTrack.getTrack().getId().equals(track.getId()));
   }
 
   private void setWindowIfExist(UUID selectedWindowId, BoardEntity board) {

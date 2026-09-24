@@ -252,6 +252,61 @@ class SessionShareTest extends DatabaseBase {
   }
 
   @Test
+  void wholeTrackSelectedOnStage_isShared_evenWhenGroupsOnlyHoldItsWindows() throws Exception {
+    TrackEntity boss = createTrack("Boss", owner);
+    TrackWindowEntity phase = TrackWindowEntity.builder()
+            .name("Phase 1")
+            .positionFrom(0L)
+            .positionTo(30L)
+            .positionWithinTrack(1)
+            .build();
+    boss.addTrackWindow(phase);
+    boss = trackRepository.save(boss);
+    phase = boss.getTrackWindows().getFirst();
+
+    GroupEntity phases = new GroupEntity();
+    phases.setListName("Phases");
+    phases.setOwner(owner);
+    phases.addTrack(boss, phase, null).setPositionWithinGroup(1);
+    phases = groupRepository.save(phases);
+
+    SessionEntity bossSession = new SessionEntity();
+    bossSession.setName("Boss fight");
+    bossSession.setOwner(owner);
+    bossSession.getGroups().add(phases);
+    bossSession = sessionRepository.save(bossSession);
+
+    BoardEntity stage = new BoardEntity();
+    stage.setName("Stage");
+    stage.setOwner(owner);
+    stage.setSession(bossSession);
+    stage = boardRepository.save(stage);
+
+    mockMvc.perform(put("/api/v1/boards/{id}", stage.getId())
+                    .with(TestHelpers.authenticatedAs(owner))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .name("Stage")
+                            .volume(50)
+                            .selectedTrackId(boss.getId()))))
+            .andExpect(status().isOk());
+
+    mockMvc.perform(get("/api/v1/sessions/{id}", bossSession.getId()).with(TestHelpers.authenticatedAs(owner)))
+            .andExpect(jsonPath("$.trackIds[0]").value(boss.getId().toString()));
+
+    String shareCode = shareCodeOf(mockMvc.perform(post("/api/v1/share/sessions/{id}/publish", bossSession.getId())
+            .with(TestHelpers.authenticatedAs(owner))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("{}")));
+    JsonNode subscribed = json(subscribe(shareCode));
+
+    assertEquals(1, subscribed.get("trackIds").size());
+    assertEquals("Boss", boardNamed(subscribed, "Stage").get("selectedTrack").get("trackName").asText());
+    assertEquals(subscribed.get("trackIds").get(0).asText(),
+            boardNamed(subscribed, "Stage").get("selectedTrack").get("id").asText());
+  }
+
+  @Test
   void subscribe_rejectsOwnSession_duplicates_andUnknownCodes() throws Exception {
     String shareCode = shareCodeOf(publish(null));
 
