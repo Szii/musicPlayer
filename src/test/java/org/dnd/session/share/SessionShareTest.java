@@ -104,6 +104,7 @@ class SessionShareTest extends DatabaseBase {
     group.setOwner(owner);
     group.addTrack(groupTrack).setPositionWithinGroup(1);
     group.addTrack(directTrack, "Renamed").setPositionWithinGroup(2);
+    group.addTrack(groupTrack, window, "Chorus only").setPositionWithinGroup(3);
     group = groupRepository.save(group);
 
     ownerSession = new SessionEntity();
@@ -130,6 +131,13 @@ class SessionShareTest extends DatabaseBase {
     ambientBoard.setSession(ownerSession);
     ambientBoard.setLinkedBoard(new LinkedBoard(groupBoard.getId(), LinkedBoardMode.START));
     boardRepository.save(ambientBoard);
+
+    BoardEntity exploreBoard = new BoardEntity();
+    exploreBoard.setName("Explore");
+    exploreBoard.setOwner(owner);
+    exploreBoard.setSession(ownerSession);
+    exploreBoard.setSelectedGroup(group);
+    boardRepository.save(exploreBoard);
   }
 
   @Test
@@ -139,7 +147,7 @@ class SessionShareTest extends DatabaseBase {
             .andExpect(jsonPath("$.version").value(1))
             .andExpect(jsonPath("$.name").value("Campaign"))
             .andExpect(jsonPath("$.description").value("Great for dungeons"))
-            .andExpect(jsonPath("$.boardCount").value(2))
+            .andExpect(jsonPath("$.boardCount").value(3))
             .andExpect(jsonPath("$.trackCount").value(2))
             .andExpect(jsonPath("$.groupCount").value(1));
 
@@ -180,7 +188,7 @@ class SessionShareTest extends DatabaseBase {
 
     assertTrue(session.get("readOnly").asBoolean());
     assertEquals("Campaign", session.get("sessionName").asText());
-    assertEquals(2, session.get("boards").size());
+    assertEquals(3, session.get("boards").size());
     assertEquals(2, session.get("trackCount").asInt());
     JsonNode subscription = session.get("subscription");
     assertEquals(1, subscription.get("installedVersion").asInt());
@@ -188,8 +196,14 @@ class SessionShareTest extends DatabaseBase {
     assertFalse(subscription.get("modified").asBoolean());
     assertEquals(2, subscription.get("tracks").size());
     assertEquals(1, subscription.get("groups").size());
-    assertEquals(2, subscription.get("groups").get(0).get("tracks").size());
-    assertEquals("Renamed", subscription.get("groups").get(0).get("tracks").get(1).get("trackName").asText());
+    JsonNode groupItems = subscription.get("groups").get(0).get("tracks");
+    assertEquals(3, groupItems.size());
+    assertEquals("Renamed", groupItems.get(1).get("trackName").asText());
+    assertEquals("Chorus only", groupItems.get(2).get("trackName").asText());
+    assertTrue(groupItems.get(2).get("isWindow").asBoolean());
+    String copiedWindowId = groupItems.get(2).get("windowId").asText();
+    assertNotEquals(window.getId().toString(), copiedWindowId);
+    assertEquals(copiedWindowId, boardNamed(session, "Fight").get("selectedWindow").get("id").asText());
     assertFalse(subscription.get("tracks").get(0).get("owned").asBoolean());
 
     UUID copiedGroupId = UUID.fromString(subscription.get("groups").get(0).get("id").asText());
@@ -214,6 +228,27 @@ class SessionShareTest extends DatabaseBase {
     assertEquals(0, limits.getBoards().size());
     assertEquals(1, limits.getSubscribes().getActualSubscribes());
     assertEquals(5, limits.getSubscribes().getMaxSubscribes());
+  }
+
+  @Test
+  void install_selectsFirstTrack_forStagesPublishedWithoutOne() throws Exception {
+    JsonNode session = json(subscribe(shareCodeOf(publish(null))));
+    String sessionId = session.get("sessionId").asText();
+
+    JsonNode ambient = boardNamed(session, "Ambient");
+    JsonNode explore = boardNamed(session, "Explore");
+    assertEquals("Direct", ambient.get("selectedTrack").get("trackName").asText());
+    assertEquals("In group", explore.get("selectedTrack").get("trackName").asText());
+    assertFalse(explore.hasNonNull("selectedWindow"));
+
+    updateBoard(ambient, playbackUpdate(ambient).selectedTrackId(null))
+            .andExpect(status().isOk());
+    JsonNode cleared = boardNamed(json(mockMvc.perform(get("/api/v1/sessions/{id}", sessionId)
+            .with(TestHelpers.authenticatedAs(subscriber)))), "Ambient");
+    assertFalse(cleared.hasNonNull("selectedTrack"));
+
+    JsonNode synced = json(sync(sessionId));
+    assertEquals("Direct", boardNamed(synced, "Ambient").get("selectedTrack").get("trackName").asText());
   }
 
   @Test
@@ -302,10 +337,19 @@ class SessionShareTest extends DatabaseBase {
     updateBoard(fight, playbackUpdate(fight)
             .volume(10)
             .shuffle(true)
+            .repeat(true)
+            .overplay(true)
+            .sequenceMode(true)
+            .playlistMode(true)
             .selectedTrackId(UUID.fromString(otherTrackId))
             .selectedWindowId(null))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.volume").value(10))
+            .andExpect(jsonPath("$.shuffle").value(false))
+            .andExpect(jsonPath("$.repeat").value(false))
+            .andExpect(jsonPath("$.overplay").value(false))
+            .andExpect(jsonPath("$.sequenceMode").value(false))
+            .andExpect(jsonPath("$.playlistMode").value(false))
             .andExpect(jsonPath("$.selectedTrack.id").value(otherTrackId));
 
     updateBoard(fight, playbackUpdate(fight).selectedTrackId(directTrack.getId()).selectedWindowId(null))
@@ -393,7 +437,7 @@ class SessionShareTest extends DatabaseBase {
             .andExpect(jsonPath("$.subscription.unpublished").value(true))
             .andExpect(jsonPath("$.subscription.restorable").value(true))
             .andExpect(jsonPath("$.subscription.updateAvailable").value(false))
-            .andExpect(jsonPath("$.boards.length()").value(2));
+            .andExpect(jsonPath("$.boards.length()").value(3));
 
     sync(sessionId).andExpect(status().isOk());
 
@@ -426,7 +470,7 @@ class SessionShareTest extends DatabaseBase {
 
     mockMvc.perform(get("/api/v1/sessions/{id}", sessionId).with(TestHelpers.authenticatedAs(subscriber)))
             .andExpect(jsonPath("$.subscription.unpublished").value(true))
-            .andExpect(jsonPath("$.boards.length()").value(2));
+            .andExpect(jsonPath("$.boards.length()").value(3));
   }
 
   @Test
@@ -435,7 +479,14 @@ class SessionShareTest extends DatabaseBase {
       SessionEntity session = new SessionEntity();
       session.setName("Session " + i);
       session.setOwner(owner);
+      session.getTracks().add(directTrack);
       session = sessionRepository.save(session);
+
+      BoardEntity board = new BoardEntity();
+      board.setName("Stage");
+      board.setOwner(owner);
+      board.setSession(session);
+      boardRepository.save(board);
 
       String shareCode = shareCodeOf(mockMvc.perform(post("/api/v1/share/sessions/{id}/publish", session.getId())
               .with(TestHelpers.authenticatedAs(owner))
@@ -443,6 +494,33 @@ class SessionShareTest extends DatabaseBase {
               .content("{}")));
 
       subscribe(shareCode).andExpect(i < 5 ? status().isCreated() : status().isForbidden());
+    }
+  }
+
+  @Test
+  void publish_isBadRequest_withoutStagesOrTracks() throws Exception {
+    SessionEntity noStages = new SessionEntity();
+    noStages.setName("No stages");
+    noStages.setOwner(owner);
+    noStages.getTracks().add(directTrack);
+    noStages = sessionRepository.save(noStages);
+
+    SessionEntity noTracks = new SessionEntity();
+    noTracks.setName("No tracks");
+    noTracks.setOwner(owner);
+    noTracks = sessionRepository.save(noTracks);
+    BoardEntity board = new BoardEntity();
+    board.setName("Stage");
+    board.setOwner(owner);
+    board.setSession(noTracks);
+    boardRepository.save(board);
+
+    for (SessionEntity session : new SessionEntity[]{noStages, noTracks}) {
+      mockMvc.perform(post("/api/v1/share/sessions/{id}/publish", session.getId())
+                      .with(TestHelpers.authenticatedAs(owner))
+                      .contentType(MediaType.APPLICATION_JSON)
+                      .content("{}"))
+              .andExpect(status().isBadRequest());
     }
   }
 

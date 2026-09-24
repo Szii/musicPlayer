@@ -159,21 +159,6 @@ public class BoardService {
     if (request.getVolume() != null) {
       board.setVolume(request.getVolume());
     }
-    if (request.getRepeat() != null) {
-      board.setRepeat(request.getRepeat());
-    }
-    if (request.getOverplay() != null) {
-      board.setOverplay(request.getOverplay());
-    }
-    if (request.getShuffle() != null) {
-      board.setShuffle(request.getShuffle());
-    }
-    if (request.getPlaylistMode() != null) {
-      board.setPlaylistMode(request.getPlaylistMode());
-    }
-    if (request.getSequenceMode() != null) {
-      board.setSequenceMode(request.getSequenceMode());
-    }
 
     if (request.getSelectedTrackId() == null) {
       board.setSelectedTrack(null);

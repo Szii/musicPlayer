@@ -799,7 +799,7 @@ components:
           description: A newer version was published. Syncing installs it.
         modified:
           type: boolean
-          description: Board playback settings were changed since the last sync. Syncing restores them.
+          description: The selected track or window or the volume of a board changed since the last sync. Syncing restores them.
         unpublished:
           type: boolean
           description: The owner stopped publishing the session. It keeps working, but no updates will come.
@@ -1194,7 +1194,7 @@ components:
           description: Number of distinct tracks in the session, whether added directly or through its groups
         readOnly:
           type: boolean
-          description: True for subscribed sessions. Only board playback settings (selected track and window, volume, modes) can change.
+          description: True for subscribed sessions. Only the selected track and window and the volume of their boards can change; single/playlist mode, loop mode, overplay and shuffle stay as published.
         subscription:
           allOf:
             - $ref: '#/components/schemas/SessionSubscription'
@@ -2379,6 +2379,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionShareResponse'
+        '400':
+          description: The session has no stage or no track
         '403':
           description: Subscribed sessions cannot be published
         '404':
@@ -2400,6 +2402,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SessionShareResponse'
+        '400':
+          description: The session has no stage or no track
         '404':
           description: Session not found or not published
     patch:

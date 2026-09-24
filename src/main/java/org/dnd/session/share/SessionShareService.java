@@ -51,6 +51,7 @@ public class SessionShareService {
       throw new ConflictException("Session is already published");
     }
 
+    SessionSnapshot snapshot = playableSnapshot(session);
     LocalDateTime now = LocalDateTime.now();
     SessionShareEntity share = new SessionShareEntity();
     share.setSession(session);
@@ -59,7 +60,7 @@ public class SessionShareService {
     share.setDescription(request == null ? null : request.getDescription());
     share.setVersion(1);
     share.setName(session.getName());
-    share.setSnapshot(sessionSnapshotFactory.create(session));
+    share.setSnapshot(snapshot);
     share.setPublishedAt(now);
     share.setUpdatedAt(now);
 
@@ -73,10 +74,11 @@ public class SessionShareService {
     UUID userId = securityUtils.getCurrentUserId();
     SessionEntity session = findPublishableSession(sessionId, userId);
     SessionShareEntity share = findActiveShare(sessionId);
+    SessionSnapshot snapshot = playableSnapshot(session);
 
     share.setVersion(share.getVersion() + 1);
     share.setName(session.getName());
-    share.setSnapshot(sessionSnapshotFactory.create(session));
+    share.setSnapshot(snapshot);
     share.setUpdatedAt(LocalDateTime.now());
 
     log.info("Session {} published as version {}", sessionId, share.getVersion());
@@ -170,6 +172,14 @@ public class SessionShareService {
     session.setInstalledVersion(share.getVersion());
     session.setModified(false);
     sessionRepository.flush();
+  }
+
+  private SessionSnapshot playableSnapshot(SessionEntity session) {
+    SessionSnapshot snapshot = sessionSnapshotFactory.create(session);
+    if (snapshot.boards().isEmpty() || snapshot.tracks().isEmpty()) {
+      throw new BadRequestException("Only sessions with at least one stage and one track can be published");
+    }
+    return snapshot;
   }
 
   private SessionEntity findPublishableSession(UUID sessionId, UUID userId) {
