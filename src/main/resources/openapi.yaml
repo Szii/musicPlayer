@@ -870,11 +870,11 @@ components:
           format: uuid
           nullable: false
           description: Id of the session this board belongs to
-        linkedBoardId:
-          type: string
-          format: uuid
+        linkedBoard:
+          allOf:
+            - $ref: '#/components/schemas/LinkedBoard'
           nullable: true
-          description: Id of the linked board for synchronized playback
+          description: Board handed playback over to when this board ends
 
     BoardCreateRequest:
       type: object
@@ -957,11 +957,11 @@ components:
           type: boolean
           description: Play the windows of track in the sequence
           example: false
-        linkedBoardId:
-          type: string
-          format: uuid
+        linkedBoard:
+          allOf:
+            - $ref: '#/components/schemas/LinkedBoard'
           nullable: true
-          description: Id of the linked board for synchronized playback
+          description: Board handed playback over to when this board ends
 
     PlayRequest:
       type: object
@@ -1139,6 +1139,30 @@ components:
           type: boolean
           description: Whether HTTP range requests are supported for this stream
           example: true
+
+    LinkedBoard:
+      type: object
+      description: Board linked for playback handoff and what happens with it
+      required:
+        - boardId
+        - mode
+      properties:
+        boardId:
+          type: string
+          format: uuid
+          description: Id of the linked board
+        mode:
+          $ref: '#/components/schemas/LinkedBoardMode'
+
+    LinkedBoardMode:
+      type: string
+      description: >
+        What happens with the linked board when this board's playback ends:
+        * `START` - start the linked board from the beginning
+        * `RESUME` - the linked board is paused while this one plays and resumes afterwards
+      enum:
+        - START
+        - RESUME
 
     PlaybackStatus:
       type: string

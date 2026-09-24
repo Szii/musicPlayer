@@ -113,7 +113,7 @@ public class BoardService {
     return board.getSession().getId();
   }
 
-  @PreAuthorize("#request.linkedBoardId == null or @resourceAccess.isBoardOwner(#request.linkedBoardId)")
+  @PreAuthorize("#request.linkedBoard == null or @resourceAccess.isBoardOwner(#request.linkedBoard.boardId)")
   @Transactional
   public Board updateUserBoard(UUID boardId, BoardUpdateRequest request) {
     UUID userId = securityUtils.getCurrentUserId();
@@ -128,6 +128,7 @@ public class BoardService {
     setGroupIfExist(request.getSelectedGroupId(), board);
     setTrackIfExist(request.getSelectedTrackId(), board);
     setWindowIfExist(request.getSelectedWindowId(), board);
+    board.setLinkedBoard(boardMapper.toLinkedBoard(request.getLinkedBoard()));
 
     BoardEntity savedBoard = boardRepository.save(board);
 
