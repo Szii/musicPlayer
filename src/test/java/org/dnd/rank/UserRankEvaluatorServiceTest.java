@@ -65,7 +65,7 @@ class UserRankEvaluatorServiceTest {
     UserEntity user = mock(UserEntity.class);
 
     when(user.getRank()).thenReturn(UserRank.UNRESTRICTED);
-    when(user.getOwnedTracks()).thenReturn(tracks(100));
+    when(user.getOwnedTracks()).thenReturn(tracks(UserRankLimits.normal().maxTracks() + 1));
 
     assertThat(service.canCreateTrack(user)).isTrue();
   }
@@ -78,7 +78,7 @@ class UserRankEvaluatorServiceTest {
 
     when(user.getId()).thenReturn(expectedUuid);
     when(user.getRank()).thenReturn(UserRank.NORMAL);
-    when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(rawList(5));
+    when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(rawList(UserRankLimits.normal().maxSessions()));
 
     assertThat(service.canCreateSession(user)).isFalse();
   }
@@ -116,7 +116,7 @@ class UserRankEvaluatorServiceTest {
     when(user.getShares()).thenReturn(rawSet(10));
 
 
-    when(sessionRepository.countByOwner_Id(expectedUuid)).thenReturn(5L);
+    when(sessionRepository.countByOwner_Id(expectedUuid)).thenReturn((long) UserRankLimits.normal().maxSessions());
     when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(List.of(session));
 
     UserLimits result = service.getLimitsForUser(user);
@@ -138,7 +138,7 @@ class UserRankEvaluatorServiceTest {
     assertThat(result.getSubscribes().getMaxSubscribes()).isEqualTo(limits.maxShares());
     assertThat(result.getSubscribes().getSubscribeLimitReached()).isFalse();
 
-    assertThat(result.getSessions().getActualSessions()).isEqualTo(5);
+    assertThat(result.getSessions().getActualSessions()).isEqualTo(limits.maxSessions());
     assertThat(result.getSessions().getMaxSessions()).isEqualTo(limits.maxSessions());
     assertThat(result.getSessions().getSessionLimitReached()).isTrue();
 
