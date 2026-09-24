@@ -6,8 +6,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.board.BoardEntity;
+import org.dnd.group.GroupEntity;
+import org.dnd.track.TrackEntity;
 import org.dnd.user.UserEntity;
 
+import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -37,4 +40,20 @@ public class SessionEntity {
   @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
   @OrderBy("name ASC")
   private Set<BoardEntity> boards;
+
+  @ManyToMany
+  @JoinTable(
+          name = "session_tracks",
+          joinColumns = @JoinColumn(name = "session_id"),
+          inverseJoinColumns = @JoinColumn(name = "track_id")
+  )
+  private Set<TrackEntity> tracks = new HashSet<>();
+
+  @ManyToMany
+  @JoinTable(
+          name = "session_groups",
+          joinColumns = @JoinColumn(name = "session_id"),
+          inverseJoinColumns = @JoinColumn(name = "group_id")
+  )
+  private Set<GroupEntity> groups = new HashSet<>();
 }

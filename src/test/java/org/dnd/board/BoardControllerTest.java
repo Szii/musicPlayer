@@ -660,6 +660,21 @@ class BoardControllerTest extends DatabaseBase {
     groupRepository.save(group);
     boardRepository.save(board);
 
+    TrackEntity trackOutsideSession = new TrackEntity();
+    trackOutsideSession.setTrackName("Track outside session");
+    trackOutsideSession.setTrackLink("https://example3.com/test.mp3");
+    trackOutsideSession.setDuration(60);
+    trackOutsideSession.setTrackOriginalName("original name outside session");
+    trackOutsideSession.setOwner(testUser);
+    trackRepository.save(trackOutsideSession);
+
+    mockMvc.perform(put("/api/v1/sessions/{sessionId}/tracks/{trackId}", testSession.getId(), trackWhichIsNotInGroup.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk());
+    mockMvc.perform(put("/api/v1/sessions/{sessionId}/groups/{groupId}", testSession.getId(), group.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk());
+
     BoardUpdateRequest updateRequest = new BoardUpdateRequest()
             .volume(100)
             .repeat(true)

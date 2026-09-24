@@ -148,6 +148,9 @@ public class BoardService {
                     String.format("Track with id %s not found", selectedTrackId)
             ));
 
+    if (board.getSelectedTrack() == null || !board.getSelectedTrack().getId().equals(track.getId())) {
+      board.getSession().getTracks().add(track);
+    }
     board.setSelectedTrack(track);
   }
 
@@ -158,8 +161,10 @@ public class BoardService {
     }
     GroupEntity group = groupRepository.findByIdAndOwner_Id(selectedGroupId, securityUtils.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", selectedGroupId)));
+    if (board.getSelectedGroup() == null || !board.getSelectedGroup().getId().equals(group.getId())) {
+      board.getSession().getGroups().add(group);
+    }
     board.setSelectedGroup(group);
-
   }
 
   private void setWindowIfExist(UUID selectedWindowId, BoardEntity board) {

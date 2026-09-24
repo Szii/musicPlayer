@@ -430,6 +430,11 @@ components:
           format: int32
           description: Track duration in seconds
           example: 213
+        sessionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: When set, the created track is added to this session
 
     UpdateTrackRequestV2:
       type: object
@@ -714,6 +719,11 @@ components:
           type: string
           description: Share code of the track to subscribe to
           example: "550e8400-e29b-41d4-a716-446655440000"
+        sessionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: When set, the subscribed track is added to this session
 
     TrackShareResponse:
       type: object
@@ -764,6 +774,11 @@ components:
           description: Tracks in this group, each with an optional per-group name
           items:
             $ref: '#/components/schemas/GroupTrackRequest'
+        sessionId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Only used on create. When set, the created group is added to this session
 
     GroupTrackRequest:
       type: object
@@ -1059,6 +1074,18 @@ components:
          description: List of boards in the session
          items:
            $ref: '#/components/schemas/Board'
+        trackIds:
+          type: array
+          description: IDs of tracks added to this session
+          items:
+            type: string
+            format: uuid
+        groupIds:
+          type: array
+          description: IDs of groups added to this session
+          items:
+            type: string
+            format: uuid
 
     WaveformResponse:
       type: object
@@ -2333,3 +2360,75 @@ paths:
         '404':
           description: Session not found
 
+
+  /sessions/{sessionId}/tracks/{trackId}:
+    put:
+      tags:
+        - Sessions
+      summary: Add a track to a session
+      operationId: addTrackToSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Track is in the session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session or track not found
+    delete:
+      tags:
+        - Sessions
+      summary: Remove a track from a session
+      operationId: removeTrackFromSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/TrackId'
+      responses:
+        '200':
+          description: Track is not in the session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session not found
+
+  /sessions/{sessionId}/groups/{groupId}:
+    put:
+      tags:
+        - Sessions
+      summary: Add a group to a session
+      operationId: addGroupToSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Group is in the session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session or group not found
+    delete:
+      tags:
+        - Sessions
+      summary: Remove a group from a session
+      operationId: removeGroupFromSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200':
+          description: Group is not in the session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '404':
+          description: Session not found

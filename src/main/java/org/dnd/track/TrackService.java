@@ -11,6 +11,7 @@ import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
+import org.dnd.session.SessionService;
 import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
@@ -39,6 +40,7 @@ public class TrackService {
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final TrackWindowRepository trackWindowRepository;
   private final SecurityUtils securityUtils;
+  private final SessionService sessionService;
 
   @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
   @Transactional
@@ -87,7 +89,10 @@ public class TrackService {
     TrackEntity track = mapper.toEntity(trackRequest);
     track.setOwner(owner);
 
-    return mapper.toDto(trackRepository.save(track), userId);
+    TrackEntity saved = trackRepository.save(track);
+    sessionService.attachTrack(trackRequest.getSessionId(), saved);
+
+    return mapper.toDto(saved, userId);
   }
 
 

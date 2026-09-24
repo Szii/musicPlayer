@@ -8,6 +8,8 @@ import org.dnd.board.BoardRepository;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupRepository;
+import org.dnd.session.SessionRepository;
+import org.dnd.session.SessionService;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackMapper;
 import org.dnd.track.TrackRepository;
@@ -38,6 +40,8 @@ public class ShareService {
   private final ShareMapper shareMapper;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final SecurityUtils securityUtils;
+  private final SessionRepository sessionRepository;
+  private final SessionService sessionService;
 
 
   @PreAuthorize("@resourceAccess.isTrackOwner(#trackId)")
@@ -62,7 +66,7 @@ public class ShareService {
 
 
   @Transactional
-  public void subscribe(String shareCode) {
+  public void subscribe(String shareCode, UUID sessionId) {
     UUID userId = securityUtils.getCurrentUserId();
     TrackShareEntity trackShare = trackShareRepository.findByShareCode(shareCode)
             .orElseThrow(() -> new NotFoundException("Invalid share code: " + shareCode));
@@ -77,6 +81,7 @@ public class ShareService {
     user.getShares().add(trackShare);
     trackShare.getUsers().add(user);
     userRepository.save(user);
+    sessionService.attachTrack(sessionId, trackShare.getTrack());
 
     log.info("User {} subscribed to track {} via workshop", userId, trackShare.getTrack().getId());
   }
@@ -104,6 +109,7 @@ public class ShareService {
     share.getUsers().remove(user);
 
     groupRepository.removeTrackFromGroupsOwnedByUser(trackId, userId);
+    sessionRepository.removeTrackFromSessionsOwnedByUser(trackId, userId);
     boardRepository.clearSelectedTrackFromBoardsOwnedByUser(trackId, userId);
 
     log.info("User {} unsubscribed from track {}", userId, trackId);
@@ -125,6 +131,7 @@ public class ShareService {
 
     boardRepository.clearSelectedTrackFromAllBoardsNotOwnedByUser(trackId, track.getOwner().getId());
     groupRepository.removeFromAllGroupsNotOwnedByUser(trackId, track.getOwner().getId());
+    sessionRepository.removeTrackFromSessionsNotOwnedByUser(trackId, track.getOwner().getId());
 
     log.info("Track {} unpublished", trackId);
   }
