@@ -27,17 +27,16 @@ public class BoardEnricher {
   }
 
   public List<Track> getAvailableTracks(BoardEntity boardEntity, UUID userId) {
-    List<TrackEntity> tracks;
-
-    if (boardEntity.getSelectedGroup() != null) {
-      tracks = trackRepository.findByGroupTracks_Group_Id(boardEntity.getSelectedGroup().getId());
-    } else {
-      tracks = getSessionTracks(boardEntity);
-    }
-
-    return tracks.stream()
+    return getAvailableTrackEntities(boardEntity).stream()
             .map(trackEntity -> trackMapper.toDto(trackEntity, userId))
             .toList();
+  }
+
+  public List<TrackEntity> getAvailableTrackEntities(BoardEntity boardEntity) {
+    if (boardEntity.getSelectedGroup() != null) {
+      return trackRepository.findByGroupTracks_Group_Id(boardEntity.getSelectedGroup().getId());
+    }
+    return getSessionTracks(boardEntity);
   }
 
   private List<TrackEntity> getSessionTracks(BoardEntity boardEntity) {

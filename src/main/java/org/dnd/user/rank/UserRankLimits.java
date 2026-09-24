@@ -16,7 +16,7 @@ public record UserRankLimits(
             3,
             7,
             50,
-            100
+            5
     );
   }
 

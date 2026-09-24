@@ -2,7 +2,6 @@ package org.dnd.user.rank;
 
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.model.*;
-import org.dnd.board.BoardEntity;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
@@ -20,12 +19,12 @@ public class UserRankEvaluatorService {
 
   public boolean canCreateTrack(UserEntity user) {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
-    return limits.canCreate(limits.maxTracks(), user.getOwnedTracks().size());
+    return limits.canCreate(limits.maxTracks(), ownTracks(user).size());
   }
 
   public boolean canCreateGroup(UserEntity user) {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
-    return limits.canCreate(limits.maxGroups(), user.getOwnedGroups().size());
+    return limits.canCreate(limits.maxGroups(), ownGroupCount(user));
   }
 
   public boolean canCreateBoardForSession(UserEntity user, SessionEntity session) {
@@ -35,7 +34,7 @@ public class UserRankEvaluatorService {
 
   public boolean canCreateSession(UserEntity user) {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
-    int actualSessions = sessionRepository.findByOwner_Id(user.getId()).size();
+    int actualSessions = Math.toIntExact(sessionRepository.countByOwner_IdAndSubscribed(user.getId(), false));
 
     return limits.canCreate(limits.maxSessions(), actualSessions);
   }
@@ -45,22 +44,21 @@ public class UserRankEvaluatorService {
     return limits.canCreate(limits.maxWindows(), track.getTrackWindows().size());
   }
 
-  public boolean canSubscribeToTrack(UserEntity user) {
+  public boolean canSubscribeToSession(UserEntity user) {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
-    return limits.canCreate(limits.maxShares(), user.getShares().size());
+    return limits.canCreate(limits.maxShares(), subscribedSessionCount(user));
   }
 
   public UserLimits getLimitsForUser(UserEntity user) {
     UserRankLimits limits = userRankLimitProvider.getLimits(user.getRank());
 
-    List<TrackEntity> userTracks = user.getOwnedTracks().stream().toList();
-    List<SessionEntity> userSessions = sessionRepository.findByOwner_Id(user.getId());
-    List<BoardEntity> userBoards = user.getBoards().stream().toList();
+    List<TrackEntity> userTracks = ownTracks(user);
+    List<SessionEntity> userSessions = sessionRepository.findByOwner_IdAndSubscribed(user.getId(), false);
 
     int actualTracks = userTracks.size();
-    int actualGroups = user.getOwnedGroups().size();
-    int actualShares = user.getShares().size();
-    int actualSessions = Math.toIntExact(sessionRepository.countByOwner_Id(user.getId()));
+    int actualGroups = ownGroupCount(user);
+    int actualShares = subscribedSessionCount(user);
+    int actualSessions = Math.toIntExact(sessionRepository.countByOwner_IdAndSubscribed(user.getId(), false));
 
     UserTracksLimits trackLimits = new UserTracksLimits();
     trackLimits.setActualTracks(actualTracks);
@@ -117,6 +115,22 @@ public class UserRankEvaluatorService {
             .sessions(sessionLimits)
             .subscribes(subscriptionLimits)
             .windows(trackWindowsLimits);
+  }
+
+  private List<TrackEntity> ownTracks(UserEntity user) {
+    return user.getOwnedTracks().stream()
+            .filter(track -> !track.isManaged())
+            .toList();
+  }
+
+  private int ownGroupCount(UserEntity user) {
+    return Math.toIntExact(user.getOwnedGroups().stream()
+            .filter(group -> !group.isManaged())
+            .count());
+  }
+
+  private int subscribedSessionCount(UserEntity user) {
+    return Math.toIntExact(sessionRepository.countByOwner_IdAndSubscribed(user.getId(), true));
   }
 
 }

@@ -12,7 +12,6 @@ import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.session.SessionService;
-import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
@@ -21,7 +20,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -52,7 +50,6 @@ public class TrackService {
             .orElseThrow(() -> new NotFoundException(
                     String.format("Track with id %s not found", trackId)));
 
-    removeShareCompletely(track);
     removeTrackFromAllGroups(trackId);
 
     boardRepository.clearSelectedTrackFromAllBoards(trackId);
@@ -146,20 +143,5 @@ public class TrackService {
     for (GroupEntity group : groups) {
       group.removeTrack(trackId);
     }
-  }
-
-  private void removeShareCompletely(TrackEntity track) {
-    TrackShareEntity share = track.getTrackShare();
-    if (share == null) {
-      return;
-    }
-
-    for (UserEntity user : new HashSet<>(share.getUsers())) {
-      user.getShares().remove(share);
-      share.getUsers().remove(user);
-    }
-
-    track.setTrackShare(null);
-    share.setTrack(null);
   }
 }

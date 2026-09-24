@@ -44,6 +44,6 @@ class GroupRepositoryTest extends DatabaseBase {
     List<GroupEntity> groups = groupRepository.findByOwner_Id(owner.getId());
 
     assertThat(groups).hasSize(2);
-    assertThat(groupRepository.existsByIdAndOwner_Id(group1.getId(), owner.getId())).isTrue();
+    assertThat(groupRepository.existsByIdAndOwner_IdAndManagedSessionIsNull(group1.getId(), owner.getId())).isTrue();
   }
 }

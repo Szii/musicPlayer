@@ -7,6 +7,8 @@ import org.dnd.api.model.SessionsResponse;
 import org.dnd.board.BoardEnricher;
 import org.dnd.board.BoardEntity;
 import org.dnd.exception.NotFoundException;
+import org.dnd.session.share.SessionShareLifecycle;
+import org.dnd.session.share.SessionShareRepository;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
@@ -48,7 +50,13 @@ class SessionServiceTest {
   @Mock
   private SecurityUtils securityUtils;
 
-  @InjectMocks
+  @Mock
+  private SessionShareRepository sessionShareRepository;
+
+  @Mock
+  private SessionShareLifecycle sessionShareLifecycle;
+
+    @InjectMocks
   private SessionService sessionService;
 
   @BeforeEach

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.board.BoardEntity;
 import org.dnd.group.GroupEntity;
+import org.dnd.session.share.SessionShareEntity;
 import org.dnd.track.TrackEntity;
 import org.dnd.user.UserEntity;
 
@@ -39,7 +40,7 @@ public class SessionEntity {
 
   @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
   @OrderBy("name ASC")
-  private Set<BoardEntity> boards;
+  private Set<BoardEntity> boards = new HashSet<>();
 
   @ManyToMany
   @JoinTable(
@@ -56,4 +57,17 @@ public class SessionEntity {
           inverseJoinColumns = @JoinColumn(name = "group_id")
   )
   private Set<GroupEntity> groups = new HashSet<>();
+
+  @Column(nullable = false)
+  private boolean subscribed = false;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "source_share_id")
+  private SessionShareEntity sourceShare;
+
+  @Column(name = "installed_version")
+  private Integer installedVersion;
+
+  @Column(nullable = false)
+  private boolean modified = false;
 }

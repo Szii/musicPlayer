@@ -22,14 +22,14 @@ public class ResourceAccess {
   private final SecurityUtils securityUtils;
 
   public boolean isTrackOwner(UUID trackId) {
-    if (!trackRepository.existsByIdAndOwner_Id(trackId, securityUtils.getCurrentUserId())) {
+    if (!trackRepository.existsByIdAndOwner_IdAndManagedSessionIsNull(trackId, securityUtils.getCurrentUserId())) {
       throw new NotFoundException(String.format("Track with id %s not found", trackId));
     }
     return true;
   }
 
   public boolean isGroupOwner(UUID groupId) {
-    if (!groupRepository.existsByIdAndOwner_Id(groupId, securityUtils.getCurrentUserId())) {
+    if (!groupRepository.existsByIdAndOwner_IdAndManagedSessionIsNull(groupId, securityUtils.getCurrentUserId())) {
       throw new NotFoundException(String.format("Group with id %s not found", groupId));
     }
     return true;

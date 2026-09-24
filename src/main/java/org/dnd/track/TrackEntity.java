@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.dnd.group.GroupTrackEntity;
-import org.dnd.track.trackShare.TrackShareEntity;
+import org.dnd.session.SessionEntity;
 import org.dnd.user.UserEntity;
 
 import java.util.ArrayList;
@@ -57,9 +57,13 @@ public class TrackEntity {
   @OrderBy("positionWithinTrack  ASC, name ASC")
   private List<TrackWindowEntity> trackWindows = new ArrayList<>();
 
-  @OneToOne(fetch = FetchType.EAGER, cascade = CascadeType.ALL, orphanRemoval = true)
-  @JoinColumn(name = "track_share_id", unique = true)
-  private TrackShareEntity trackShare;
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "managed_session_id")
+  private SessionEntity managedSession;
+
+  public boolean isManaged() {
+    return managedSession != null;
+  }
 
   public void addTrackWindow(TrackWindowEntity window) {
     this.trackWindows.add(window);
