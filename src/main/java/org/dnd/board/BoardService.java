@@ -91,8 +91,8 @@ public class BoardService {
 
     board.setSession(session);
 
-    setTrackIfExist(request.getSelectedTrackId(), board);
     setGroupIfExist(request.getSelectedGroupId(), board);
+    setTrackIfExist(request.getSelectedTrackId(), board);
 
     session.getBoards().add(board);
 
@@ -148,7 +148,8 @@ public class BoardService {
                     String.format("Track with id %s not found", selectedTrackId)
             ));
 
-    if (board.getSelectedTrack() == null || !board.getSelectedTrack().getId().equals(track.getId())) {
+    if ((board.getSelectedTrack() == null || !board.getSelectedTrack().getId().equals(track.getId()))
+            && !isInSessionGroup(board.getSession(), track)) {
       board.getSession().getTracks().add(track);
     }
     board.setSelectedTrack(track);
@@ -165,6 +166,12 @@ public class BoardService {
       board.getSession().getGroups().add(group);
     }
     board.setSelectedGroup(group);
+  }
+
+  private boolean isInSessionGroup(SessionEntity session, TrackEntity track) {
+    return session.getGroups().stream()
+            .flatMap(group -> group.getGroupTracks().stream())
+            .anyMatch(groupTrack -> groupTrack.getTrack().getId().equals(track.getId()));
   }
 
   private void setWindowIfExist(UUID selectedWindowId, BoardEntity board) {
