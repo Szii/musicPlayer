@@ -5,7 +5,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.dnd.api.MusicTracksApi;
 import org.dnd.api.model.*;
-import org.dnd.track.trackShare.ShareService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,8 +23,6 @@ import static org.dnd.configuration.limiting.RateLimitNames.*;
 public class TrackController implements MusicTracksApi {
 
   private final TrackService trackService;
-
-  private final ShareService shareService;
 
   private final TrackWindowService trackWindowService;
 
@@ -109,26 +106,6 @@ public class TrackController implements MusicTracksApi {
   )
   public ResponseEntity<Track> deleteTrackWindow(UUID trackId, UUID pointId) throws Exception {
     return ResponseEntity.ok().body(trackWindowService.deleteTrackWindow(trackId, pointId));
-  }
-
-  @Override
-  @RateLimiting(
-          name = DEFAULT_API,
-          cacheKey = CURRENT_USER_KEY,
-          ratePerMethod = true
-  )
-  public ResponseEntity<List<Track>> getPublishedTracks() throws Exception {
-    return ResponseEntity.ok().body(shareService.getPublishedTracks());
-  }
-
-  @Override
-  @RateLimiting(
-          name = DEFAULT_API,
-          cacheKey = CURRENT_USER_KEY,
-          ratePerMethod = true
-  )
-  public ResponseEntity<List<Track>> getUserSubscribedTracks() throws Exception {
-    return ResponseEntity.ok().body(shareService.getSubscribedTracks());
   }
 
   @Override

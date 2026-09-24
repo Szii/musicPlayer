@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -82,6 +84,8 @@ public class BoardService {
                     String.format("Session with id %s not found for user %s", request.getSessionId(), userId)
             ));
 
+    requireEditable(session);
+
     if (!userRankEvaluatorService.canCreateBoardForSession(owner, session)) {
       throw new LimitReachedException("Board limit reached");
     }
@@ -109,6 +113,7 @@ public class BoardService {
             .orElseThrow(() -> new NotFoundException(
                     String.format("Board with id %s not found for user %s", boardId, userId)
             ));
+    requireEditable(board.getSession());
     boardRepository.delete(board);
     return board.getSession().getId();
   }
@@ -124,6 +129,11 @@ public class BoardService {
                     String.format("Board with id %s not found for user %s", boardId, userId)
             ));
 
+    if (board.getSession().isSubscribed()) {
+      applyPlaybackUpdate(board, request);
+      return toEnrichedDto(boardRepository.save(board), userId);
+    }
+
     boardMapper.updateBoardFromRequest(request, board);
     setGroupIfExist(request.getSelectedGroupId(), board);
     setTrackIfExist(request.getSelectedTrackId(), board);
@@ -133,6 +143,79 @@ public class BoardService {
     BoardEntity savedBoard = boardRepository.save(board);
 
     return toEnrichedDto(savedBoard, userId);
+  }
+
+  private void requireEditable(SessionEntity session) {
+    if (session.isSubscribed()) {
+      throw new ForbiddenException("Boards of a subscribed session cannot be added or removed");
+    }
+  }
+
+  private void applyPlaybackUpdate(BoardEntity board, BoardUpdateRequest request) {
+    if (changesBoardSetup(board, request)) {
+      throw new ForbiddenException("Boards of a subscribed session only allow playback changes");
+    }
+
+    if (request.getVolume() != null) {
+      board.setVolume(request.getVolume());
+    }
+    if (request.getRepeat() != null) {
+      board.setRepeat(request.getRepeat());
+    }
+    if (request.getOverplay() != null) {
+      board.setOverplay(request.getOverplay());
+    }
+    if (request.getShuffle() != null) {
+      board.setShuffle(request.getShuffle());
+    }
+    if (request.getPlaylistMode() != null) {
+      board.setPlaylistMode(request.getPlaylistMode());
+    }
+    if (request.getSequenceMode() != null) {
+      board.setSequenceMode(request.getSequenceMode());
+    }
+
+    if (request.getSelectedTrackId() == null) {
+      board.setSelectedTrack(null);
+    } else {
+      TrackEntity track = boardEnricher.getAvailableTrackEntities(board).stream()
+              .filter(available -> available.getId().equals(request.getSelectedTrackId()))
+              .findFirst()
+              .orElseThrow(() -> new NotFoundException(
+                      String.format("Track with id %s not found", request.getSelectedTrackId())
+              ));
+      board.setSelectedTrack(track);
+    }
+
+    if (request.getSelectedWindowId() == null) {
+      board.setSelectedWindow(null);
+    } else {
+      TrackWindowEntity window = board.getSelectedTrack() == null ? null : board.getSelectedTrack().getTrackWindows().stream()
+              .filter(candidate -> candidate.getId().equals(request.getSelectedWindowId()))
+              .findFirst()
+              .orElse(null);
+      if (window == null) {
+        throw new NotFoundException(String.format("Window with id %s not found", request.getSelectedWindowId()));
+      }
+      board.setSelectedWindow(window);
+    }
+
+    board.getSession().setModified(true);
+  }
+
+  private boolean changesBoardSetup(BoardEntity board, BoardUpdateRequest request) {
+    UUID currentGroupId = board.getSelectedGroup() == null ? null : board.getSelectedGroup().getId();
+    LinkedBoard current = board.getLinkedBoard();
+    UUID currentLinkedId = current == null ? null : current.getBoardId();
+    LinkedBoardMode currentLinkedMode = currentLinkedId == null ? null : current.getMode();
+    LinkedBoard requested = boardMapper.toLinkedBoard(request.getLinkedBoard());
+    UUID requestedLinkedId = requested == null ? null : requested.getBoardId();
+    LinkedBoardMode requestedLinkedMode = requestedLinkedId == null ? null : requested.getMode();
+
+    return (request.getName() != null && !request.getName().equals(board.getName()))
+            || !Objects.equals(request.getSelectedGroupId(), currentGroupId)
+            || !Objects.equals(requestedLinkedId, currentLinkedId)
+            || !Objects.equals(requestedLinkedMode, currentLinkedMode);
   }
 
   private void setTrackIfExist(UUID selectedTrackId, BoardEntity board) {
@@ -160,7 +243,7 @@ public class BoardService {
       board.setSelectedGroup(null);
       return;
     }
-    GroupEntity group = groupRepository.findByIdAndOwner_Id(selectedGroupId, securityUtils.getCurrentUserId())
+    GroupEntity group = groupRepository.findByIdAndOwner_IdAndManagedSessionIsNull(selectedGroupId, securityUtils.getCurrentUserId())
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", selectedGroupId)));
     if (board.getSelectedGroup() == null || !board.getSelectedGroup().getId().equals(group.getId())) {
       board.getSession().getGroups().add(group);

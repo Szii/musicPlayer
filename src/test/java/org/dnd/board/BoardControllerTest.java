@@ -16,7 +16,6 @@ import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
 import org.dnd.track.TrackWindowEntity;
-import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -506,69 +505,6 @@ class BoardControllerTest extends DatabaseBase {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.availableTracks.length()").value(1))
             .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId().toString()));
-
-  }
-
-  @Test
-  void updateBoard_SuccessForSharedTrack() throws Exception {
-    BoardEntity board = new BoardEntity();
-    board.setOwner(testUser);
-    board.setName("Test Board");
-    board.setVolume(50);
-    board.setRepeat(false);
-    board.setSession(testSession);
-    board.setOverplay(false);
-
-    TrackShareEntity share = new TrackShareEntity();
-    share.setShareCode("abcd");
-
-    TrackEntity trackInGroup = new TrackEntity();
-    trackInGroup.setTrackName("Track In Group");
-    trackInGroup.setTrackLink("https://example.com/test.mp3");
-    trackInGroup.setDuration(180);
-    trackInGroup.setTrackOriginalName("original name");
-    trackInGroup.setOwner(anotherUser);
-    trackInGroup.setTrackShare(share);
-
-    TrackWindowEntity trackWindow = new TrackWindowEntity();
-    trackWindow.setPositionFrom(0L);
-    trackWindow.setPositionTo(20L);
-    trackWindow.setFadeOutDurationMs(1000);
-    trackWindow.setFadeInDurationMs(1000);
-    trackWindow.setName("trackWindow");
-
-    trackInGroup.addTrackWindow(trackWindow);
-
-    GroupEntity group = new GroupEntity();
-    group.setListName("Test Group");
-    group.setOwner(testUser);
-    trackInGroup = trackRepository.save(trackInGroup);
-    group.addTrack(trackInGroup);
-    group = groupRepository.save(group);
-    board.setSelectedGroup(group);
-
-    boardRepository.save(board);
-
-    testUser.addShare(trackInGroup.getTrackShare());
-    userRepository.save(testUser);
-
-    BoardUpdateRequest updateRequest = new BoardUpdateRequest()
-            .volume(100)
-            .selectedGroupId(group.getId())
-            .selectedTrackId(trackInGroup.getId())
-            .selectedWindowId(trackWindow.getId())
-            .repeat(true)
-            .overplay(true);
-
-    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
-                    .with(TestHelpers.authenticatedAs(testUser))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(updateRequest)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.availableTracks.length()").value(1))
-            .andExpect(jsonPath("$.availableTracks[0].id").value(trackInGroup.getId().toString()))
-            .andExpect(jsonPath("$.selectedTrack.trackName").value(trackInGroup.getTrackName()))
-            .andExpect(jsonPath("$.selectedWindow.name").value(trackWindow.getName()));
 
   }
 

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.dnd.session.SessionEntity;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserEntity;
@@ -35,6 +36,14 @@ public class GroupEntity {
   @OneToMany(mappedBy = "group", cascade = CascadeType.ALL, orphanRemoval = true)
   @OrderBy("positionWithinGroup ASC")
   private Set<GroupTrackEntity> groupTracks = new HashSet<>();
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "managed_session_id")
+  private SessionEntity managedSession;
+
+  public boolean isManaged() {
+    return managedSession != null;
+  }
 
   public GroupTrackEntity addTrack(TrackEntity track, TrackWindowEntity trackWindow, String customName) {
     GroupTrackEntity groupTrack = new GroupTrackEntity(this, track, trackWindow, customName);

@@ -7,14 +7,12 @@ import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.GroupRequest;
-import org.dnd.api.model.SubscribeRequest;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
-import org.dnd.track.trackShare.TrackShareEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -292,34 +290,6 @@ class SessionScopeTest extends DatabaseBase {
 
     GroupEntity created = groupRepository.findByOwner_Id(testUser.getId()).getFirst();
     assertEquals(List.of(created.getId()), sessionGroupIds());
-  }
-
-  @Test
-  void subscribeWithSessionId_addsTrack_andUnsubscribeRemovesIt() throws Exception {
-    TrackEntity sharedTrack = createTrack("Shared", otherUser);
-    TrackShareEntity share = new TrackShareEntity();
-    share.setShareCode(UUID.randomUUID().toString());
-    share.setTrack(sharedTrack);
-    sharedTrack.setTrackShare(share);
-    sharedTrack = trackRepository.saveAndFlush(sharedTrack);
-
-    SubscribeRequest request = new SubscribeRequest()
-            .shareCode(share.getShareCode())
-            .sessionId(session.getId());
-
-    mockMvc.perform(post("/api/v1/share/subscribe")
-                    .with(TestHelpers.authenticatedAs(testUser))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isCreated());
-
-    assertEquals(List.of(sharedTrack.getId()), sessionTrackIds());
-
-    mockMvc.perform(delete("/api/v1/share/unsubscribe/{trackId}", sharedTrack.getId())
-                    .with(TestHelpers.authenticatedAs(testUser)))
-            .andExpect(status().isNoContent());
-
-    assertEquals(List.of(), sessionTrackIds());
   }
 
   @Test

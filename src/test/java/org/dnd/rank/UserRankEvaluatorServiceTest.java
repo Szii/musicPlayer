@@ -2,6 +2,7 @@ package org.dnd.rank;
 
 import org.dnd.api.model.UserLimits;
 import org.dnd.board.BoardEntity;
+import org.dnd.group.GroupEntity;
 import org.dnd.session.SessionEntity;
 import org.dnd.session.SessionRepository;
 import org.dnd.track.TrackEntity;
@@ -78,7 +79,7 @@ class UserRankEvaluatorServiceTest {
 
     when(user.getId()).thenReturn(expectedUuid);
     when(user.getRank()).thenReturn(UserRank.NORMAL);
-    when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(rawList(UserRankLimits.normal().maxSessions()));
+    when(sessionRepository.countByOwner_IdAndSubscribed(expectedUuid, false)).thenReturn((long) UserRankLimits.normal().maxSessions());
 
     assertThat(service.canCreateSession(user)).isFalse();
   }
@@ -111,13 +112,10 @@ class UserRankEvaluatorServiceTest {
     when(user.getId()).thenReturn(expectedUuid);
     when(user.getRank()).thenReturn(UserRank.NORMAL);
     when(user.getOwnedTracks()).thenReturn(Set.of(track));
-    when(user.getBoards()).thenReturn(rawSet(3));
-    when(user.getOwnedGroups()).thenReturn(rawSet(2));
-    when(user.getShares()).thenReturn(rawSet(10));
-
-
-    when(sessionRepository.countByOwner_Id(expectedUuid)).thenReturn((long) UserRankLimits.normal().maxSessions());
-    when(sessionRepository.findByOwner_Id(expectedUuid)).thenReturn(List.of(session));
+    when(user.getOwnedGroups()).thenReturn(Set.of(new GroupEntity(), new GroupEntity()));
+    when(sessionRepository.countByOwner_IdAndSubscribed(expectedUuid, true)).thenReturn(4L);
+    when(sessionRepository.countByOwner_IdAndSubscribed(expectedUuid, false)).thenReturn((long) UserRankLimits.normal().maxSessions());
+    when(sessionRepository.findByOwner_IdAndSubscribed(expectedUuid, false)).thenReturn(List.of(session));
 
     UserLimits result = service.getLimitsForUser(user);
 
@@ -134,7 +132,7 @@ class UserRankEvaluatorServiceTest {
     assertThat(result.getGroups().getMaxGroups()).isEqualTo(limits.maxGroups());
     assertThat(result.getGroups().getGroupLimitReached()).isFalse();
 
-    assertThat(result.getSubscribes().getActualSubscribes()).isEqualTo(10);
+    assertThat(result.getSubscribes().getActualSubscribes()).isEqualTo(4);
     assertThat(result.getSubscribes().getMaxSubscribes()).isEqualTo(limits.maxShares());
     assertThat(result.getSubscribes().getSubscribeLimitReached()).isFalse();
 

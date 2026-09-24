@@ -29,28 +29,6 @@ public interface BoardRepository extends JpaRepository<BoardEntity, UUID> {
           """)
   void clearSelectedTrackFromAllBoards(@Param("trackId") UUID trackId);
 
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query("""
-          update BoardEntity b
-          set b.selectedTrack = null, b.selectedWindow = null
-          where b.selectedTrack.id = :trackId
-            and b.owner.id = :ownerId
-          """)
-  void clearSelectedTrackFromBoardsOwnedByUser(@Param("trackId") UUID trackId,
-                                               @Param("ownerId") UUID ownerId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Query("""
-          update BoardEntity b
-          set b.selectedTrack = null, b.selectedWindow = null
-          where b.selectedTrack.id = :trackId
-            and b.owner.id != :ownerId
-          """)
-  void clearSelectedTrackFromAllBoardsNotOwnedByUser(
-          @Param("trackId") UUID trackId,
-          @Param("ownerId") UUID ownerId
-  );
-
   @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query("""
           update BoardEntity b

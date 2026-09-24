@@ -13,19 +13,11 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
 
   List<TrackEntity> findByOwner_Id(UUID ownerId);
 
-  @Query("""
-          select distinct t
-          from TrackEntity t
-          left join t.trackShare ts
-          left join ts.users u
-          where t.owner.id = :userId
-             or u.id = :userId
-          """)
-  List<TrackEntity> findAllAccessibleByUserId(@Param("userId") UUID userId);
-
   List<TrackEntity> findByGroupTracks_Group_Id(UUID groupId);
 
-  boolean existsByIdAndOwner_Id(UUID trackId, UUID ownerId);
+  boolean existsByIdAndOwner_IdAndManagedSessionIsNull(UUID trackId, UUID ownerId);
+
+  List<TrackEntity> findByManagedSession_Id(UUID sessionId);
 
   Optional<TrackEntity> findByIdAndOwner_Id(UUID trackId, UUID ownerId);
 
@@ -33,19 +25,16 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
           select distinct t
           from TrackEntity t
           where t.owner.id = :userId
+            and t.managedSession is null
           """)
   List<TrackEntity> findAccessibleTracksForUser(@Param("userId") UUID userId);
 
   @Query("""
-          select distinct t
+          select t
           from TrackEntity t
-          left join t.trackShare ts
-          left join ts.users u
           where t.id = :trackId
-            and (
-              t.owner.id = :userId
-              or u.id = :userId
-            )
+            and t.owner.id = :userId
+            and t.managedSession is null
           """)
   Optional<TrackEntity> findAccessibleByIdAndUserId(
           @Param("trackId") UUID trackId,
@@ -53,15 +42,11 @@ public interface TrackRepository extends JpaRepository<TrackEntity, UUID> {
   );
 
   @Query("""
-          select count(distinct t.id)
+          select count(t.id)
           from TrackEntity t
-          left join t.trackShare ts
-          left join ts.users u
           where t.id in :trackIds
-            and (
-              t.owner.id = :userId
-              or u.id = :userId
-            )
+            and t.owner.id = :userId
+            and t.managedSession is null
           """)
   long countAccessibleByIdsAndUserId(
           @Param("trackIds") Collection<UUID> trackIds,

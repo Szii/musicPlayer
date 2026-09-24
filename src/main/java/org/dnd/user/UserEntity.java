@@ -6,7 +6,6 @@ import org.dnd.board.BoardEntity;
 import org.dnd.group.GroupEntity;
 import org.dnd.token.TokenEntity;
 import org.dnd.track.TrackEntity;
-import org.dnd.track.trackShare.TrackShareEntity;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -66,16 +65,6 @@ public class UserEntity {
   @Column(name = "created_at", nullable = false, updatable = false)
   private LocalDateTime createdAt;
 
-  @ManyToMany(fetch = FetchType.EAGER)
-  @JoinTable(
-          name = "user_shares",
-          joinColumns = @JoinColumn(name = "user_id"),
-          inverseJoinColumns = @JoinColumn(name = "share_id")
-  )
-
-  @Builder.Default
-  private Set<TrackShareEntity> shares = new HashSet<>();
-
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
   @Builder.Default
   private Set<TokenEntity> tokens = new HashSet<>();
@@ -85,10 +74,5 @@ public class UserEntity {
     if (createdAt == null) {
       createdAt = LocalDateTime.now();
     }
-  }
-
-  public void addShare(TrackShareEntity share) {
-    this.shares.add(share);
-    share.getUsers().add(this);
   }
 }

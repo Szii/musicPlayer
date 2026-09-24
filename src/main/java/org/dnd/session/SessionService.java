@@ -1,25 +1,38 @@
 package org.dnd.session;
 
 import lombok.RequiredArgsConstructor;
+import org.dnd.api.model.SessionPublication;
 import org.dnd.api.model.SessionRequest;
 import org.dnd.api.model.SessionResponse;
+import org.dnd.api.model.SessionSubscription;
 import org.dnd.api.model.SessionsResponse;
 import org.dnd.board.BoardEnricher;
 import org.dnd.board.BoardEntity;
+import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
 import org.dnd.group.GroupEntity;
+import org.dnd.group.GroupMapper;
 import org.dnd.group.GroupRepository;
+import org.dnd.session.share.SessionShareEntity;
+import org.dnd.session.share.SessionShareLifecycle;
+import org.dnd.session.share.SessionShareRepository;
 import org.dnd.track.TrackEntity;
+import org.dnd.track.TrackMapper;
 import org.dnd.track.TrackRepository;
 import org.dnd.user.UserEntity;
+import org.dnd.user.UserMapper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
 import org.dnd.utils.SecurityUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,6 +52,11 @@ public class SessionService {
   private final UserRepository userRepository;
   private final UserRankEvaluatorService userRankEvaluatorService;
   private final SecurityUtils securityUtils;
+  private final SessionShareRepository sessionShareRepository;
+  private final SessionShareLifecycle sessionShareLifecycle;
+  private final TrackMapper trackMapper;
+  private final GroupMapper groupMapper;
+  private final UserMapper userMapper;
 
   @Transactional(readOnly = true)
   public SessionsResponse getSessions() {
@@ -59,6 +77,7 @@ public class SessionService {
 
     SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
 
+    sessionShareLifecycle.beforeSessionDelete(sessionEntity);
     sessionRepository.delete(sessionEntity);
     return getSessions();
   }
@@ -88,7 +107,7 @@ public class SessionService {
   public SessionsResponse updateSession(SessionRequest sessionRequest) {
     UUID userId = securityUtils.getCurrentUserId();
 
-    SessionEntity existingSession = findOwnedSession(sessionRequest.getSessionId(), userId);
+    SessionEntity existingSession = findEditableSession(sessionRequest.getSessionId(), userId);
 
     existingSession.setName(sessionRequest.getSessionName());
     existingSession.setDescription(sessionRequest.getSessionDescription());
@@ -110,7 +129,7 @@ public class SessionService {
   @Transactional
   public SessionResponse addTrack(UUID sessionId, UUID trackId) {
     UUID userId = securityUtils.getCurrentUserId();
-    SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
+    SessionEntity sessionEntity = findEditableSession(sessionId, userId);
 
     TrackEntity track = trackRepository.findAccessibleByIdAndUserId(trackId, userId)
             .orElseThrow(() -> new NotFoundException(String.format("Track with id %s not found", trackId)));
@@ -122,7 +141,7 @@ public class SessionService {
   @Transactional
   public SessionResponse removeTrack(UUID sessionId, UUID trackId) {
     UUID userId = securityUtils.getCurrentUserId();
-    SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
+    SessionEntity sessionEntity = findEditableSession(sessionId, userId);
 
     sessionEntity.getTracks().removeIf(track -> track.getId().equals(trackId));
     clearSelectionsOutsideSession(sessionEntity);
@@ -132,9 +151,9 @@ public class SessionService {
   @Transactional
   public SessionResponse addGroup(UUID sessionId, UUID groupId) {
     UUID userId = securityUtils.getCurrentUserId();
-    SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
+    SessionEntity sessionEntity = findEditableSession(sessionId, userId);
 
-    GroupEntity group = groupRepository.findByIdAndOwner_Id(groupId, userId)
+    GroupEntity group = groupRepository.findByIdAndOwner_IdAndManagedSessionIsNull(groupId, userId)
             .orElseThrow(() -> new NotFoundException(String.format("Group with id %s not found", groupId)));
 
     sessionEntity.getGroups().add(group);
@@ -144,7 +163,7 @@ public class SessionService {
   @Transactional
   public SessionResponse removeGroup(UUID sessionId, UUID groupId) {
     UUID userId = securityUtils.getCurrentUserId();
-    SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
+    SessionEntity sessionEntity = findEditableSession(sessionId, userId);
 
     sessionEntity.getGroups().removeIf(group -> group.getId().equals(groupId));
     clearSelectionsOutsideSession(sessionEntity);
@@ -156,7 +175,7 @@ public class SessionService {
     if (sessionId == null) {
       return;
     }
-    findOwnedSession(sessionId, securityUtils.getCurrentUserId()).getTracks().add(track);
+    findEditableSession(sessionId, securityUtils.getCurrentUserId()).getTracks().add(track);
   }
 
   @Transactional
@@ -164,7 +183,25 @@ public class SessionService {
     if (sessionId == null) {
       return;
     }
-    findOwnedSession(sessionId, securityUtils.getCurrentUserId()).getGroups().add(group);
+    findEditableSession(sessionId, securityUtils.getCurrentUserId()).getGroups().add(group);
+  }
+
+  public SessionResponse toEnrichedResponse(SessionEntity sessionEntity, UUID userId) {
+    SessionResponse response = sessionMapper.toResponse(sessionEntity);
+    enrichSessionWithBoards(response, sessionEntity, userId);
+    response.setReadOnly(sessionEntity.isSubscribed());
+    response.setTrackCount(allTracks(sessionEntity).size());
+    if (sessionEntity.isSubscribed()) {
+      response.setSubscription(toSubscription(sessionEntity, userId));
+    } else {
+      sessionShareRepository.findBySession_IdAndUnpublishedAtIsNull(sessionEntity.getId())
+              .ifPresent(share -> response.setPublication(toPublication(share)));
+    }
+    return response;
+  }
+
+  public static OffsetDateTime toOffset(LocalDateTime dateTime) {
+    return dateTime == null ? null : dateTime.atZone(ZoneId.systemDefault()).toOffsetDateTime();
   }
 
   private void clearSelectionsOutsideSession(SessionEntity session) {
@@ -192,6 +229,14 @@ public class SessionService {
     }
   }
 
+  private SessionEntity findEditableSession(UUID sessionId, UUID userId) {
+    SessionEntity session = findOwnedSession(sessionId, userId);
+    if (session.isSubscribed()) {
+      throw new ForbiddenException("Subscribed sessions cannot be changed");
+    }
+    return session;
+  }
+
   private SessionEntity findOwnedSession(UUID sessionId, UUID userId) {
     return sessionRepository.findByIdAndOwner_Id(sessionId, userId)
             .orElseThrow(() -> new NotFoundException(
@@ -199,10 +244,48 @@ public class SessionService {
             ));
   }
 
-  private SessionResponse toEnrichedResponse(SessionEntity sessionEntity, UUID userId) {
-    SessionResponse response = sessionMapper.toResponse(sessionEntity);
-    enrichSessionWithBoards(response, sessionEntity, userId);
-    return response;
+  private SessionSubscription toSubscription(SessionEntity session, UUID userId) {
+    SessionShareEntity share = session.getSourceShare();
+    int installedVersion = session.getInstalledVersion() == null ? 0 : session.getInstalledVersion();
+
+    SessionSubscription subscription = new SessionSubscription()
+            .installedVersion(installedVersion)
+            .modified(session.isModified())
+            .tracks(allTracks(session).stream().map(track -> trackMapper.toDto(track, userId)).toList())
+            .groups(groupMapper.toDtos(List.copyOf(session.getGroups())));
+
+    if (share == null) {
+      return subscription
+              .updateAvailable(false)
+              .unpublished(true)
+              .restorable(false);
+    }
+
+    return subscription
+            .shareId(share.getId())
+            .owner(userMapper.toLiteUserDto(share.getOwner()))
+            .latestVersion(share.getVersion())
+            .updateAvailable(share.isPublished() && share.getVersion() > installedVersion)
+            .unpublished(!share.isPublished())
+            .restorable(true);
+  }
+
+  private Set<TrackEntity> allTracks(SessionEntity session) {
+    Set<TrackEntity> tracks = new LinkedHashSet<>(session.getTracks());
+    session.getGroups().forEach(group ->
+            group.getGroupTracks().forEach(groupTrack -> tracks.add(groupTrack.getTrack())));
+    return tracks;
+  }
+
+  private SessionPublication toPublication(SessionShareEntity share) {
+    return new SessionPublication()
+            .shareId(share.getId())
+            .shareCode(share.getShareCode())
+            .description(share.getDescription())
+            .version(share.getVersion())
+            .publishedAt(toOffset(share.getPublishedAt()))
+            .updatedAt(toOffset(share.getUpdatedAt()))
+            .subscriberCount(Math.toIntExact(sessionRepository.countBySourceShare_Id(share.getId())));
   }
 
   private void enrichSessionWithBoards(SessionResponse sessionResponse, SessionEntity sessionEntity, UUID userId) {

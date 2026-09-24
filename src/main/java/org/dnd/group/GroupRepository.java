@@ -14,14 +14,17 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
 
   List<GroupEntity> findByOwner_Id(UUID ownerId);
 
-  Optional<GroupEntity> findByIdAndOwner_Id(UUID groupId, UUID ownerId);
+  Optional<GroupEntity> findByIdAndOwner_IdAndManagedSessionIsNull(UUID groupId, UUID ownerId);
 
-  boolean existsByIdAndOwner_Id(UUID groupId, UUID ownerId);
+  boolean existsByIdAndOwner_IdAndManagedSessionIsNull(UUID groupId, UUID ownerId);
+
+  List<GroupEntity> findByManagedSession_Id(UUID sessionId);
 
   @Query("""
           select distinct g
           from GroupEntity g
           where g.owner.id = :userId
+            and g.managedSession is null
           """)
   List<GroupEntity> findAccessibleGroupsForUser(@Param("userId") UUID userId);
 
@@ -45,51 +48,5 @@ public interface GroupRepository extends JpaRepository<GroupEntity, UUID> {
           where t.id = :trackId
           """)
   List<GroupEntity> findAllContainingTrack(@Param("trackId") UUID trackId);
-
-  @Query("""
-          select distinct g
-          from GroupEntity g
-          join g.groupTracks gt
-          join gt.track t
-          where t.id = :trackId
-            and g.owner.id = :ownerId
-          """)
-  List<GroupEntity> findAllContainingTrackOwnedByUser(@Param("trackId") UUID trackId,
-                                                      @Param("ownerId") UUID ownerId);
-
-  @Query("""
-          select distinct g
-          from GroupEntity g
-          join g.groupTracks gt
-          join gt.track t
-          where t.id = :trackId
-            and g.owner.id <> :ownerId
-          """)
-  List<GroupEntity> findAllContainingTrackNotOwnedByUser(@Param("trackId") UUID trackId,
-                                                         @Param("ownerId") UUID ownerId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(value = """
-          delete from group_tracks gt
-          using groups g
-          where gt.group_id = g.id
-            and gt.track_id = :trackId
-            and g.owner_id <> :ownerId
-          """, nativeQuery = true)
-  int removeFromAllGroupsNotOwnedByUser(@Param("trackId") UUID trackId,
-                                        @Param("ownerId") UUID ownerId);
-
-  @Modifying(clearAutomatically = true, flushAutomatically = true)
-  @Transactional
-  @Query(value = """
-          delete from group_tracks gt
-          using groups g
-          where gt.group_id = g.id
-            and gt.track_id = :trackId
-            and g.owner_id = :ownerId
-          """, nativeQuery = true)
-  int removeTrackFromGroupsOwnedByUser(@Param("trackId") UUID trackId,
-                                       @Param("ownerId") UUID ownerId);
 
 }
