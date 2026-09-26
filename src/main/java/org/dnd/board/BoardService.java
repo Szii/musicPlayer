@@ -101,7 +101,7 @@ public class BoardService {
             .orElse(0) + 1);
 
     setGroupIfExist(request.getSelectedGroupId(), board);
-    setTrackIfExist(request.getSelectedTrackId(), board);
+    setTrackIfExist(request.getSelectedTrackId(), null, board);
 
     session.getBoards().add(board);
 
@@ -142,7 +142,7 @@ public class BoardService {
     boardMapper.updateBoardFromRequest(request, board);
     applyRepeatGap(board, request);
     setGroupIfExist(request.getSelectedGroupId(), board);
-    setTrackIfExist(request.getSelectedTrackId(), board);
+    setTrackIfExist(request.getSelectedTrackId(), request.getSelectedWindowId(), board);
     setWindowIfExist(request.getSelectedWindowId(), board);
     board.setLinkedBoard(boardMapper.toLinkedBoard(request.getLinkedBoard()));
 
@@ -224,7 +224,7 @@ public class BoardService {
             || !Objects.equals(requestedLinkedMode, currentLinkedMode);
   }
 
-  private void setTrackIfExist(UUID selectedTrackId, BoardEntity board) {
+  private void setTrackIfExist(UUID selectedTrackId, UUID selectedWindowId, BoardEntity board) {
     if (selectedTrackId == null) {
       board.setSelectedTrack(null);
       return;
@@ -238,7 +238,7 @@ public class BoardService {
             ));
 
     if ((board.getSelectedTrack() == null || !board.getSelectedTrack().getId().equals(track.getId()))
-            && !isInSessionGroup(board.getSession(), track)) {
+            && !isInSessionGroup(board.getSession(), track, selectedWindowId)) {
       board.getSession().getTracks().add(track);
     }
     board.setSelectedTrack(track);
@@ -257,11 +257,12 @@ public class BoardService {
     board.setSelectedGroup(group);
   }
 
-  private boolean isInSessionGroup(SessionEntity session, TrackEntity track) {
+  private boolean isInSessionGroup(SessionEntity session, TrackEntity track, UUID selectedWindowId) {
     return session.getGroups().stream()
             .flatMap(group -> group.getGroupTracks().stream())
+            .filter(groupTrack -> groupTrack.getTrack().getId().equals(track.getId()))
             .anyMatch(groupTrack -> groupTrack.getTrackWindow() == null
-                    && groupTrack.getTrack().getId().equals(track.getId()));
+                    || groupTrack.getTrackWindow().getId().equals(selectedWindowId));
   }
 
   private void setWindowIfExist(UUID selectedWindowId, BoardEntity board) {
