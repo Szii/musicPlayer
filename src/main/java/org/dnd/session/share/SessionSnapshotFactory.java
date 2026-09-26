@@ -58,7 +58,9 @@ public class SessionSnapshotFactory {
   }
 
   private List<BoardEntity> boards(SessionEntity session) {
-    return session.getBoards() == null ? List.of() : List.copyOf(session.getBoards());
+    return session.getBoards() == null ? List.of() : session.getBoards().stream()
+            .sorted(Comparator.comparingInt(BoardEntity::getPositionWithinSession))
+            .toList();
   }
 
   private TrackSnapshot toTrack(TrackEntity track) {
@@ -120,7 +122,9 @@ public class SessionSnapshotFactory {
             board.isPlaylistMode(),
             board.isSequenceMode(),
             linkedInSession ? linkedBoard.getBoardId() : null,
-            linkedInSession ? linkedBoard.getMode() : null
+            linkedInSession ? linkedBoard.getMode() : null,
+            board.getRepeatGapMinSec(),
+            board.getRepeatGapMaxSec()
     );
   }
 }

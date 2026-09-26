@@ -24,6 +24,7 @@ public interface BoardMapper {
   BoardEntity toEntity(BoardCreateRequest request);
 
   @Mapping(target = "availableTracks", ignore = true)
+  @Mapping(target = "position", source = "positionWithinSession")
   Board toDto(BoardEntity entity);
 
   @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)

@@ -6,6 +6,7 @@ import org.dnd.DatabaseBase;
 import org.dnd.TestHelpers;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.PublishSessionRequest;
+import org.dnd.api.model.ReorderSessionBoardsRequest;
 import org.dnd.api.model.SubscribeRequest;
 import org.dnd.api.model.UpdateSessionShareRequest;
 import org.dnd.api.model.UserLimits;
@@ -24,6 +25,7 @@ import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
 import org.dnd.user.rank.UserRankEvaluatorService;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +37,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -123,6 +128,8 @@ class SessionShareTest extends DatabaseBase {
     groupBoard.setSelectedTrack(groupTrack);
     groupBoard.setSelectedWindow(window);
     groupBoard.setVolume(70);
+    groupBoard.setRepeatGapMinSec(20);
+    groupBoard.setRepeatGapMaxSec(60);
     groupBoard = boardRepository.save(groupBoard);
 
     BoardEntity ambientBoard = new BoardEntity();
@@ -391,6 +398,8 @@ class SessionShareTest extends DatabaseBase {
 
     updateBoard(fight, playbackUpdate(fight)
             .volume(10)
+            .repeatGapMinSec(1)
+            .repeatGapMaxSec(2)
             .shuffle(true)
             .repeat(true)
             .overplay(true)
@@ -400,6 +409,8 @@ class SessionShareTest extends DatabaseBase {
             .selectedWindowId(null))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.volume").value(10))
+            .andExpect(jsonPath("$.repeatGapMinSec").value(1))
+            .andExpect(jsonPath("$.repeatGapMaxSec").value(2))
             .andExpect(jsonPath("$.shuffle").value(false))
             .andExpect(jsonPath("$.repeat").value(false))
             .andExpect(jsonPath("$.overplay").value(false))
@@ -410,6 +421,16 @@ class SessionShareTest extends DatabaseBase {
     updateBoard(fight, playbackUpdate(fight).selectedTrackId(directTrack.getId()).selectedWindowId(null))
             .andExpect(status().isNotFound());
 
+    updateBoard(fight, playbackUpdate(fight).repeatGapMinSec(30).repeatGapMaxSec(5))
+            .andExpect(status().isBadRequest());
+
+    updateBoard(fight, playbackUpdate(fight).repeatGapMinSec(0).repeatGapMaxSec(0))
+            .andExpect(status().isForbidden());
+
+    JsonNode ambient = boardNamed(session, "Ambient");
+    updateBoard(ambient, playbackUpdate(ambient).repeatGapMinSec(5).repeatGapMaxSec(10))
+            .andExpect(status().isForbidden());
+
     mockMvc.perform(get("/api/v1/sessions/{id}", sessionId).with(TestHelpers.authenticatedAs(subscriber)))
             .andExpect(jsonPath("$.subscription.modified").value(true))
             .andExpect(jsonPath("$.subscription.updateAvailable").value(false));
@@ -417,12 +438,79 @@ class SessionShareTest extends DatabaseBase {
     JsonNode synced = json(sync(sessionId).andExpect(status().isOk()));
     JsonNode restored = boardNamed(synced, "Fight");
     assertEquals(70, restored.get("volume").asInt());
+    assertEquals(20, restored.get("repeatGapMinSec").asInt());
+    assertEquals(60, restored.get("repeatGapMaxSec").asInt());
     assertFalse(restored.get("shuffle").asBoolean());
     assertEquals("Chorus", restored.get("selectedWindow").get("name").asText());
     assertFalse(synced.get("subscription").get("modified").asBoolean());
 
     assertEquals(2, trackRepository.findByOwner_Id(subscriber.getId()).size());
     assertEquals(1, groupRepository.findByOwner_Id(subscriber.getId()).size());
+  }
+
+  @Test
+  void subscribedSession_reordersOwnBoards_withoutTouchingPublisher() throws Exception {
+    JsonNode session = json(subscribe(shareCodeOf(publish(null))));
+    String sessionId = session.get("sessionId").asText();
+    assertEquals(List.of("Ambient", "Explore", "Fight"), boardNames(session));
+
+    reorderBoards(sessionId, subscriber,
+            boardNamed(session, "Fight"), boardNamed(session, "Ambient"), boardNamed(session, "Explore"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards[*].name").value(Matchers.contains("Fight", "Ambient", "Explore")))
+            .andExpect(jsonPath("$.subscription.modified").value(true));
+
+    JsonNode ownerView = json(mockMvc.perform(get("/api/v1/sessions/{id}", ownerSession.getId())
+            .with(TestHelpers.authenticatedAs(owner))));
+    assertEquals(List.of("Ambient", "Explore", "Fight"), boardNames(ownerView));
+    assertEquals(1, ownerView.get("publication").get("version").asInt());
+
+    UserEntity another = userRepository.save(TestHelpers.withKeycloakId(
+            UserHelper.createValidatedUser("another", "password", "another@email.cz")));
+    String shareCode = sessionShareRepository.findBySession_IdAndUnpublishedAtIsNull(ownerSession.getId())
+            .orElseThrow().getShareCode();
+    assertEquals(List.of("Ambient", "Explore", "Fight"), boardNames(json(subscribe(shareCode, another))));
+
+    assertEquals(List.of("Ambient", "Explore", "Fight"), boardNames(json(sync(sessionId).andExpect(status().isOk()))));
+  }
+
+  @Test
+  void publisherBoardOrder_reachesSubscribersOnSync() throws Exception {
+    JsonNode session = json(subscribe(shareCodeOf(publish(null))));
+    String sessionId = session.get("sessionId").asText();
+
+    JsonNode ownerView = json(mockMvc.perform(get("/api/v1/sessions/{id}", ownerSession.getId())
+            .with(TestHelpers.authenticatedAs(owner))));
+    reorderBoards(ownerSession.getId().toString(), owner,
+            boardNamed(ownerView, "Explore"), boardNamed(ownerView, "Fight"), boardNamed(ownerView, "Ambient"))
+            .andExpect(status().isOk());
+
+    mockMvc.perform(put("/api/v1/share/sessions/{id}/publish", ownerSession.getId())
+                    .with(TestHelpers.authenticatedAs(owner)))
+            .andExpect(status().isOk());
+
+    assertEquals(List.of("Ambient", "Explore", "Fight"), boardNames(json(mockMvc.perform(get("/api/v1/sessions/{id}", sessionId)
+            .with(TestHelpers.authenticatedAs(subscriber))))));
+    assertEquals(List.of("Explore", "Fight", "Ambient"), boardNames(json(sync(sessionId).andExpect(status().isOk()))));
+  }
+
+  @Test
+  void subscribedBoard_allowsChoosingTrackWindows() throws Exception {
+    JsonNode session = json(subscribe(shareCodeOf(publish(null))));
+    JsonNode fight = boardNamed(session, "Fight");
+    String windowId = fight.get("selectedWindow").get("id").asText();
+
+    updateBoard(fight, playbackUpdate(fight).selectedWindowId(null))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.selectedWindow").doesNotExist());
+
+    updateBoard(fight, playbackUpdate(fight).selectedWindowId(UUID.fromString(windowId)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.selectedWindow.id").value(windowId))
+            .andExpect(jsonPath("$.selectedWindow.name").value("Chorus"));
+
+    updateBoard(fight, playbackUpdate(fight).selectedWindowId(window.getId()))
+            .andExpect(status().isNotFound());
   }
 
   @Test
@@ -637,6 +725,22 @@ class SessionShareTest extends DatabaseBase {
               .mode(org.dnd.api.model.LinkedBoardMode.fromValue(board.get("linkedBoard").get("mode").asText())));
     }
     return request;
+  }
+
+  private ResultActions reorderBoards(String sessionId, UserEntity user, JsonNode... boards) throws Exception {
+    List<UUID> boardIds = Arrays.stream(boards)
+            .map(board -> UUID.fromString(board.get("id").asText()))
+            .toList();
+    return mockMvc.perform(patch("/api/v1/sessions/{id}/boards/reorder", sessionId)
+            .with(TestHelpers.authenticatedAs(user))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(new ReorderSessionBoardsRequest().boardIds(boardIds))));
+  }
+
+  private List<String> boardNames(JsonNode session) {
+    List<String> names = new ArrayList<>();
+    session.get("boards").forEach(board -> names.add(board.get("name").asText()));
+    return names;
   }
 
   private JsonNode boardNamed(JsonNode session, String name) {

@@ -7,6 +7,7 @@ import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
 import org.dnd.api.model.CreateTrackRequestV2;
 import org.dnd.api.model.GroupRequest;
+import org.dnd.api.model.ReorderSessionBoardsRequest;
 import org.dnd.board.BoardEntity;
 import org.dnd.board.BoardRepository;
 import org.dnd.group.GroupEntity;
@@ -26,11 +27,14 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -392,6 +396,108 @@ class SessionScopeTest extends DatabaseBase {
     track.setDuration(120);
     track.setOwner(owner);
     return trackRepository.save(track);
+  }
+
+  @Test
+  void createBoard_appendsToEnd() throws Exception {
+    createBoard("Zeta", 1);
+
+    mockMvc.perform(post("/api/v1/boards")
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardCreateRequest().name("Alpha").sessionId(session.getId()))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards[0].name").value("Zeta"))
+            .andExpect(jsonPath("$.boards[0].position").value(1))
+            .andExpect(jsonPath("$.boards[1].name").value("Alpha"))
+            .andExpect(jsonPath("$.boards[1].position").value(2));
+  }
+
+  @Test
+  void reorderBoards_reordersBoards() throws Exception {
+    BoardEntity a = createBoard("A", 1);
+    BoardEntity b = createBoard("B", 2);
+    BoardEntity c = createBoard("C", 3);
+
+    performReorder(testUser, c.getId(), a.getId(), b.getId())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards[0].id").value(c.getId().toString()))
+            .andExpect(jsonPath("$.boards[0].position").value(1))
+            .andExpect(jsonPath("$.boards[1].id").value(a.getId().toString()))
+            .andExpect(jsonPath("$.boards[1].position").value(2))
+            .andExpect(jsonPath("$.boards[2].id").value(b.getId().toString()))
+            .andExpect(jsonPath("$.boards[2].position").value(3));
+
+    mockMvc.perform(get("/api/v1/sessions/{sessionId}", session.getId())
+                    .with(TestHelpers.authenticatedAs(testUser)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards[*].name").value(Matchers.contains("C", "A", "B")));
+    assertFalse(sessionRepository.findById(session.getId()).orElseThrow().isModified());
+  }
+
+  @Test
+  void reorderBoards_rejectsIncompleteSet() throws Exception {
+    BoardEntity a = createBoard("A", 1);
+    createBoard("B", 2);
+
+    performReorder(testUser, a.getId())
+            .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void reorderBoards_rejectsDuplicates() throws Exception {
+    BoardEntity a = createBoard("A", 1);
+    createBoard("B", 2);
+
+    performReorder(testUser, a.getId(), a.getId())
+            .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void reorderBoards_rejectsForeignBoard() throws Exception {
+    BoardEntity a = createBoard("A", 1);
+    createBoard("B", 2);
+
+    performReorder(testUser, a.getId(), UUID.randomUUID())
+            .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void reorderBoards_isNotFound_whenSessionNotOwned() throws Exception {
+    BoardEntity a = createBoard("A", 1);
+
+    performReorder(otherUser, a.getId())
+            .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void reorderBoards_isAllowedForSubscribedSession() throws Exception {
+    session.setSubscribed(true);
+    session = sessionRepository.save(session);
+    BoardEntity a = createBoard("A", 1);
+    BoardEntity b = createBoard("B", 2);
+
+    performReorder(testUser, b.getId(), a.getId())
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.boards[*].name").value(Matchers.contains("B", "A")));
+
+    assertTrue(sessionRepository.findById(session.getId()).orElseThrow().isModified());
+  }
+
+  private ResultActions performReorder(UserEntity user, UUID... boardIds) throws Exception {
+    return mockMvc.perform(patch("/api/v1/sessions/{sessionId}/boards/reorder", session.getId())
+            .with(TestHelpers.authenticatedAs(user))
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(new ReorderSessionBoardsRequest().boardIds(List.of(boardIds)))));
+  }
+
+  private BoardEntity createBoard(String name, int position) {
+    BoardEntity board = new BoardEntity();
+    board.setName(name);
+    board.setOwner(testUser);
+    board.setSession(session);
+    board.setPositionWithinSession(position);
+    return boardRepository.save(board);
   }
 
   private GroupEntity createGroup(String name, UserEntity owner) {

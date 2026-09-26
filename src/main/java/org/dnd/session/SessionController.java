@@ -4,6 +4,7 @@ import com.giffing.bucket4j.spring.boot.starter.context.RateLimiting;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.dnd.api.SessionsApi;
+import org.dnd.api.model.ReorderSessionBoardsRequest;
 import org.dnd.api.model.SessionRequest;
 import org.dnd.api.model.SessionResponse;
 import org.dnd.api.model.SessionsResponse;
@@ -103,5 +104,15 @@ public class SessionController implements SessionsApi {
   )
   public ResponseEntity<SessionResponse> removeGroupFromSession(UUID sessionId, UUID groupId) {
     return ResponseEntity.ok(sessionService.removeGroup(sessionId, groupId));
+  }
+
+  @Override
+  @RateLimiting(
+          name = DEFAULT_API,
+          cacheKey = CURRENT_USER_KEY,
+          ratePerMethod = true
+  )
+  public ResponseEntity<SessionResponse> reorderSessionBoards(UUID sessionId, ReorderSessionBoardsRequest reorderSessionBoardsRequest) {
+    return ResponseEntity.ok(sessionService.reorderBoards(sessionId, reorderSessionBoardsRequest));
   }
 }

@@ -799,7 +799,7 @@ components:
           description: A newer version was published. Syncing installs it.
         modified:
           type: boolean
-          description: The selected track or window or the volume of a board changed since the last sync. Syncing restores them.
+          description: The selected track or window, the volume or the pause between plays of a board, or the order of the boards changed since the last sync. Syncing restores them.
         unpublished:
           type: boolean
           description: The owner stopped publishing the session. It keeps working, but no updates will come.
@@ -902,6 +902,20 @@ components:
           maxLength: 255
           description: Optional name for the item within this group. If omitted, the track's (or window's) own name is used.
 
+    ReorderSessionBoardsRequest:
+      type: object
+      description: The session's boards in the desired order. Must be a full permutation of the session's current boards.
+      required:
+        - boardIds
+      properties:
+        boardIds:
+          type: array
+          description: Board ids in the desired order. The first id receives position 1.
+          minItems: 1
+          items:
+            type: string
+            format: uuid
+
     ReorderGroupTracksRequest:
       type: object
       description: The group's items in the desired order. Must be a full permutation of the group's current items.
@@ -982,11 +996,28 @@ components:
           type: boolean
           description: Play the windows of track in the sequence
           example: false
+        repeatGapMinSec:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          description: Shortest pause in seconds before a repeating track or the next playlist track plays. 0 disables the pause.
+          example: 20
+        repeatGapMaxSec:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          description: Longest pause in seconds. The pause is picked at random between the minimum and this value; equal values give a fixed pause.
+          example: 60
         sessionId:
           type: string
           format: uuid
           nullable: false
           description: Id of the session this board belongs to
+        position:
+          type: integer
+          description: Position of the board within its session, starting at 1. Boards are listed in this order.
+          readOnly: true
+          example: 1
         linkedBoard:
           allOf:
             - $ref: '#/components/schemas/LinkedBoard'
@@ -1074,6 +1105,18 @@ components:
           type: boolean
           description: Play the windows of track in the sequence
           example: false
+        repeatGapMinSec:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          description: Shortest pause in seconds before a repeating track or the next playlist track plays. 0 disables the pause.
+          example: 20
+        repeatGapMaxSec:
+          type: integer
+          minimum: 0
+          maximum: 3600
+          description: Longest pause in seconds. The pause is picked at random between the minimum and this value; equal values give a fixed pause.
+          example: 60
         linkedBoard:
           allOf:
             - $ref: '#/components/schemas/LinkedBoard'
@@ -1194,7 +1237,7 @@ components:
           description: Number of distinct tracks in the session, whether added directly or through its groups
         readOnly:
           type: boolean
-          description: True for subscribed sessions. Only the selected track and window and the volume of their boards can change; single/playlist mode, loop mode, overplay and shuffle stay as published.
+          description: True for subscribed sessions. Only the selected track and window, the volume and the pause between plays of their boards, and the order of the boards can change; single/playlist mode, loop mode, overplay and shuffle stay as published.
         subscription:
           allOf:
             - $ref: '#/components/schemas/SessionSubscription'
@@ -2518,6 +2561,33 @@ paths:
         '404':
           description: Session not found
 
+
+  /sessions/{sessionId}/boards/reorder:
+    patch:
+      tags:
+        - Sessions
+      summary: Reorder boards within a session
+      description: Updates the order of boards within the specified session. Positions are assigned from 1 based on the order of boardIds in the request. Allowed for subscribed sessions as well.
+      operationId: reorderSessionBoards
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReorderSessionBoardsRequest'
+      responses:
+        '200':
+          description: Session with reordered boards
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+        '400':
+          description: Bad request validation error, duplicate board ids, missing boards, or boards not belonging to the session
+        '404':
+          description: Session not found or not owned by the current user
 
   /sessions/{sessionId}/tracks/{trackId}:
     put:

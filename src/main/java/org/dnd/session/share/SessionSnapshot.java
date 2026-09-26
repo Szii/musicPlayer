@@ -65,7 +65,9 @@ public record SessionSnapshot(
           boolean playlistMode,
           boolean sequenceMode,
           UUID linkedBoardId,
-          LinkedBoardMode linkedBoardMode
+          LinkedBoardMode linkedBoardMode,
+          Integer repeatGapMinSec,
+          Integer repeatGapMaxSec
   ) {
   }
 }

@@ -107,9 +107,11 @@ public class SessionMaterializer {
     session.getGroups().addAll(groups.values());
 
     Map<UUID, BoardEntity> boards = new HashMap<>();
+    int position = 0;
     for (BoardSnapshot boardSnapshot : snapshot.boards()) {
       BoardEntity board = new BoardEntity();
       board.setName(boardSnapshot.name());
+      board.setPositionWithinSession(++position);
       board.setOwner(owner);
       board.setSession(session);
       board.setSelectedGroup(boardSnapshot.selectedGroupId() == null ? null : groups.get(boardSnapshot.selectedGroupId()));
@@ -125,6 +127,8 @@ public class SessionMaterializer {
       board.setShuffle(boardSnapshot.shuffle());
       board.setPlaylistMode(boardSnapshot.playlistMode());
       board.setSequenceMode(boardSnapshot.sequenceMode());
+      board.setRepeatGapMinSec(boardSnapshot.repeatGapMinSec() == null ? 0 : boardSnapshot.repeatGapMinSec());
+      board.setRepeatGapMaxSec(boardSnapshot.repeatGapMaxSec() == null ? 0 : boardSnapshot.repeatGapMaxSec());
 
       session.getBoards().add(board);
       boards.put(boardSnapshot.id(), boardRepository.save(board));

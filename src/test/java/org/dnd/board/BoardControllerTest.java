@@ -288,6 +288,60 @@ class BoardControllerTest extends DatabaseBase {
   }
 
   @Test
+  void updateUserBoard_setsRepeatGap() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Thunder");
+    board.setOwner(testUser);
+    board.setSession(testSession);
+    board = boardRepository.save(board);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .repeatGapMinSec(20)
+                            .repeatGapMaxSec(60))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.repeatGapMinSec").value(20))
+            .andExpect(jsonPath("$.repeatGapMaxSec").value(60));
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest().volume(40))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.repeatGapMinSec").value(20))
+            .andExpect(jsonPath("$.repeatGapMaxSec").value(60));
+  }
+
+  @Test
+  void updateUserBoard_rejectsRepeatGapMinAboveMax() throws Exception {
+    BoardEntity board = new BoardEntity();
+    board.setName("Thunder");
+    board.setOwner(testUser);
+    board.setSession(testSession);
+    board = boardRepository.save(board);
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .repeatGapMinSec(90)
+                            .repeatGapMaxSec(30))))
+            .andExpect(status().isBadRequest());
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest().repeatGapMaxSec(7200))))
+            .andExpect(status().isBadRequest());
+
+    BoardEntity unchanged = boardRepository.findById(board.getId()).orElseThrow();
+    assertEquals(0, unchanged.getRepeatGapMinSec());
+    assertEquals(0, unchanged.getRepeatGapMaxSec());
+  }
+
+  @Test
   void deleteUserBoard_Success() throws Exception {
     BoardEntity board = new BoardEntity();
     board.setName("Board to Delete");
