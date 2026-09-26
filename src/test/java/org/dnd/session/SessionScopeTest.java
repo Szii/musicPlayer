@@ -14,6 +14,7 @@ import org.dnd.group.GroupEntity;
 import org.dnd.group.GroupRepository;
 import org.dnd.track.TrackEntity;
 import org.dnd.track.TrackRepository;
+import org.dnd.track.TrackWindowEntity;
 import org.dnd.user.UserEntity;
 import org.dnd.user.UserHelper;
 import org.dnd.user.UserRepository;
@@ -223,6 +224,57 @@ class SessionScopeTest extends DatabaseBase {
 
     assertEquals(List.of(group.getId()), sessionGroupIds());
     assertEquals(List.of(), sessionTrackIds());
+  }
+
+  @Test
+  void selectingWindowItemOfSessionGroup_doesNotAddTrackDirectly() throws Exception {
+    TrackEntity track = createTrack("Track", testUser);
+    TrackWindowEntity window = TrackWindowEntity.builder()
+            .name("Chorus")
+            .positionFrom(10L)
+            .positionTo(20L)
+            .positionWithinTrack(1)
+            .build();
+    track.addTrackWindow(window);
+    track = trackRepository.save(track);
+    window = track.getTrackWindows().getFirst();
+
+    GroupEntity group = new GroupEntity();
+    group.setListName("Group");
+    group.setOwner(testUser);
+    group.addTrack(track, window, "Chorus only").setPositionWithinGroup(1);
+    group = groupRepository.save(group);
+    BoardEntity board = createBoard();
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .selectedGroupId(group.getId())
+                            .playlistMode(true)
+                            .selectedTrackId(track.getId())
+                            .selectedWindowId(window.getId()))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.selectedWindow.id").value(window.getId().toString()));
+
+    assertEquals(List.of(), sessionTrackIds());
+
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .selectedGroupId(group.getId())
+                            .selectedTrackId(null))))
+            .andExpect(status().isOk());
+    mockMvc.perform(put("/api/v1/boards/{boardId}", board.getId())
+                    .with(TestHelpers.authenticatedAs(testUser))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(new BoardUpdateRequest()
+                            .selectedGroupId(group.getId())
+                            .selectedTrackId(track.getId()))))
+            .andExpect(status().isOk());
+
+    assertEquals(List.of(track.getId()), sessionTrackIds());
   }
 
   @Test
