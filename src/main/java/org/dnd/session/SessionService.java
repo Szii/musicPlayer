@@ -1,6 +1,8 @@
 package org.dnd.session;
 
 import lombok.RequiredArgsConstructor;
+import org.dnd.api.model.Board;
+import org.dnd.api.model.ReorderSessionBoardsRequest;
 import org.dnd.api.model.SessionPublication;
 import org.dnd.api.model.SessionRequest;
 import org.dnd.api.model.SessionResponse;
@@ -8,6 +10,7 @@ import org.dnd.api.model.SessionSubscription;
 import org.dnd.api.model.SessionsResponse;
 import org.dnd.board.BoardEnricher;
 import org.dnd.board.BoardEntity;
+import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
@@ -31,6 +34,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -171,6 +176,44 @@ public class SessionService {
   }
 
   @Transactional
+  public SessionResponse reorderBoards(UUID sessionId, ReorderSessionBoardsRequest request) {
+    UUID userId = securityUtils.getCurrentUserId();
+    SessionEntity sessionEntity = findOwnedSession(sessionId, userId);
+
+    List<UUID> boardIds = request.getBoardIds();
+    if (boardIds == null || boardIds.isEmpty()) {
+      throw new BadRequestException("Board ids must not be empty");
+    }
+    if (boardIds.size() != new HashSet<>(boardIds).size()) {
+      throw new BadRequestException("Board ids must not contain duplicates");
+    }
+
+    Map<UUID, BoardEntity> boardsById = sessionEntity.getBoards().stream()
+            .collect(Collectors.toMap(BoardEntity::getId, Function.identity()));
+    if (boardIds.size() != boardsById.size()) {
+      throw new BadRequestException("Request must contain all boards of the session");
+    }
+
+    boolean changed = false;
+    for (int i = 0; i < boardIds.size(); i++) {
+      BoardEntity board = boardsById.get(boardIds.get(i));
+      if (board == null) {
+        throw new BadRequestException(String.format("Board %s does not belong to session %s", boardIds.get(i), sessionId));
+      }
+      if (board.getPositionWithinSession() != i + 1) {
+        board.setPositionWithinSession(i + 1);
+        changed = true;
+      }
+    }
+
+    if (changed && sessionEntity.isSubscribed()) {
+      sessionEntity.setModified(true);
+    }
+
+    return toEnrichedResponse(sessionEntity, userId);
+  }
+
+  @Transactional
   public void attachTrack(UUID sessionId, TrackEntity track) {
     if (sessionId == null) {
       return;
@@ -188,6 +231,11 @@ public class SessionService {
 
   public SessionResponse toEnrichedResponse(SessionEntity sessionEntity, UUID userId) {
     SessionResponse response = sessionMapper.toResponse(sessionEntity);
+    if (response.getBoards() != null) {
+      response.setBoards(response.getBoards().stream()
+              .sorted(Comparator.comparing(Board::getPosition).thenComparing(Board::getName))
+              .collect(Collectors.toCollection(ArrayList::new)));
+    }
     enrichSessionWithBoards(response, sessionEntity, userId);
     response.setReadOnly(sessionEntity.isSubscribed());
     response.setTrackCount(allTracks(sessionEntity).size());

@@ -39,7 +39,7 @@ public class SessionEntity {
   private UserEntity owner;
 
   @OneToMany(mappedBy = "session", cascade = CascadeType.ALL, orphanRemoval = true)
-  @OrderBy("name ASC")
+  @OrderBy("positionWithinSession ASC, name ASC")
   private Set<BoardEntity> boards = new HashSet<>();
 
   @ManyToMany

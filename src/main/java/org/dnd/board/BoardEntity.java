@@ -65,8 +65,17 @@ public class BoardEntity {
   @Column(nullable = false)
   private boolean sequenceMode = false;
 
+  @Column(name = "repeat_gap_min_sec", nullable = false)
+  private int repeatGapMinSec = 0;
+
+  @Column(name = "repeat_gap_max_sec", nullable = false)
+  private int repeatGapMaxSec = 0;
+
   @Embedded
   private LinkedBoard linkedBoard;
+
+  @Column(name = "position_within_session", nullable = false)
+  private int positionWithinSession;
 
 }
 

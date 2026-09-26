@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.dnd.api.model.Board;
 import org.dnd.api.model.BoardCreateRequest;
 import org.dnd.api.model.BoardUpdateRequest;
+import org.dnd.exception.BadRequestException;
 import org.dnd.exception.ForbiddenException;
 import org.dnd.exception.LimitReachedException;
 import org.dnd.exception.NotFoundException;
@@ -94,6 +95,10 @@ public class BoardService {
     board.setOwner(owner);
 
     board.setSession(session);
+    board.setPositionWithinSession(session.getBoards().stream()
+            .mapToInt(BoardEntity::getPositionWithinSession)
+            .max()
+            .orElse(0) + 1);
 
     setGroupIfExist(request.getSelectedGroupId(), board);
     setTrackIfExist(request.getSelectedTrackId(), board);
@@ -135,6 +140,7 @@ public class BoardService {
     }
 
     boardMapper.updateBoardFromRequest(request, board);
+    applyRepeatGap(board, request);
     setGroupIfExist(request.getSelectedGroupId(), board);
     setTrackIfExist(request.getSelectedTrackId(), board);
     setWindowIfExist(request.getSelectedWindowId(), board);
@@ -158,6 +164,11 @@ public class BoardService {
 
     if (request.getVolume() != null) {
       board.setVolume(request.getVolume());
+    }
+    boolean pauseEnabled = board.getRepeatGapMaxSec() > 0;
+    applyRepeatGap(board, request);
+    if (board.getRepeatGapMaxSec() > 0 != pauseEnabled) {
+      throw new ForbiddenException("The pause between plays of a shared stage can only be adjusted, not turned on or off");
     }
 
     if (request.getSelectedTrackId() == null) {
@@ -186,6 +197,16 @@ public class BoardService {
     }
 
     board.getSession().setModified(true);
+  }
+
+  private void applyRepeatGap(BoardEntity board, BoardUpdateRequest request) {
+    int min = request.getRepeatGapMinSec() == null ? board.getRepeatGapMinSec() : request.getRepeatGapMinSec();
+    int max = request.getRepeatGapMaxSec() == null ? board.getRepeatGapMaxSec() : request.getRepeatGapMaxSec();
+    if (min > max) {
+      throw new BadRequestException("Repeat gap minimum must not exceed its maximum");
+    }
+    board.setRepeatGapMinSec(min);
+    board.setRepeatGapMaxSec(max);
   }
 
   private boolean changesBoardSetup(BoardEntity board, BoardUpdateRequest request) {
